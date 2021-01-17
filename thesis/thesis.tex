@@ -1,0 +1,47 @@
+\documentclass[UKenglish]{ifimaster}  %% ... or USenglish or norsk or nynorsk
+\usepackage[utf8]{inputenc}           %% ... or latin1
+\usepackage[T1]{fontenc,url}
+\urlstyle{sf}
+\usepackage{babel,textcomp,csquotes,duomasterforside,varioref,graphicx}
+\usepackage[backend=biber,style=numeric-comp]{biblatex}
+
+\title{My title here}        %% ... or whatever
+\subtitle{Managing Real- Time Video and Data Flows with Coupled Congestion Control Mechanism}         %% ... if any
+\author{Tobias Fladby}                      %% ... or whoever 
+
+\addbibresource{./bibdb/mybib.bib}            %% ... or whatever
+
+\begin{document}
+\duoforside[dept={Department of Informatics},   %% ... or your department
+  program={programming and system architecture},  %% ... or your programme
+  long]                                        %% ... or long
+
+\frontmatter{}
+\chapter*{Abstract}                   %% ... or Sammendrag or Samandrag
+
+\tableofcontents{}
+\listoffigures{}
+\listoftables{}
+
+\chapter*{Preface}                    %% ... or Forord
+
+\mainmatter{}
+\part{Introduction}                   %% ... or Innledning or Innleiing
+
+\chapter{Background}                  %% ... or Bakgrunn
+test\cite{7502803}
+another citation\cite{rfc8699}
+
+\part{The project}                    %% ... or ??
+
+\chapter{Planning the project}        %% ... or ??
+
+
+\part{Conclusion}                     %% ... or Konklusjon
+
+\chapter{Results}                     %% ... or ??
+
+
+\backmatter{}
+\printbibliography
+\end{document}

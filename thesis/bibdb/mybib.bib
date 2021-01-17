@@ -1,0 +1,49 @@
+
+@article{10.1145/2740070.2630089,
+    author = {Islam, Safiqul and Welzl, Michael and Gjessing, Stein and Khademi, Naeem},
+    title = {Coupled Congestion Control for RTP Media},
+    year = {2014},
+    issue_date = {October 2014},
+    publisher = {Association for Computing Machinery},
+    address = {New York, NY, USA},
+    volume = {44},
+    number = {4},
+    issn = {0146-4833},
+    url = {https://doi.org/10.1145/2740070.2630089},
+    doi = {10.1145/2740070.2630089},
+    abstract = {Congestion occurs at a bottleneck along an Internet path; multiple flows between the same sender and receiver pairs can benefit from using only a single congestion control instance when they share the same bottleneck. These benefits include the ability to control the rate allocation between flows and reduced overall delay (multiple congestion control instances cause more queuing delay than one since each has no knowledge of the congestion episodes experienced by the others). We present a mechanism for coupling congestion control for real-time media and show its benefits by coupling multiple congestion controlled flows that share the same bottleneck.},
+    journal = {SIGCOMM Comput. Commun. Rev.},
+    month = aug,
+    numpages = {6},
+    keywords = {fse, congestion control, rmcat, webrtc}
+}
+
+@article{7502803,  
+    author={S. {Islam} and M. {Welzl} and D. {Hayes} and S. {Gjessing}},  
+    booktitle={NOMS 2016 - 2016 IEEE/IFIP Network Operations and Management Symposium},     title={Managing real-time media flows through a flow state exchange},       
+    year={2016},  
+    volume={},  
+    number={},  
+    pages={112-120},  
+    abstract={When multiple congestion controlled flows traverse the same network path, their resulting rate is usually an outcome of their competition at the bottleneck. The WebRTC / RTCWeb suite of standards for inter-browser communication is required to allow prioritization. This is addressed by our previously presented mechanism for coupled congestion control, called the Flow State Exchange (FSE). Here, we present our first simulation results using two mechanisms that have been proposed for IETF standardization: Google Congestion Control (GCC) and Network-Assisted Dynamic Adaptation (NADA). These two mechanisms exhibit aspects that allow us to use a simpler “passive” algorithm in our FSE. Passive coupling allows a less time-constrained request-response style of signaling between congestion control mechanisms and the FSE, which enables the FSE to run as a stand-alone management tool.},  
+    keywords={online front-ends;telecommunication congestion control;telecommunication network management;telecommunication standards;stand-alone management tool;FSE;network-assisted dynamic adaptation;google congestion control;IETF standardization;inter-browser communication;RTCWeb;WebRTC;congestion controlled flows;flow state exchange;real-time media flows management;Delays;Receivers;WebRTC;Aggregates;Media;Standards},  
+    doi={10.1109/NOMS.2016.7502803},  
+    ISSN={2374-9709},  
+    month={April}
+}
+
+@misc{rfc8699,
+	series =	{Request for Comments},
+	number =	8699,
+	howpublished =	{RFC 8699},
+	publisher =	{RFC Editor},
+	doi =		{10.17487/RFC8699},
+	url =		{https://rfc-editor.org/rfc/rfc8699.txt},
+        author =	{Safiqul Islam and Michael Welzl and Stein Gjessing},
+	title =		{{Coupled Congestion Control for RTP Media}},
+	pagetotal =	20,
+	year =		2020,
+	month =		jan,
+	abstract =	{When multiple congestion-controlled Real-time Transport Protocol (RTP) sessions traverse the same network bottleneck, combining their controls can improve the total on-the-wire behavior in terms of delay, loss, and fairness. This document describes such a method for flows that have the same sender, in a way that is as flexible and simple as possible while minimizing the number of changes needed to existing RTP applications. This document also specifies how to apply the method for the Network-Assisted Dynamic Adaptation (NADA) congestion control algorithm and provides suggestions on how to apply it to other congestion control algorithms.},
+}
+
