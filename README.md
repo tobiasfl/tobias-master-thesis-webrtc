@@ -7,7 +7,7 @@ The following papers are important for implementing <a href="http://heim.ifi.uio
 
 ### Google Congestion Control
 <ol>
-        <li> <a href="https://tools.ietf.org/html/draft-alvestrand-rmcat-congestion-03"> Draft </a></li>
+        <li> <a href="https://tools.ietf.org/html/draft-ietf-rmcat-gcc-02"> Draft </a></li>
         <li> <a href="http://conferences.sigcomm.org/sigcomm/2013/papers/fhmn/p21.pdf">Paper 1 </a> - this is a good one to get the background, however, the evaluation is based on the older version of GCC</li>
         <li> <a href="http://c3lab.poliba.it/images/c/ce/Gcc-pv-2013.pdf"> [Paper 2] </a> and <a href="http://c3lab.poliba.it/images/3/3d/Elastic-slides.pdf"> [Slides] </a>  written by the same author of paper 1->.</li>
         <li> <a href="http://www.netlab.tkk.fi/~varun/singh2013rrtcc.pdf"> Paper 3 </a>. Also provides evaluation for the older version.
