@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <title></title>
+    <link rel="stylesheet" type="text/css" href="main.css">
+  </head>
+  <body>
+
+    <div id='mainDiv'>
+      <table border="1" width="100%">
+        <tr>
+          <th> Local Video </th>
+          <th> Remote </th>
+        </tr>
+        <tr>
+          <td>
+            <video id="localVideo" autoplay></video>
+
+          </td>
+          <td>
+            <video id="remoteVideo" autoplay></video>
+
+          </td>
+        </tr>
+
+        <tr>
+          <td align="center">
+            <textarea rows="4" cols="60"
+                      id="dataChannelSend" disabled
+                      placeholder="This will be enabled once the data channel is up...">
+            </textarea>
+          </td>
+          <td align="center">
+            <textarea rows="4" cols="60"
+                      id="dataChannelReceive" disabled>
+            </textarea>
+          </td>
+        </tr>
+        <tr>
+          <td align="center">
+            <button id="sendButton" disabled>Send</button>
+          </td>
+          <td></td>
+        </tr>
+
+
+      </table>
+
+      <br/>
+      <br/>
+
+      <table border="1" width="100%">
+
+        <form id="fileInfo">
+          <input type="file" id="fileInput" name="files"/>
+        </form>
+
+	<label for="transferSize">Transfer size (MB): </label>
+	<form id="transferSizeInput">
+	  <input type="number" id="transferSize" name="transferSize" step="10"
+		 min="1" max="1000" value="1"/>
+	</form>
+
+        <br/>
+        <br/>
+
+
+        <div class="progress">
+          <div class="label">Send progress: </div>
+          <progress id="sendProgress" max="0" value="0"></progress>
+        </div>
+
+        <div class="progress">
+          <div class="label">Receive progress: </div>
+          <progress id="receiveProgress" max="0" value="0"></progress>
+        </div>
+
+	<div id="liveBitrate"></div>
+        <div id="bitrate"></div>
+        <a id="download"></a>
+        <span id="status"></span>
+
+
+</tr>
+
+</table>
+
+
+
+
+
+
+</div>
+<script src='socket.io/socket.io.js'></script>
+<script src='js/lib/adapter.js'></script>
+<script src='js/completeNodeClientWithDataChannel.js'></script>
+
+</body>
+</html>
