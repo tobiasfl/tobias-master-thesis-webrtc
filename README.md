@@ -58,4 +58,7 @@ You can easily convert yuv, webm, etc. to y4m using:
  
  https://webrtchacks.com/video_replay/
  
+ a sample video for testing:
+ 
+ https://www.dropbox.com/sh/0gz5okspfma41oh/AACoKqwkon78KOoASe22c9pya?dl=0
  
