@@ -28,10 +28,41 @@
 \mainmatter{}
 \part{Introduction}                   %% ... or Innledning or Innleiing
 
-\chapter{Background}                  %% ... or Bakgrunn
-test\cite{7502803}
-another citation\cite{rfc8699}
+\chapter{Background}
+\section{Real- time communication protocol requirements}
+Video data by nature is large in size so transmitting it creates a lot of traffic. 
+This makes real- time communication challenging because it requires low latency in order to assure a good user experience. 
+History and previous research [cite relevant stuff, like congestion collapse]has shown that protocols should employ mechanisms that limit the amount of data sent per second to a reasonable level in order to avoid congestion as well as keep the latency low.
 
+\section{WebRTC}
+\section{Google Congestion Control}
+RTP by itself only provides simple end- to- end delivery services for multimedia[cite RTP standard], since real- time communication requires congestion control it must implemented on top of RTP. 
+Chromium's WebRTC implementation uses an algorithm called Google Congestion Control \cite{rfc8699} to provide the mechanism.
+It consists of two controllers, one loss- based and one delay- based. 
+The loss- based controller located on the sender- side, uses loss rate, RTT and REMB[Cite REMB message definition] messages to compute a target sending bitrate. 
+The delay- based controller can either be implemented on the receiver- side or sender- side.
+It uses packet arrival info to compute a maximum bitrate which is passed to the loss- based controller. The actual sending rate is set to the minimum of the two bitrates.
+% Might want to explain RTP terms like groups of packets and etc. 
+\subsection{The loss- based controller}
+The loss- based controller is run every time a feedback message from the receiver- side is received. 
+If more than 10\% of packets have been lost when feedback is received the controller decreases the estimate. 
+If less than 2\% is lost it will increase the estimate under the presumption that there is more bandwidth to utilize. 
+Otherwise the estimate stays the same.
+\subsection{The delay- based controller}
+ The delay- based controller consists of several parts: pre- filtering, an arrival- time filter, an over- use detector and a rate controller. %% probably smart to have a figure of this
+
+ Pre- filtering is used to make sure that channel outages, events unrelated to congestion are not interpreted as congestion.
+Packets will naturally be delayed when a channel outage occurs so without this filter the algorithm would unnecessarily lower bitrate, thus lowering the quality of the communication for no reason.
+A channel outage will cause the packets to be queued in network buffers, thus when the channel is restored the packets will arrive in bursts. 
+The filter utilizes the fact that the packet groups will arrive in bursts during a channel outage and merges them under such conditions.
+
+The arrival- time filter is responsible for calculating the queueing time variation which is an estimation of how the delay is developing at a certain time.
+%TODO: fill this one with more info
+The goal of the over- use detector is to produce a signal that drives the state of the remote rate controller. 
+The goal of the over- use detector is to compare the queueing time variation obtained as output from the arrival- time filter with a threshold. If the estimate is above the threshold for a certain amount of time and not sinking it wil signal the rate contol.
+%TODO: incorporate explaination of the remote rate controller as well as the related state machine and how it works
+
+\section{SCTP}
 \part{The project}                    %% ... or ??
 
 \chapter{Planning the project}        %% ... or ??

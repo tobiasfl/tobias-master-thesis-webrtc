@@ -1,4 +1,4 @@
-This is pdfTeX, Version 3.14159265-2.6-1.40.20 (TeX Live 2019/Debian) (preloaded format=pdflatex 2021.1.12)  17 JAN 2021 13:06
+This is pdfTeX, Version 3.14159265-2.6-1.40.20 (TeX Live 2019/Debian) (preloaded format=pdflatex 2021.1.12)  4 FEB 2021 17:16
 entering extended mode
  restricted \write18 enabled.
  file:line:error style messages enabled.
@@ -444,7 +444,7 @@ Package biblatex Info: Automatic encoding selection.
 
 Package biblatex Info: Trying to load bibliographic data...
 Package biblatex Info: ... file 'thesis.bbl' found.
- (./thesis.bbl)
+ (./build/thesis.bbl)
 Package biblatex Info: Reference section=0 on input line 14.
 Package biblatex Info: Reference segment=0 on input line 14.
 LaTeX Font Info:    Trying to load font information for T1+phv on input line 17.
@@ -520,9 +520,9 @@ File: ot1zplm.fd 2002/09/08 Fontinst v1.914 font definitions for OT1/zplm.
 Chapter 1.
 [3
 
-] [4
+] [4] [5
 
-] [5] [6]
+] [6]
 Chapter 2.
 [7
 
@@ -542,17 +542,17 @@ Package logreq Info: Writing requests to 'thesis.run.xml'.
 
  ) 
 Here is how much of TeX's memory you used:
- 10848 strings out of 483183
- 192691 string characters out of 5966292
- 835266 words of memory out of 5000000
- 25679 multiletter control sequences out of 15000+600000
- 570051 words of font info for 74 fonts, out of 8000000 for 9000
+ 10846 strings out of 483183
+ 192210 string characters out of 5966292
+ 836223 words of memory out of 5000000
+ 25676 multiletter control sequences out of 15000+600000
+ 572431 words of font info for 77 fonts, out of 8000000 for 9000
  14 hyphenation exceptions out of 8191
- 41i,4n,45p,988b,2203s stack positions out of 5000i,500n,10000p,200000b,80000s
+ 41i,5n,45p,850b,2203s stack positions out of 5000i,500n,10000p,200000b,80000s
 {/usr/share/texlive/texmf-dist/fonts/enc/dvips/base/8r.enc} </home/tobias/.texlive2019/texmf-var/fonts/pk/ljfour/jknappen/ec/ecss1095.600pk></usr/share/texlive/texmf-dist/fonts/type1/urw/helvetic/uhvr8a.pfb></usr/share/texlive/texmf-dist/fonts/type1/urw/helvetic/uhvro8a.pfb></usr/share/texlive/texmf-dist/fonts/type1/urw/palatino/uplb8a.pfb></usr/share/texlive/texmf-dist/fonts/type1/urw/palatino/uplr8a.pfb></usr/share/texlive/texmf-dist/fonts/type1/urw/palatino/uplr8a.pfb></usr/share/texlive/texmf-dist/fonts/type1/urw/palatino/uplri8a.pfb>
-Output written on ./build/thesis.pdf (27 pages, 132590 bytes).
+Output written on ./build/thesis.pdf (27 pages, 134959 bytes).
 PDF statistics:
- 160 PDF objects out of 1000 (max. 8388607)
+ 153 PDF objects out of 1000 (max. 8388607)
  85 compressed objects within 1 object stream
  0 named destinations out of 1000 (max. 500000)
  6 words of extra memory for PDF output out of 10000 (max. 10000000)
