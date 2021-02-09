@@ -33,11 +33,13 @@
 Video data by nature is large in size so transmitting it creates a lot of traffic. 
 This makes real- time communication challenging because it requires low latency in order to assure a good user experience. 
 History and previous research [cite relevant stuff, like congestion collapse]has shown that protocols should employ mechanisms that limit the amount of data sent per second to a reasonable level in order to avoid congestion as well as keep the latency low.
+\subsection{Congestion control}
+  
 
 \section{WebRTC}
 \section{Google Congestion Control}
 RTP by itself only provides simple end- to- end delivery services for multimedia[cite RTP standard], since real- time communication requires congestion control it must implemented on top of RTP. 
-Chromium's WebRTC implementation uses an algorithm called Google Congestion Control \cite{rfc8699} to provide the mechanism.
+Chromium's WebRTC implementation uses an algorithm called Google Congestion Control \cite{draft-ietf-rmcat-gcc} to provide the mechanism.
 It consists of two controllers, one loss- based and one delay- based. 
 The loss- based controller located on the sender- side, uses loss rate, RTT and REMB[Cite REMB message definition] messages to compute a target sending bitrate. 
 The delay- based controller can either be implemented on the receiver- side or sender- side.
@@ -63,16 +65,29 @@ The goal of the over- use detector is to compare the queueing time variation obt
 %TODO: incorporate explaination of the remote rate controller as well as the related state machine and how it works
 
 \section{SCTP}
-\part{The project}                    %% ... or ??
-
-\chapter{Planning the project}        %% ... or ??
-
-
-\part{Conclusion}                     %% ... or Konklusjon
-
-\chapter{Results}                     %% ... or ??
-
-
+\section{Coupled Congestion Control}
+Coupled congestion control \cite{rfc8699} is a mechanism that aims to improve the delay, loss and fairness for flows travelling over the same bottlenecks by combining their congestion controls. 
+%TODO: Explain why this could prove useful for WebRTC
+%TODO: read about how it performs and cite/mention it around here
+The system has two main components, the Shared Bottleneck Detection(SBD) and the Flow State Exchange(FSE). 
+\subsection{Shared Bottleneck Detection}
+The SBD is an entity that is responsible for determining which flows are traversing the same bottleneck. 
+In \cite{rfc8699} three methods for deriving if flows share the same bottleneck are mentioned.
+One way is through comparing multiplexed flows. 
+%TODO: might want to explain the term five- tuple
+Given that the flows with the same five- tuple will be routed along the same path SBD can assume that they share the same bottleneck. 
+However this method cannot be used for coupled congestion controllers with one sender talking to multiple receivers, given that they will not have the same five- tuple. 
+The other two methods one might use are either through configuration or measurements e.g. by looking at correlations among measured delay and loss. 
+Since WebRTC uses both SRTP and SCTP multiplexed on UDP, this implies they have the same five- tuple and that the first method will work. 
+\subsection{The Flow State Exchange}
+The FSE can be described as a manager that maintains information about the flows and hands out the allowed bit rate for each flow depending on several factors. 
+Firstly, it takes into account how many other flows that are sharing a bottleneck, to make this possible every flow register themselves with the FSE and SBD when they start. 
+For each flow FSE also keeps stores a priority number, the rate used by the flow and the desired rate of the flow. 
+%TODO: more...
+\part{The project}                 
+\chapter{Planning the project}      
+\part{Conclusion}                    
+\chapter{Results}                     
 \backmatter{}
 \printbibliography
 \end{document}

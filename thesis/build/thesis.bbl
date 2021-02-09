@@ -19,6 +19,65 @@
 
 \refsection{0}
   \datalist[entry]{nty/global//global/global}
+    \entry{draft-ietf-rmcat-gcc}{report}{}
+      \name{author}{5}{}{%
+        {{hash=e27d0f0a460c67d45e704c7824ea5103}{%
+           family={Holmer},
+           familyi={H\bibinitperiod},
+           given={Stefan},
+           giveni={S\bibinitperiod}}}%
+        {{hash=51d1711b827a6804d7469b072d61baa3}{%
+           family={Lundin},
+           familyi={L\bibinitperiod},
+           given={Henrik},
+           giveni={H\bibinitperiod}}}%
+        {{hash=d7380a8e38c21c6904d6d38e3c5fab77}{%
+           family={Carlucci},
+           familyi={C\bibinitperiod},
+           given={Gaetano},
+           giveni={G\bibinitperiod}}}%
+        {{hash=82b397254e3e12bbfb3254c389875190}{%
+           family={Cicco},
+           familyi={C\bibinitperiod},
+           given={Luca\bibnamedelima De},
+           giveni={L\bibinitperiod\bibinitdelim D\bibinitperiod}}}%
+        {{hash=096a19bffdd447ad34aeaed5eda2c16a}{%
+           family={Mascolo},
+           familyi={M\bibinitperiod},
+           given={Saverio},
+           giveni={S\bibinitperiod}}}%
+      }
+      \list{institution}{1}{%
+        {Internet Engineering Task Force}%
+      }
+      \list{publisher}{1}{%
+        {Internet Engineering Task Force}%
+      }
+      \strng{namehash}{80b66d0149b89be128e34e27a33b1be8}
+      \strng{fullhash}{a492a92ea81aa560a5311e8060e23c6e}
+      \strng{bibnamehash}{80b66d0149b89be128e34e27a33b1be8}
+      \strng{authorbibnamehash}{80b66d0149b89be128e34e27a33b1be8}
+      \strng{authornamehash}{80b66d0149b89be128e34e27a33b1be8}
+      \strng{authorfullhash}{a492a92ea81aa560a5311e8060e23c6e}
+      \field{sortinit}{H}
+      \field{sortinithash}{6db6145dae8dc9e1271a8d556090b50a}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{abstract}{This document describes two methods of congestion control when using real-time communications on the World Wide Web (RTCWEB); one delay- based and one loss-based. It is published as an input document to the RMCAT working group on congestion control for media streams. The mailing list of that working group is rmcat@ietf.org.}
+      \field{month}{7}
+      \field{note}{Work in Progress}
+      \field{number}{draft-ietf-rmcat-gcc-02}
+      \field{pagetotal}{19}
+      \field{title}{{A Google Congestion Control Algorithm for Real-Time Communication}}
+      \field{type}{Internet-Draft}
+      \field{year}{2016}
+      \verb{urlraw}
+      \verb https://datatracker.ietf.org/doc/html/draft-ietf-rmcat-gcc-02
+      \endverb
+      \verb{url}
+      \verb https://datatracker.ietf.org/doc/html/draft-ietf-rmcat-gcc-02
+      \endverb
+    \endentry
     \entry{rfc8699}{misc}{}
       \name{author}{3}{}{%
         {{hash=f56f4dced7a5aeb739891eea80ad3469}{%

@@ -2182,7 +2182,9 @@
     <bcf:datasource type="file" datatype="bibtex">./bibdb/mybib.bib</bcf:datasource>
   </bcf:bibdata>
   <bcf:section number="0">
-    <bcf:citekey order="1">rfc8699</bcf:citekey>
+    <bcf:citekey order="1">draft-ietf-rmcat-gcc</bcf:citekey>
+    <bcf:citekey order="2">rfc8699</bcf:citekey>
+    <bcf:citekey order="3">rfc8699</bcf:citekey>
   </bcf:section>
   <!-- SORTING TEMPLATES -->
   <bcf:sortingtemplate name="nty">
