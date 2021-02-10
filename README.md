@@ -62,3 +62,6 @@ You can easily convert yuv, webm, etc. to y4m using:
  
  https://www.dropbox.com/sh/0gz5okspfma41oh/AACoKqwkon78KOoASe22c9pya?dl=0
  
+### Deadlines
+* Essay: 01.06.2021
+* Master thesis: 16.05.2022
