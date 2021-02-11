@@ -65,12 +65,13 @@ You can easily convert yuv, webm, etc. to y4m using:
  
 ### Task
 
- 1. prepare a structure of your thesis: just headings, and create table of contents.
- 2. subheadings for your background sections : start with what your audience should know: webrtc architecture, transport protocols, congestion controls, coupled congestion and shared bottleneck detection 
- 3. RTP, RTCP, SCTP in detail
- 4. congestion control mechanisms for webrtc: GCC, NADA(CISCO), Scream
- 5. Come up with your research question(s)
- 6. Video and Data flows: classes!  *NOT URGENT*
+ - [ ] Prepare a structure of your thesis: just headings, and create table of contents.
+ - [ ] Subheadings for your background sections: start with what your audience should know: webrtc architecture, transport protocols, congestion controls, coupled congestion and shared bottleneck detection 
+ - [ ] RTP, RTCP, SCTP in detail
+ - [ ] congestion control mechanisms for webrtc: GCC, NADA(CISCO), Scream
+ - [ ] Come up with your research question(s)
+ - [ ] Video and Data flows: classes!  *NOT URGENT*
+ 
  
  ### Next meeting:
 
