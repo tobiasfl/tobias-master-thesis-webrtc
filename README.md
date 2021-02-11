@@ -69,6 +69,8 @@ You can easily convert yuv, webm, etc. to y4m using:
  2. subheadings for your background sections : start with what your audience should know: webrtc architecture, transport protocols, congestion controls, coupled congestion and shared bottleneck detection 
  3. RTP, RTCP, SCTP in detail
  4. congestion control mechanisms for webrtc: GCC, NADA(CISCO), Scream
+ 5. Come up with your research question(s)
+ 
  
  
  
