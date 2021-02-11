@@ -72,7 +72,12 @@ You can easily convert yuv, webm, etc. to y4m using:
  5. Come up with your research question(s)
  6. Video and Data flows: classes!  *NOT URGENT*
  
- 
+ Next meeting:
+ Topic: Safiqul Islam's Zoom Meeting
+Time: Feb 25, 2021 02:00 PM Oslo
+
+Join Zoom Meeting
+https://uio.zoom.us/j/65715661279?pwd=ejZOd2tDVlRqbzByRFMrNUJTRUZWdz09
  
  
 ### Deadlines
