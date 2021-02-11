@@ -62,3 +62,26 @@ You can easily convert yuv, webm, etc. to y4m using:
  
  https://www.dropbox.com/sh/0gz5okspfma41oh/AACoKqwkon78KOoASe22c9pya?dl=0
  
+ 
+### Task
+
+ - [ ] Prepare a structure of your thesis: just headings, and create table of contents.
+ - [ ] Subheadings for your background sections: start with what your audience should know: webrtc architecture, transport protocols, congestion controls, coupled congestion and shared bottleneck detection 
+ - [ ] RTP, RTCP, SCTP in detail
+ - [ ] congestion control mechanisms for webrtc: GCC, NADA(CISCO), Scream
+ - [ ] Come up with your research question(s)
+ - [ ] Video and Data flows: classes!  *NOT URGENT*
+ 
+ 
+ ### Next meeting:
+
+Topic: Safiqul Islam's Zoom Meeting
+Time: Feb 25, 2021 02:00 PM Oslo
+
+Join Zoom Meeting
+https://uio.zoom.us/j/65715661279?pwd=ejZOd2tDVlRqbzByRFMrNUJTRUZWdz09
+ 
+ 
+### Deadlines
+* Essay: 01.06.2021
+* Master thesis: 16.05.2022
