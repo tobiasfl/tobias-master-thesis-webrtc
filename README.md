@@ -70,6 +70,7 @@ You can easily convert yuv, webm, etc. to y4m using:
  3. RTP, RTCP, SCTP in detail
  4. congestion control mechanisms for webrtc: GCC, NADA(CISCO), Scream
  5. Come up with your research question(s)
+ 6. Video and Data flows: classes!  *NOT URGENT*
  
  
  
