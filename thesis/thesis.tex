@@ -1,43 +1,73 @@
-\documentclass[UKenglish]{ifimaster}  %% ... or USenglish or norsk or nynorsk
+\documentclass[UKenglish]{ifimaster}
 \usepackage[utf8]{inputenc}           %% ... or latin1
 \usepackage[T1]{fontenc,url}
 \urlstyle{sf}
 \usepackage{babel,textcomp,csquotes,duomasterforside,varioref,graphicx}
 \usepackage[backend=biber,style=numeric-comp]{biblatex}
+\usepackage[hidelinks]{hyperref}
 
-\title{My title here}        %% ... or whatever
-\subtitle{Managing Real- Time Video and Data Flows with Coupled Congestion Control Mechanism}         %% ... if any
-\author{Tobias Fladby}                      %% ... or whoever 
+\title{Awesome title here}       
+\subtitle{Managing Real- Time Video and Data Flows with Coupled Congestion Control Mechanism}
+\author{Tobias Fladby}                     
 
-\addbibresource{./bibdb/mybib.bib}            %% ... or whatever
+\addbibresource{./bibdb/mybib.bib}           
 
 \begin{document}
 \duoforside[dept={Department of Informatics},   %% ... or your department
   program={programming and system architecture},  %% ... or your programme
-  long]                                        %% ... or long
+  long]                                       
 
 \frontmatter{}
-\chapter*{Abstract}                   %% ... or Sammendrag or Samandrag
+\chapter*{Abstract}            
 
 \tableofcontents{}
-\listoffigures{}
-\listoftables{}
+%\listoffigures{}
+%\listoftables{}
 
-\chapter*{Preface}                    %% ... or Forord
+\chapter*{Preface}              
 
 \mainmatter{}
-\part{Introduction}                   %% ... or Innledning or Innleiing
+\chapter{Introduction}              
+
+\section{Problem statement}
+\section{Contributions}
+\section{Research questions}
+\section{Organization}
 
 \chapter{Background}
-\section{Real- time communication protocol requirements}
+
+\section{WebRTC architecture}
+\subsection{Real- time communication}
+\subsection{Standardization}
+\subsection{User API}
+\subsubsection{Services}
+\subsubsection{RTCPeerConnection API}
+\subsubsection{DataChannel API}
+\subsection{Signalling}
+\subsubsection{NAT}
+\subsubsection{ICE Framework}
+\subsubsection{TURN}
+\subsubsection{STUN}
+\subsubsection{SDP}
+\subsection{Encryption}
+\subsubsection{TLS}
+\subsubsection{DTLS}
+\subsection{Usage}
+\subsection{Browser engine}
+\subsubsection{Aquiring WebRTC statistics}
+
+\section{Transport protocols}
+\subsection{TCP}
+\subsection{UDP}
+\subsection{RTP and RTCP}
+\subsection{SCTP}
+
+\section{Congestion control}
 Video data by nature is large in size so transmitting it creates a lot of traffic. 
 This makes real- time communication challenging because it requires low latency in order to assure a good user experience. 
-History and previous research [cite relevant stuff, like congestion collapse]has shown that protocols should employ mechanisms that limit the amount of data sent per second to a reasonable level in order to avoid congestion as well as keep the latency low.
-\subsection{Congestion control}
-  
 
-\section{WebRTC}
-\section{Google Congestion Control}
+History and previous research [cite relevant stuff, like congestion collapse]has shown that protocols should employ mechanisms that limit the amount of data sent per second to a reasonable level in order to avoid congestion as well as keep the latency low.
+\subsection{Google Congestion Control}
 RTP by itself only provides simple end- to- end delivery services for multimedia[cite RTP standard], since real- time communication requires congestion control it must implemented on top of RTP. 
 Chromium's WebRTC implementation uses an algorithm called Google Congestion Control \cite{draft-ietf-rmcat-gcc} to provide the mechanism.
 It consists of two controllers, one loss- based and one delay- based. 
@@ -45,12 +75,12 @@ The loss- based controller located on the sender- side, uses loss rate, RTT and 
 The delay- based controller can either be implemented on the receiver- side or sender- side.
 It uses packet arrival info to compute a maximum bitrate which is passed to the loss- based controller. The actual sending rate is set to the minimum of the two bitrates.
 % Might want to explain RTP terms like groups of packets and etc. 
-\subsection{The loss- based controller}
+\subsubsection{The loss- based controller}
 The loss- based controller is run every time a feedback message from the receiver- side is received. 
 If more than 10\% of packets have been lost when feedback is received the controller decreases the estimate. 
 If less than 2\% is lost it will increase the estimate under the presumption that there is more bandwidth to utilize. 
 Otherwise the estimate stays the same.
-\subsection{The delay- based controller}
+\subsubsection{The delay- based controller}
  The delay- based controller consists of several parts: pre- filtering, an arrival- time filter, an over- use detector and a rate controller. %% probably smart to have a figure of this
 
  Pre- filtering is used to make sure that channel outages, events unrelated to congestion are not interpreted as congestion.
@@ -63,31 +93,53 @@ The arrival- time filter is responsible for calculating the queueing time variat
 The goal of the over- use detector is to produce a signal that drives the state of the remote rate controller. 
 The goal of the over- use detector is to compare the queueing time variation obtained as output from the arrival- time filter with a threshold. If the estimate is above the threshold for a certain amount of time and not sinking it wil signal the rate contol.
 %TODO: incorporate explaination of the remote rate controller as well as the related state machine and how it works
+\subsubsection{Performance}
+\subsection{NADA}
+\subsection{Scream}
+\subsection{Problems with combined controls}
 
-\section{SCTP}
+
 \section{Coupled Congestion Control}
+%TODO: talk and read about the old type mentioned in the articles
 Coupled congestion control \cite{rfc8699} is a mechanism that aims to improve the delay, loss and fairness for flows travelling over the same bottlenecks by combining their congestion controls. 
 %TODO: Explain why this could prove useful for WebRTC
 %TODO: read about how it performs and cite/mention it around here
 The system has two main components, the Shared Bottleneck Detection(SBD) and the Flow State Exchange(FSE). 
-\subsection{Shared Bottleneck Detection}
-The SBD is an entity that is responsible for determining which flows are traversing the same bottleneck. 
-In \cite{rfc8699} three methods for deriving if flows share the same bottleneck are mentioned.
-One way is through comparing multiplexed flows. 
-%TODO: might want to explain the term five- tuple
-Given that the flows with the same five- tuple will be routed along the same path SBD can assume that they share the same bottleneck. 
-However this method cannot be used for coupled congestion controllers with one sender talking to multiple receivers, given that they will not have the same five- tuple. 
-The other two methods one might use are either through configuration or measurements e.g. by looking at correlations among measured delay and loss. 
-Since WebRTC uses both SRTP and SCTP multiplexed on UDP, this implies they have the same five- tuple and that the first method will work. 
+\subsection{Managing flows}
 \subsection{The Flow State Exchange}
 The FSE can be described as a manager that maintains information about the flows and hands out the allowed bit rate for each flow depending on several factors. 
 Firstly, it takes into account how many other flows that are sharing a bottleneck, to make this possible every flow register themselves with the FSE and SBD when they start. 
 For each flow FSE also keeps stores a priority number, the rate used by the flow and the desired rate of the flow. 
 %TODO: more...
-\part{The project}                 
-\chapter{Planning the project}      
-\part{Conclusion}                    
-\chapter{Results}                     
+
+\section{Shared Bottleneck Detection}
+The SBD is an entity that is responsible for determining which flows are traversing the same bottleneck. 
+In \cite{rfc8699} three methods for deriving if flows share the same bottleneck are mentioned.
+\subsection{Multiplexed flows}
+One way is through comparing multiplexed flows. 
+%TODO: might want to explain the term five- tuple
+Since the flows with the same five- tuple will be routed along the same path, SBD can assume that they share the same bottleneck. 
+However this method cannot be used for coupled congestion controllers with one sender talking to multiple receivers, given that they will not have the same five- tuple. 
+Since WebRTC uses both SRTP and SCTP multiplexed on UDP, this implies they have the same five- tuple and that the first method will work. 
+\subsection{Measurement}
+One might also use measurements of e.g. delay and loss and look at correlations to derive if flows have a shared bottleneck.
+\subsection{Configuration}
+
+
+\chapter{Design}
+
+\chapter{Implementation}                 
+
+
+\chapter{Evaluation}
+\section{Testbed}
+\section{Experiments}
+
+\chapter{Conclusion}                    
+\section{Research Findings}
+\section{Further work}
+\section{Closing remarks}
+
 \backmatter{}
 \printbibliography
 \end{document}
