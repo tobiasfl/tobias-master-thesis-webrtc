@@ -71,14 +71,16 @@ You can easily convert yuv, webm, etc. to y4m using:
  - [x] congestion control mechanisms for webrtc: GCC, NADA(CISCO) 
  - [x] Come up with your research question(s)
  - [ ] Scream
- - [ ] Video and Data flows: classes!  *NOT URGENT*
  - [ ] Coupled Congestion control section
  - [ ] WebRTC congestion controls section
  - [ ] Read RFC8699 (Coupled congestion control)
  - [ ] Congestion control section
  - [ ] Coupled congestion algorithm design section(algorithm steps and integrating with data and video)
  - [ ] Write about metrics to use in evaluation section (look at Safiqul's papers for which fairness index and etc. ) 
- 
+ - [ ] Add research questions to thesis
+ - [ ] Describe organization of the rest of the thesis 
+ - [ ] Video and Data flows: classes!  *NOT URGENT*
+
  ### Next meeting:
 
 Topic: Safiqul Islam's Zoom Meeting
