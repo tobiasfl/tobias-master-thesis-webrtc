@@ -65,21 +65,28 @@ You can easily convert yuv, webm, etc. to y4m using:
  
 ### Task
 
- - [ ] Prepare a structure of your thesis: just headings, and create table of contents.
- - [ ] Subheadings for your background sections: start with what your audience should know: webrtc architecture, transport protocols, congestion controls, coupled congestion and shared bottleneck detection 
- - [ ] RTP, RTCP, SCTP in detail
- - [ ] congestion control mechanisms for webrtc: GCC, NADA(CISCO), Scream
- - [ ] Come up with your research question(s)
+ - [x] Prepare a structure of your thesis: just headings, and create table of contents.
+ - [x] Subheadings for your background sections: start with what your audience should know: webrtc architecture, transport protocols, congestion controls, coupled congestion and shared bottleneck detection 
+ - [x] RTP, RTCP, SCTP in detail
+ - [x] congestion control mechanisms for webrtc: GCC, NADA(CISCO) 
+ - [x] Come up with your research question(s)
+ - [ ] Read about Scream 
+ - [ ] Read RFC8699 (Coupled congestion control)
+ - [ ] Coupled Congestion control section
+ - [ ] WebRTC congestion controls section
+ - [ ] Congestion control section
+ - [ ] Coupled congestion algorithm design section(algorithm steps and integrating with data and video)
+ - [ ] Write about metrics to use in evaluation section (look at Safiqul's papers for which fairness index and etc. ) 
+ - [ ] Add research questions to thesis
+ - [ ] Describe organization of the rest of the thesis 
  - [ ] Video and Data flows: classes!  *NOT URGENT*
- 
- 
+
  ### Next meeting:
 
-Topic: Safiqul Islam's Zoom Meeting
-Time: Feb 25, 2021 02:00 PM Oslo
+Time: Mar 11, 2021 02:00 PM Oslo
 
 Join Zoom Meeting
-https://uio.zoom.us/j/65715661279?pwd=ejZOd2tDVlRqbzByRFMrNUJTRUZWdz09
+https://uio.zoom.us/j/9693289755
  
  
 ### Deadlines
