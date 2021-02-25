@@ -77,7 +77,7 @@ You can easily convert yuv, webm, etc. to y4m using:
  - [ ] Congestion control section
  - [ ] Coupled congestion algorithm design section(algorithm steps and integrating with data and video)
  - [ ] Write about metrics to use in evaluation section (look at Safiqul's papers for which fairness index and etc. ) 
- - [ ] Add research questions to thesis
+ - [x] Add research questions to thesis
  - [ ] Describe organization of the rest of the thesis 
  - [ ] Video and Data flows: classes!  *NOT URGENT*
 
