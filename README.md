@@ -69,20 +69,15 @@ You can easily convert yuv, webm, etc. to y4m using:
  - [x] Subheadings for your background sections: start with what your audience should know: webrtc architecture, transport protocols, congestion controls, coupled congestion and shared bottleneck detection 
  - [x] RTP, RTCP, SCTP in detail
  - [x] congestion control mechanisms for webrtc: GCC, NADA(CISCO) 
- - [ ] Scream
  - [x] Come up with your research question(s)
+ - [ ] Scream
  - [ ] Video and Data flows: classes!  *NOT URGENT*
- - [ ] RFC8699 (Coupled congestion control)
- - [ ] Coupled cngestions algorithm
- - [ ] Look algorithm
- - [ ] Write coupled congestion control in background section
- - [ ] WebRTC congestion control in background
- - [ ] start with implementation section after background(writing algorithm steps)
- coupled->webrtc->loss and delay
- Think about how to design this thing with data and video. 
- write implementation in future tense. Always write with we. 
- Evaluation section. put metrics there,(what you want to test) -> look at safiquls paper(fiarness, which index am i gonna use)
- 
+ - [ ] Coupled Congestion control section
+ - [ ] WebRTC congestion controls section
+ - [ ] Read RFC8699 (Coupled congestion control)
+ - [ ] Congestion control section
+ - [ ] Coupled congestion algorithm design section(algorithm steps and integrating with data and video)
+ - [ ] Write about metrics to use in evaluation section (look at Safiqul's papers for which fairness index and etc. ) 
  
  ### Next meeting:
 
