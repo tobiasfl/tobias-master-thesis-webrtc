@@ -72,6 +72,17 @@ You can easily convert yuv, webm, etc. to y4m using:
  - [ ] Scream
  - [x] Come up with your research question(s)
  - [ ] Video and Data flows: classes!  *NOT URGENT*
+ - [ ] RFC869 (Coupled congestion control)
+ - [ ] Coupled cngestions algorithm
+ - [ ] Look algorithm
+ - [ ] Write coupled congestion control in background section
+ - [ ] WebRTC congestion control in background
+ - [ ] 
+ - [ ] start with implementation section after background(writing algorithm steps)
+ coupled->webrtc->loss and delay
+ Think about how to design this thing with data and video. 
+ write implementation in future tense. Always write with we. 
+ Evaluation section. put metrics there,(what you want to test) -> look at safiquls paper(fiarness, which index am i gonna use)
  
  
  ### Next meeting:
