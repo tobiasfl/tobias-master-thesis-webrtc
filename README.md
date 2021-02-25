@@ -83,7 +83,6 @@ You can easily convert yuv, webm, etc. to y4m using:
 
  ### Next meeting:
 
-Topic: Meeting with Tobias
 Time: Mar 11, 2021 02:00 PM Oslo
 
 Join Zoom Meeting
