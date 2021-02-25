@@ -21,8 +21,8 @@
 \chapter*{Abstract}            
 
 \tableofcontents{}
-%\listoffigures{}
-%\listoftables{}
+\listoffigures{}
+\listoftables{}
 
 \chapter*{Preface}              
 
@@ -39,6 +39,7 @@
 \section{WebRTC architecture}
 \subsection{Real- time communication}
 \subsection{Standardization}
+\subsection{Protocol Stack}
 \subsection{User API}
 \subsubsection{Services}
 \subsubsection{RTCPeerConnection API}
@@ -69,7 +70,7 @@ A SCTP connections is called an association.
 
 SCTP separates application data into chunks, each identified by a separate chunk header. 
 These chunks are bundled into a single SCTP message that consists of an SCTP message header followed by several data chunks.
-A key feature here is that the data chunks are independently identified with a separate header, thus a single SCTP message can contain data from separate streams of application data. For example one stream being text messages and another being the transfer of a file in a instant messaging application.
+A key feature here is that the data chunks are independently identified with a separate header, thus a single SCTP message can contain data from separate streams of application data. For example one stream being text messages and another being the transfer of a file in a messaging application.
 The advantage of this packet structure is that it means SCTP can support multi- streaming since it can send multiple data streams in parallel through a single SCTP association. 
 %TODO: have a small section explaining head- of- line blocking and how SCTP avoids it 
 
@@ -78,12 +79,12 @@ Multi- streaming means that an application can transmit several independent stre
 SCTP separates application data into chunks, each identified by a separate header. 
 A single SCTP packet can contain several data chunks from different application data streams.
 
-
-
 %TODO:cite some of the papers that have shown SCTP improvements compared to TCP 
 
-
 \section{Congestion control}
+\subsection{Loss- based congestion control}
+\subsection{Delay- based congestion control}
+\section{WebRTC Congestion controls}
 Video data by nature is large in size so transmitting it creates a lot of traffic. 
 This makes real- time communication challenging because it requires low latency in order to assure a good user experience. 
 
@@ -116,11 +117,17 @@ The goal of the over- use detector is to compare the queueing time variation obt
 %TODO: incorporate explaination of the remote rate controller as well as the related state machine and how it works
 \subsubsection{Performance}
 \subsection{NADA}
+%Sytem overview
+\subsubsection{Overview}
+\subsubsection{Receiver agent}
+
+\subsubsection{Sender agent}
+
 \subsection{Scream}
-\subsection{Problems with combined controls}
 
 
 \section{Coupled Congestion Control}
+\subsection{Problems with combined controls}
 %TODO: talk and read about the old type mentioned in the articles
 Coupled congestion control \cite{rfc8699} is a mechanism that aims to improve the delay, loss and fairness for flows travelling over the same bottlenecks by combining their congestion controls. 
 %TODO: Explain why this could prove useful for WebRTC
