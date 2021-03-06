@@ -1,17 +1,17 @@
 [0] Config.pm:304> INFO - This is Biber 2.14 (beta)
 [0] Config.pm:307> INFO - Logfile is 'build/thesis.blg'
-[71] biber:322> INFO - === ti. feb.  9, 2021, 17:26:10
-[84] Biber.pm:415> INFO - Reading 'build/thesis.bcf'
-[146] Biber.pm:943> INFO - Found 2 citekeys in bib section 0
-[158] Biber.pm:4256> INFO - Processing section 0
-[159] Utils.pm:75> INFO - Globbing data source './bibdb/mybib.bib'
-[159] Utils.pm:91> INFO - Globbed data source './bibdb/mybib.bib' to ./bibdb/mybib.bib
-[168] Biber.pm:4455> INFO - Looking for bibtex format file './bibdb/mybib.bib' for section 0
-[169] bibtex.pm:1653> INFO - LaTeX decoding ...
-[184] bibtex.pm:1471> INFO - Found BibTeX data source './bibdb/mybib.bib'
-[223] UCollate.pm:68> INFO - Overriding locale 'en-UK' defaults 'variable = shifted' with 'variable = non-ignorable'
-[223] UCollate.pm:68> INFO - Overriding locale 'en-UK' defaults 'normalization = NFD' with 'normalization = prenormalized'
-[223] Biber.pm:4084> INFO - Sorting list 'nty/global//global/global' of type 'entry' with template 'nty' and locale 'en-UK'
-[223] Biber.pm:4090> INFO - No sort tailoring available for locale 'en-UK'
-[229] bbl.pm:652> INFO - Writing 'build/thesis.bbl' with encoding 'UTF-8'
-[231] bbl.pm:755> INFO - Output to build/thesis.bbl
+[72] biber:322> INFO - === lø. mars  6, 2021, 11:59:30
+[86] Biber.pm:415> INFO - Reading 'build/thesis.bcf'
+[148] Biber.pm:943> INFO - Found 2 citekeys in bib section 0
+[160] Biber.pm:4256> INFO - Processing section 0
+[160] Utils.pm:75> INFO - Globbing data source './bibdb/mybib.bib'
+[160] Utils.pm:91> INFO - Globbed data source './bibdb/mybib.bib' to ./bibdb/mybib.bib
+[170] Biber.pm:4455> INFO - Looking for bibtex format file './bibdb/mybib.bib' for section 0
+[171] bibtex.pm:1653> INFO - LaTeX decoding ...
+[186] bibtex.pm:1471> INFO - Found BibTeX data source './bibdb/mybib.bib'
+[225] UCollate.pm:68> INFO - Overriding locale 'en-UK' defaults 'variable = shifted' with 'variable = non-ignorable'
+[225] UCollate.pm:68> INFO - Overriding locale 'en-UK' defaults 'normalization = NFD' with 'normalization = prenormalized'
+[225] Biber.pm:4084> INFO - Sorting list 'nty/global//global/global' of type 'entry' with template 'nty' and locale 'en-UK'
+[225] Biber.pm:4090> INFO - No sort tailoring available for locale 'en-UK'
+[232] bbl.pm:652> INFO - Writing 'build/thesis.bbl' with encoding 'UTF-8'
+[233] bbl.pm:755> INFO - Output to build/thesis.bbl

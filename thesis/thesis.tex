@@ -6,6 +6,7 @@
 \usepackage[backend=biber,style=numeric-comp]{biblatex}
 \usepackage[hidelinks]{hyperref}
 
+
 \title{Awesome title here}       
 \subtitle{Managing Real- Time Video and Data Flows with Coupled Congestion Control Mechanism}
 \author{Tobias Fladby}                     
@@ -160,16 +161,30 @@ The goal of the over- use detector is to compare the queueing time variation obt
 
 \section{Coupled Congestion Control}
 \subsection{Problems with combined controls}
-%TODO: talk and read about the old type mentioned in the articles
+As explained in \nameref{Congestion control} there are inherent differences in how quickly different types of congestion control react to congestion and combining them can therefore easily lead to unintentional side- effects. 
+This is a known issue especially when it comes to combining loss- based controls with delay- based controls. 
+%TODO: some article showing problems with combn
+When there is congestion in the network the first thing that will happen is that queues start filling up thus making packets more delayed.
+In many queueing management schemes packets will not start being dropped from the queue until it is full or close to full. 
+The consequence is that delay is observable earlier than loss when there is congestion.
+With this information it is easy to see that when combining loss- based and delay- based congestion controls the delay- based control will back of sooner than the delay- based will. 
+This leads to a very bad dynamic where the delay- based control lowers the bitrate at such an early stage of congestion that the loss- based never experiences packet loss and thus keeps increasing its send rate. 
+The final result is that the delay- based control will get a smaller and smaller share of the available bandwidth because the loss- based control keeps increasing while the delay- based keeps backing down. 
+%TODO: mention all proposed solutions and then lead into coupled congestion control
+%TODO: talk and read about the old type of coupling mentioned in the articles
 Coupled congestion control \cite{rfc8699} is a mechanism that aims to improve the delay, loss and fairness for flows travelling over the same bottlenecks by combining their congestion controls. 
 %TODO: Explain why this could prove useful for WebRTC
 %TODO: read about how it performs and cite/mention it around here
 The system has two main components, the Shared Bottleneck Detection(SBD) and the Flow State Exchange(FSE). 
+
 \subsection{Managing flows}
 \subsection{The Flow State Exchange}
 The FSE can be described as a manager that maintains information about the flows and hands out the allowed bit rate for each flow depending on several factors. 
-Firstly, it takes into account how many other flows that are sharing a bottleneck, to make this possible every flow register themselves with the FSE and SBD when they start. 
-For each flow FSE also keeps stores a priority number, the rate used by the flow and the desired rate of the flow. 
+Firstly, it takes into account how many other flows that are sharing a bottleneck, to make this possible each flow registers itself with the FSE and SBD when they start. 
+The shared bottleneck, outlined in the next section assigns the flow to a Flow Group(FG)).
+All flows sharing the same bottleneck belong to the same flow group and thus share the same Flow Group Identifier(FGI). 
+For each flow FSE also stores a priority number, the rate used by the flow and the desired rate of the flow. 
+The priority number is used to calculate how much of the total available bandwidth should be allocated to each flow.
 %TODO: more...
 
 \section{Shared Bottleneck Detection}
