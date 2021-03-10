@@ -89,38 +89,48 @@
 \defcounter {refsection}{0}\relax 
 \contentsline {subsubsection}{Sender agent}{6}{section*.23}%
 \defcounter {refsection}{0}\relax 
-\contentsline {subsection}{\numberline {2.4.3}Scream}{6}{subsection.2.4.3}%
+\contentsline {subsection}{\numberline {2.4.3}SCReAM}{6}{subsection.2.4.3}%
 \defcounter {refsection}{0}\relax 
 \contentsline {section}{\numberline {2.5}Coupled Congestion Control}{6}{section.2.5}%
 \defcounter {refsection}{0}\relax 
 \contentsline {subsection}{\numberline {2.5.1}Problems with combined controls}{6}{subsection.2.5.1}%
 \defcounter {refsection}{0}\relax 
-\contentsline {subsection}{\numberline {2.5.2}Managing flows}{7}{subsection.2.5.2}%
+\contentsline {paragraph}{The problem}{6}{section*.24}%
 \defcounter {refsection}{0}\relax 
-\contentsline {subsection}{\numberline {2.5.3}The Flow State Exchange}{7}{subsection.2.5.3}%
+\contentsline {paragraph}{Coupling the controls}{7}{section*.25}%
 \defcounter {refsection}{0}\relax 
-\contentsline {section}{\numberline {2.6}Shared Bottleneck Detection}{7}{section.2.6}%
+\contentsline {paragraph}{Coupled Congestion Control Architecture}{7}{section*.26}%
 \defcounter {refsection}{0}\relax 
-\contentsline {subsection}{\numberline {2.6.1}Multiplexed flows}{7}{subsection.2.6.1}%
+\contentsline {paragraph}{Managing flows}{8}{section*.27}%
 \defcounter {refsection}{0}\relax 
-\contentsline {subsection}{\numberline {2.6.2}Measurement}{8}{subsection.2.6.2}%
+\contentsline {subsection}{\numberline {2.5.2}The Flow State Exchange}{8}{subsection.2.5.2}%
 \defcounter {refsection}{0}\relax 
-\contentsline {subsection}{\numberline {2.6.3}Configuration}{8}{subsection.2.6.3}%
+\contentsline {paragraph}{Active FSE}{9}{section*.28}%
 \defcounter {refsection}{0}\relax 
-\contentsline {chapter}{\numberline {3}Design}{9}{chapter.3}%
+\contentsline {paragraph}{Passive FSE}{9}{section*.29}%
 \defcounter {refsection}{0}\relax 
-\contentsline {chapter}{\numberline {4}Implementation}{11}{chapter.4}%
+\contentsline {section}{\numberline {2.6}Shared Bottleneck Detection}{9}{section.2.6}%
 \defcounter {refsection}{0}\relax 
-\contentsline {chapter}{\numberline {5}Evaluation}{13}{chapter.5}%
+\contentsline {subsection}{\numberline {2.6.1}Multiplexed flows}{9}{subsection.2.6.1}%
 \defcounter {refsection}{0}\relax 
-\contentsline {section}{\numberline {5.1}Testbed}{13}{section.5.1}%
+\contentsline {subsection}{\numberline {2.6.2}Measurement}{9}{subsection.2.6.2}%
 \defcounter {refsection}{0}\relax 
-\contentsline {section}{\numberline {5.2}Experiments}{13}{section.5.2}%
+\contentsline {subsection}{\numberline {2.6.3}Configuration}{9}{subsection.2.6.3}%
 \defcounter {refsection}{0}\relax 
-\contentsline {chapter}{\numberline {6}Conclusion}{15}{chapter.6}%
+\contentsline {chapter}{\numberline {3}Design}{11}{chapter.3}%
 \defcounter {refsection}{0}\relax 
-\contentsline {section}{\numberline {6.1}Research Findings}{15}{section.6.1}%
+\contentsline {chapter}{\numberline {4}Implementation}{13}{chapter.4}%
 \defcounter {refsection}{0}\relax 
-\contentsline {section}{\numberline {6.2}Further work}{15}{section.6.2}%
+\contentsline {chapter}{\numberline {5}Evaluation}{15}{chapter.5}%
 \defcounter {refsection}{0}\relax 
-\contentsline {section}{\numberline {6.3}Closing remarks}{15}{section.6.3}%
+\contentsline {section}{\numberline {5.1}Testbed}{15}{section.5.1}%
+\defcounter {refsection}{0}\relax 
+\contentsline {section}{\numberline {5.2}Experiments}{15}{section.5.2}%
+\defcounter {refsection}{0}\relax 
+\contentsline {chapter}{\numberline {6}Conclusion}{17}{chapter.6}%
+\defcounter {refsection}{0}\relax 
+\contentsline {section}{\numberline {6.1}Research Findings}{17}{section.6.1}%
+\defcounter {refsection}{0}\relax 
+\contentsline {section}{\numberline {6.2}Further work}{17}{section.6.2}%
+\defcounter {refsection}{0}\relax 
+\contentsline {section}{\numberline {6.3}Closing remarks}{17}{section.6.3}%

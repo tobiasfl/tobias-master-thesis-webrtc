@@ -83,6 +83,7 @@
     </requires>
     <requires type="editable">
       <file>./bibdb/mybib.bib</file>
+      <file>./bibdb/allrefs.bib</file>
     </requires>
   </external>
 </requests>

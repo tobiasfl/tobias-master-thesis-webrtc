@@ -2180,11 +2180,16 @@
   <!-- SECTION 0 -->
   <bcf:bibdata section="0">
     <bcf:datasource type="file" datatype="bibtex">./bibdb/mybib.bib</bcf:datasource>
+    <bcf:datasource type="file" datatype="bibtex">./bibdb/allrefs.bib</bcf:datasource>
   </bcf:bibdata>
   <bcf:section number="0">
     <bcf:citekey order="1">draft-ietf-rmcat-gcc</bcf:citekey>
-    <bcf:citekey order="2">rfc8699</bcf:citekey>
+    <bcf:citekey order="2">rfc3124</bcf:citekey>
     <bcf:citekey order="3">rfc8699</bcf:citekey>
+    <bcf:citekey order="4">10.1145/2740070.2630089</bcf:citekey>
+    <bcf:citekey order="4">7502803</bcf:citekey>
+    <bcf:citekey order="5">rfc8699</bcf:citekey>
+    <bcf:citekey order="6">rfc8699</bcf:citekey>
   </bcf:section>
   <!-- SORTING TEMPLATES -->
   <bcf:sortingtemplate name="nty">

@@ -19,6 +19,50 @@
 
 \refsection{0}
   \datalist[entry]{nty/global//global/global}
+    \entry{rfc3124}{misc}{}
+      \name{author}{2}{}{%
+        {{hash=ec394c5150bcaf5dac455aa9e3221f4e}{%
+           family={Balakrishnan},
+           familyi={B\bibinitperiod},
+           given={Hari},
+           giveni={H\bibinitperiod}}}%
+        {{hash=106c3fc06f6dbedec4b8814203e99827}{%
+           family={Seshan},
+           familyi={S\bibinitperiod},
+           given={Srinivasan},
+           giveni={S\bibinitperiod}}}%
+      }
+      \list{publisher}{1}{%
+        {RFC Editor}%
+      }
+      \strng{namehash}{c71b04d4d2b94e61f512f31f5bc54e28}
+      \strng{fullhash}{c71b04d4d2b94e61f512f31f5bc54e28}
+      \strng{bibnamehash}{c71b04d4d2b94e61f512f31f5bc54e28}
+      \strng{authorbibnamehash}{c71b04d4d2b94e61f512f31f5bc54e28}
+      \strng{authornamehash}{c71b04d4d2b94e61f512f31f5bc54e28}
+      \strng{authorfullhash}{c71b04d4d2b94e61f512f31f5bc54e28}
+      \field{sortinit}{B}
+      \field{sortinithash}{8de16967003c7207dae369d874f1456e}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{abstract}{This document describes the Congestion Manager (CM), an end-system module that enables an ensemble of multiple concurrent streams from a sender destined to the same receiver and sharing the same congestion properties to perform proper congestion avoidance and control, and allows applications to easily adapt to network congestion. [STANDARDS-TRACK]}
+      \field{howpublished}{RFC 3124}
+      \field{month}{6}
+      \field{number}{3124}
+      \field{pagetotal}{22}
+      \field{series}{Request for Comments}
+      \field{title}{{The Congestion Manager}}
+      \field{year}{2001}
+      \verb{doi}
+      \verb 10.17487/RFC3124
+      \endverb
+      \verb{urlraw}
+      \verb https://rfc-editor.org/rfc/rfc3124.txt
+      \endverb
+      \verb{url}
+      \verb https://rfc-editor.org/rfc/rfc3124.txt
+      \endverb
+    \endentry
     \entry{draft-ietf-rmcat-gcc}{report}{}
       \name{author}{5}{}{%
         {{hash=e27d0f0a460c67d45e704c7824ea5103}{%
@@ -78,6 +122,53 @@
       \verb https://datatracker.ietf.org/doc/html/draft-ietf-rmcat-gcc-02
       \endverb
     \endentry
+    \entry{7502803}{article}{}
+      \name{author}{4}{}{%
+        {{hash=b8fbdcebc28145a973312fe0f1466582}{%
+           family={{Islam}},
+           familyi={I\bibinitperiod},
+           given={S.},
+           giveni={S\bibinitperiod}}}%
+        {{hash=f384a1fb740d49dad0459742cc259b5a}{%
+           family={{Welzl}},
+           familyi={W\bibinitperiod},
+           given={M.},
+           giveni={M\bibinitperiod}}}%
+        {{hash=6d17d9732b32d8474fd90eaf9156f03f}{%
+           family={{Hayes}},
+           familyi={H\bibinitperiod},
+           given={D.},
+           giveni={D\bibinitperiod}}}%
+        {{hash=ee8fd3e6593504e872e002ef44a9713c}{%
+           family={{Gjessing}},
+           familyi={G\bibinitperiod},
+           given={S.},
+           giveni={S\bibinitperiod}}}%
+      }
+      \strng{namehash}{6cac15b5a8ae5dff64ea9ba62cf10a7f}
+      \strng{fullhash}{bb34825015e6063dcc6f04909aec529d}
+      \strng{bibnamehash}{6cac15b5a8ae5dff64ea9ba62cf10a7f}
+      \strng{authorbibnamehash}{6cac15b5a8ae5dff64ea9ba62cf10a7f}
+      \strng{authornamehash}{6cac15b5a8ae5dff64ea9ba62cf10a7f}
+      \strng{authorfullhash}{bb34825015e6063dcc6f04909aec529d}
+      \field{extraname}{1}
+      \field{sortinit}{I}
+      \field{sortinithash}{9417e9a1288a9371e2691d999083ed39}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{abstract}{When multiple congestion controlled flows traverse the same network path, their resulting rate is usually an outcome of their competition at the bottleneck. The WebRTC / RTCWeb suite of standards for inter-browser communication is required to allow prioritization. This is addressed by our previously presented mechanism for coupled congestion control, called the Flow State Exchange (FSE). Here, we present our first simulation results using two mechanisms that have been proposed for IETF standardization: Google Congestion Control (GCC) and Network-Assisted Dynamic Adaptation (NADA). These two mechanisms exhibit aspects that allow us to use a simpler “passive” algorithm in our FSE. Passive coupling allows a less time-constrained request-response style of signaling between congestion control mechanisms and the FSE, which enables the FSE to run as a stand-alone management tool.}
+      \field{booktitle}{NOMS 2016 - 2016 IEEE/IFIP Network Operations and Management Symposium}
+      \field{issn}{2374-9709}
+      \field{month}{4}
+      \field{title}{Managing real-time media flows through a flow state exchange}
+      \field{year}{2016}
+      \field{pages}{112\bibrangedash 120}
+      \range{pages}{9}
+      \verb{doi}
+      \verb 10.1109/NOMS.2016.7502803
+      \endverb
+      \keyw{online front-ends;telecommunication congestion control;telecommunication network management;telecommunication standards;stand-alone management tool;FSE;network-assisted dynamic adaptation;google congestion control;IETF standardization;inter-browser communication;RTCWeb;WebRTC;congestion controlled flows;flow state exchange;real-time media flows management;Delays;Receivers;WebRTC;Aggregates;Media;Standards}
+    \endentry
     \entry{rfc8699}{misc}{}
       \name{author}{3}{}{%
         {{hash=f56f4dced7a5aeb739891eea80ad3469}{%
@@ -126,6 +217,65 @@
       \verb{url}
       \verb https://rfc-editor.org/rfc/rfc8699.txt
       \endverb
+    \endentry
+    \entry{10.1145/2740070.2630089}{article}{}
+      \name{author}{4}{}{%
+        {{hash=f56f4dced7a5aeb739891eea80ad3469}{%
+           family={Islam},
+           familyi={I\bibinitperiod},
+           given={Safiqul},
+           giveni={S\bibinitperiod}}}%
+        {{hash=31c0ffa1a9053d2267410f40c2aaf6c7}{%
+           family={Welzl},
+           familyi={W\bibinitperiod},
+           given={Michael},
+           giveni={M\bibinitperiod}}}%
+        {{hash=59b5f3836c50e92cf20fc86d7f8bbf0a}{%
+           family={Gjessing},
+           familyi={G\bibinitperiod},
+           given={Stein},
+           giveni={S\bibinitperiod}}}%
+        {{hash=538402c925763c0de1e02b6935869056}{%
+           family={Khademi},
+           familyi={K\bibinitperiod},
+           given={Naeem},
+           giveni={N\bibinitperiod}}}%
+      }
+      \list{location}{1}{%
+        {New York, NY, USA}%
+      }
+      \list{publisher}{1}{%
+        {Association for Computing Machinery}%
+      }
+      \strng{namehash}{2b6b8517e57deff4b5c05665867911d5}
+      \strng{fullhash}{df72c785629f36209aa1dc692f784cad}
+      \strng{bibnamehash}{2b6b8517e57deff4b5c05665867911d5}
+      \strng{authorbibnamehash}{2b6b8517e57deff4b5c05665867911d5}
+      \strng{authornamehash}{2b6b8517e57deff4b5c05665867911d5}
+      \strng{authorfullhash}{df72c785629f36209aa1dc692f784cad}
+      \field{extraname}{2}
+      \field{sortinit}{I}
+      \field{sortinithash}{9417e9a1288a9371e2691d999083ed39}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{abstract}{Congestion occurs at a bottleneck along an Internet path; multiple flows between the same sender and receiver pairs can benefit from using only a single congestion control instance when they share the same bottleneck. These benefits include the ability to control the rate allocation between flows and reduced overall delay (multiple congestion control instances cause more queuing delay than one since each has no knowledge of the congestion episodes experienced by the others). We present a mechanism for coupling congestion control for real-time media and show its benefits by coupling multiple congestion controlled flows that share the same bottleneck.}
+      \field{issn}{0146-4833}
+      \field{journaltitle}{SIGCOMM Comput. Commun. Rev.}
+      \field{month}{8}
+      \field{number}{4}
+      \field{title}{Coupled Congestion Control for RTP Media}
+      \field{volume}{44}
+      \field{year}{2014}
+      \verb{doi}
+      \verb 10.1145/2740070.2630089
+      \endverb
+      \verb{urlraw}
+      \verb https://doi.org/10.1145/2740070.2630089
+      \endverb
+      \verb{url}
+      \verb https://doi.org/10.1145/2740070.2630089
+      \endverb
+      \keyw{fse,congestion control,rmcat,webrtc}
     \endentry
   \enddatalist
 \endrefsection
