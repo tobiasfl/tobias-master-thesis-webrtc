@@ -6,6 +6,8 @@
 \usepackage[backend=biber,style=numeric-comp]{biblatex}
 \usepackage[hidelinks]{hyperref}
 
+\usepackage{algorithm}
+\usepackage{algorithmic}
 
 \title{Awesome title here}       
 \subtitle{Managing Real- Time Video and Data Flows with Coupled Congestion Control Mechanism}
@@ -263,7 +265,7 @@ In figure \ref{active_fse_variables} the variables used in both algorithms are o
 
 \paragraph{Example algorithm 1}
 The first algorithm was designed to be the simplest possible method for assigning rates according to prioritites of flows. 
-It is made up of three steps:
+It consists of three steps:
 1. When a flow f starts, it registers itselfi with SBD and FSE. FSE\_R(f) is initialized with f's congestion controllers initial rate. 
 SBD will also give f a correct FGI.
 After having received its FGI the FSE adds the FSE\_R(f) to the flow group's corresponding S\_CR.
@@ -276,7 +278,19 @@ a) First it has to update S\_CR, this is done by adding the difference between C
 b) Then it calculates a new S\_P value and initializes FSE\_R(f) values of all flows in the FG to 0.
 c) In the third step it distributes the S\_CR among all the flows in the FG by calculating new FSE\_R values, while also ensuring that each flow's desired rate is not surpassed.
 d) Lastly the FSE actively distributes the newly calculated FSE\_R values to all the flows in the FG.
-%TODO: make and add pseudocode
+
+%TODO: finish pseudocode
+\begin{algorithm}
+    \caption{Active FSE - Example 1}
+    \begin{algorithmic}
+        \COMMENT{3a}
+        \STATE $S\_CR \leftarrow S\_CR + CC\_R(f) - FSE\_R(f)$ 
+        \COMMENT{3b}
+        %TODO: finish this 
+    \end{algorithmic}
+\end{algorithm}
+
+
 Even though algorithm 1 is simple and intuitive, it is shown to give both higher packet loss and queueing delay in \cite{10.1145/2740070.2630089} when tested with two heterogenous controls coupled. 
 The authors concluded that the reason for these unsatisfactory results happened because the FSE \textit{de-synchronizes} the flows.
 To illustrate the problem, consider some arbitrary congestion control that halves its send rate when experiencing congestion.
@@ -295,7 +309,24 @@ Except for step 3a where S\_CR is updated based on DELTA, the rest of the algori
 %TODO: write pesudocode for step 3a
 
 \paragraph{Passive FSE}
-In the passive version of FSE it only updates the sending rate for the flow that makes the UPDATE call and not the rest, as opposed to active FSE.
+In the passive version of FSE the rate is not calculated for other flow's than the one making the UPDATE call, as opposed to active FSE.
+This might be considered easier to implement but when flows have different RTT's, the ones with shorter RTT will update more often which could produce unwanted side- effects.
+The problem is even more significant in situations where a congestion controller's convergence is dependent on RTT. %TODO: explain why maybe?
+In the passive version of FSE the TLO variable is static per FG and is initialized to 0. 
+1. When a flow f starts it registers itself til SBD and FSE. FSE\_R(f) and DR(f) is initialized with the congestions controller's initial rate. 
+Additionally, S\_CR is limited to increase or decrease as conservatively as the flows's congestion controller decides in order to avoid sudden rate jumps.
+2. When a flow f stops or pauses, DR(f) is set to 0 and P(f) is set to -1. %TODO:Why -1?
+3. Every time a flow f's congestion controller calculates a new send rate CC\_R(f) it calls UPDATE.
+The UPDATE function uses some local(per- flow) temporary variables that are initialized to 0: DELTA, new\_S\_CR and S\_P.
+The UPDATE function of a flow f completes tasks a- e:
+a) For all flows in the same FG it calculates the sum of all calculated rates new\_S\_CR.
+Afterwards it calculates DELTA as the difference between FSE\_R(f) and CC\_R(f).
+b) It updates S\_CR, FSE\_R(f) and DR(f).
+c) It calculates TLO if there is any leftover rate, removes terminated flows from the list of flows and calculates the sum of all priorities, S\_P.
+d) It calculates the send rate, Rate(f) which is the minimum of DR(f) and prioritized share of S\_CR plus any leftovers from other flows.
+e) Lastly it updates DR(f) and FSE\_R with Rate(f).
+%TODO: explain more?
+
 \section{Shared Bottleneck Detection}
 The SBD is an entity that is responsible for determining which flows are traversing the same bottleneck. 
 In \cite{rfc8699} three methods for deriving if flows share the same bottleneck are mentioned.
@@ -305,7 +336,7 @@ One way is through comparing multiplexed flows.
 %TODO: might want to explain the term five- tuple
 Since the flows with the same five- tuple will be routed along the same path, SBD can assume that they share the same bottleneck. 
 However this method cannot be used for coupled congestion controllers with one sender talking to multiple receivers, given that they will not have the same five- tuple. 
-Since WebRTC uses both SRTP and SCTP multiplexed on UDP, this implies they have the same five- tuple and that the first method will work. 
+Since WebRTC uses both SRTP and SCTP multiplexed on UDP, this ensures that they have the same five- tuple and that the first method will work. 
 \subsection{Measurement}
 One might also use measurements of e.g. delay and loss and look at correlations to derive if flows have a shared bottleneck.
 \subsection{Configuration}
