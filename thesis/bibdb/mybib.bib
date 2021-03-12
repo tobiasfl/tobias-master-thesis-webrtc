@@ -65,19 +65,35 @@
 }
 
 @inproceedings{10.1145/2491172.2491182,
-author = {De Cicco, Luca and Carlucci, Gaetano and Mascolo, Saverio},
-title = {Experimental Investigation of the Google Congestion Control for Real-Time Flows},
-year = {2013},
-isbn = {9781450321839},
-publisher = {Association for Computing Machinery},
-address = {New York, NY, USA},
-url = {https://doi.org/10.1145/2491172.2491182},
-doi = {10.1145/2491172.2491182},
-abstract = {Enabling real-time communication over the Internet is of ever increasing importance due to the use of Internet for audio/video communication. The RTCWeb IETF working group has been established with the goal of standardizing a set of protocols for inter-operable real-time communication among Web browsers. In this paper we experimentally evaluate the Google Congestion Control (GCC) which has been recently proposed in the RTCWeb IETF WG. By setting up a controlled testbed, we have evaluated to what extent GCC flows are able to track the available bandwidth, while minimizing queuing delays, and fairly share the bottleneck with other GCC or TCP flows. We have found that the algorithm works as expected when a GCC flow accesses the bottleneck in isolation, whereas it is not able to provide a fair bandwidth utilization when a GCC flow shares the bottleneck with either a GCC or a TCP flow.},
-booktitle = {Proceedings of the 2013 ACM SIGCOMM Workshop on Future Human-Centric Multimedia Networking},
-pages = {21–26},
-numpages = {6},
-keywords = {rtcweb, congestion control, real-time flows, rmcat},
-location = {Hong Kong, China},
-series = {FhMN '13}
+    author = {De Cicco, Luca and Carlucci, Gaetano and Mascolo, Saverio},
+    title = {Experimental Investigation of the Google Congestion Control for Real-Time Flows},
+    year = {2013},
+    isbn = {9781450321839},
+    publisher = {Association for Computing Machinery},
+    address = {New York, NY, USA},
+    url = {https://doi.org/10.1145/2491172.2491182},
+    doi = {10.1145/2491172.2491182},
+    abstract = {Enabling real-time communication over the Internet is of ever increasing importance due to the use of Internet for audio/video communication. The RTCWeb IETF working group has been established with the goal of standardizing a set of protocols for inter-operable real-time communication among Web browsers. In this paper we experimentally evaluate the Google Congestion Control (GCC) which has been recently proposed in the RTCWeb IETF WG. By setting up a controlled testbed, we have evaluated to what extent GCC flows are able to track the available bandwidth, while minimizing queuing delays, and fairly share the bottleneck with other GCC or TCP flows. We have found that the algorithm works as expected when a GCC flow accesses the bottleneck in isolation, whereas it is not able to provide a fair bandwidth utilization when a GCC flow shares the bottleneck with either a GCC or a TCP flow.},
+    booktitle = {Proceedings of the 2013 ACM SIGCOMM Workshop on Future Human-Centric Multimedia Networking},
+    pages = {21–26},
+    numpages = {6},
+    keywords = {rtcweb, congestion control, real-time flows, rmcat},
+    location = {Hong Kong, China},
+    series = {FhMN '13}
 }
+
+@inproceedings{XiaoqingZhu2013NAUC,
+    issn = {2167-969X},
+    abstract = {Low-latency, interactive media applications (e.g., video conferencing) present a unique set of challenges for congestion control. Unlike TCP, the transport mechanism for interactive media needs to adapt fast to abrupt changes in available bandwidth, accommodate sluggish responses and output rate fluctuations of a live video encoder, and avoid high queuing delay over the network. An ideal scheme should also make effective use of all types of congestion signals from the network, including packet losses, queuing delay, and explicit congestion notification (ECN) markings. This paper presents a unified approach for congestion control of interactive video: network-assisted dynamic adaptation (NADA). In NADA, the sender regulates its sending rate based on a composite congestion signal calculated and reported by the receiver, which combines both implicit (e.g., loss and delay) and explicit (e.g., ECN marking) congestion indications from the network. Via a consistent set of sender adaptation rules, the scheme can reap the full benefits of proactive, explicit congestion notifications supported by advanced queue management schemes. It remains equally responsive in the absence of such notifications. Extensive simulation studies show that NADA interact well with a wide variety of queue management schemes: conventional drop-tail, random early detection (RED), recently proposed CoDel (controlled delay) and PIE (Proportional Integral controller Enhanced), as well as a token-bucket-based random marking scheme based on Pre-Congestion Notification (PCN). Furthermore, NADA reacts fast to changes over the network, allows for weighted bandwidth sharing among multiple competing video streams, and sustains a substantial share of bottleneck bandwidth when coexisting with TCP.},
+    pages = {1--8},
+    publisher = {IEEE},
+    booktitle = {2013 20th International Packet Video Workshop},
+    isbn = {1479921726},
+    year = {2013},
+    title = {NADA: A Unified Congestion Control Scheme for Low-Latency Interactive Video},
+    language = {eng},
+    author = {Xiaoqing Zhu and Rong Pan},
+    keywords = {Streaming media ; Media ; Delays ; Packet loss ; Receivers ; Bandwidth},
+}
+
+

@@ -120,6 +120,7 @@ A single SCTP packet can contain several data chunks from different application 
 \section{Congestion control}
 \subsection{Loss- based congestion control}
 \subsection{Delay- based congestion control}
+\subsection{ECN}%TODO: Might not be necessary to explain?
 \section{WebRTC Congestion controls}
 Video data by nature is large in size so transmitting it creates a lot of traffic. 
 This makes real- time communication challenging because it requires low latency in order to assure a good user experience. 
@@ -153,21 +154,50 @@ The goal of the over- use detector is to compare the queueing time variation obt
 %TODO: incorporate explaination of the remote rate controller as well as the related state machine and how it works
 \subsubsection{Performance}
 \subsection{NADA}
+Network-Assisted Dynamic Adaptation (NADA) \cite{XiaoqingZhu2013NAUC} specified in \cite{rfc8698} is a proposed congestion control for WebRTC designed by Cisco.
+The key design goal of NADA is to offer both fast adaption time to congestion whilst also being able to compete with TCP flows sharing the same bottleneck.
+In order to achieve this, NADA combines loss, delay and ECN marked packets into a composite network congestion signal.
+\subsubsection{System overview}
+%TODO: probably nice with a figure of the system
+We will first give a basic overview of the central components of the system, then explain each of them afterwards more thoroughly.
+%Live video encoder
+The live video encoder is a component responsible for encoding incoming raw video frames into RTP packets.
+It tries to output RTP packets at a rate as close as possible to the target input rate $R_v$ decided by the rate control. 
+The actual output rate is denoted by $R_o$ which will be a number within a range $[R_{min},R_{max}]$ depending on the video scene complexity and can change over time.
+The value of the output rate $R_o$ may fluctuate randomly around the input target rate $R_v$.
+On top of that the live video encoder is only capable of reacting to changes in $R_v$ over long time intervals that might be in the order of seconds.
+The encoder's typical reaction time is denoted by $T_v$.
+%NADA sending agent
+The NADA sending agent has the responsibility of calculating a reference rate $R_n$ based on the composite congestion signal reported by the receiver. 
+The reference rate calculated by the sending agent is then used to regulate the video sending rate $R_s$.
+However there will be a difference between actual video encoder ouput and regulated send rate, a rate shaping buffer is used to absorb that difference.
+The size of the buffer $L_s$ along with $R_n$ determine the video encoder target rate and the sending rate. 
+%Network node
+NADA is designed to work with nodes in different operation modes and it support many different queueing modes.
+%NADA receiving agent
+The NADA receiving agent is responsible for calculating the composite congestion signal used by the sending agent to regulate the sending rate. 
+To do this it uses derived one- way delay of each packet, loss events and ECN markings.
+The one- way delay $D_n$ is derived from RTP header timestamps while ECN markings are extracted from the IP headers. 
+The resulting composite signal is in the form of an "equivalent delay" $~d_n$.
+A time smoothed version $x_n$ of the signal is periodically reported back to the sending agent through RTCP messages.
 
-\paragraph{Design philosophy}
-\paragraph{System overview}
-\paragraph{NADA Receiver behavior}
-\paragraph{NADA Sender behavior}
-\paragraph{Performance}
-\paragraph{Usage}
-
-\subsubsection{Overview}
+%TODO: a table of symbols might be nice
 \subsubsection{Receiver agent}
+The receiver agent has four main tasks: 
+a) Monitor one- way delay, packet loss and gather ECN marking statistics. 
+b) Aggregate the different congestion signals into a composite network congestion signal. 
+c) Calculate a time- smoothed value of the composite congestion signal. 
+d) Send periodic reports of congestion to the sender.
+\paragraph{a. Monitoring one- way delay, packet loss and gathering ECM marking statistics}
+\paragraph{b. Aggregating different congestion signals into a composite network congestion signal}
+\paragraph{c. Calculating a time- smoothed value}
+\paragraph{d. Sending reports of congestion to the sender}
 
 \subsubsection{Sender agent}
+\subsubsection{Performance}
+\subsubsection{Usage}
 
 \subsection{SCReAM}
-
 
 \section{Coupled Congestion Control}
 \subsection{Problems with combined controls}
