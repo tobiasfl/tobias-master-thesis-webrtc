@@ -6,7 +6,7 @@
 \usepackage[backend=biber,style=numeric-comp]{biblatex}
 \usepackage[hidelinks]{hyperref}
 
-\usepackage{algorithm}
+\usepackage[ruled,vlined]{algorithm2e}
 \usepackage{algorithmic}
 
 \title{Awesome title here}       
@@ -316,17 +316,45 @@ b) Then it calculates a new S\_P value and initializes FSE\_R(f) values of all f
 c) In the third step it distributes the S\_CR among all the flows in the FG by calculating new FSE\_R values, while also ensuring that each flow's desired rate is not surpassed.
 d) Lastly the FSE actively distributes the newly calculated FSE\_R values to all the flows in the FG.
 
-%TODO: finish pseudocode
-\begin{algorithm}
+\begin{figure}
+\begin{algorithm}[H]
+    \SetAlgoLined
     \caption{Active FSE - Example 1}
-    %\begin{algorithmic}
-        %\COMMENT{3a}
-        %\STATE $S\_CR \leftarrow S\_CR + CC\_R(f) - FSE\_R(f)$ 
-        %\COMMENT{3b}
-        %TODO: finish this 
-    %\end{algorithmic}
+    \KwResult{Result here}
+    \tcc{Update S\_CR}
+    S\_CR = S\_CR + CC\_R(f) - FSE\_R(f)\;
+    \tcc{Calculate new S\_P and initialize FSE\_R(f)}
+    S\_P = 0\;
+    \ForEach{flow f in FG}{
+        S\_P = S\_P + P(f)\;
+        FSE\_R(f) = 0\;
+    }
+    \tcc{Distribute S\_CR among all flows}
+    TLO = S\_CR\;
+    \While{TLO > 0 and S\_P > 0}{
+        AR = 0\;
+        \ForEach{flow f in FG}{
+            \If{FSE\_R(f) < DR(f)}{
+                \eIf{TLO * P(f) / S\_P >= DR(f)}{
+                    TLO = TLO - DR(f)\;
+                    FSE\_R(f) = DR(f)\;
+                    S\_P = S\_P - P(f)\;
+                }
+                {
+                    FSE\_R(f) = TLO * P(f) / S\_P\;
+                    AR = AR + TLO * P(f) / S\_P\;
+                }
+            }
+        } 
+    }
+    \tcc{Distribute calculated FSE\_R among all flows}
+    \ForEach{flow f in FG}{
+        send(FSE\_R(f), f)
+    }
 \end{algorithm}
-
+\caption{Example algorithm 1 of active FSE}
+\label{active-fse-1}
+\end{figure}
 
 Even though algorithm 1 is simple and intuitive, it is shown to give both higher packet loss and queueing delay in \cite{10.1145/2740070.2630089} when tested with two heterogenous controls coupled. 
 The authors concluded that the reason for these unsatisfactory results happened because the FSE \textit{de-synchronizes} the flows.
@@ -342,7 +370,8 @@ In the second algorithm step 3a is altered by introducing the local variable DEL
 To prevent flows from either ignoring congestion or overreacting, a timer is used to stop any flow form changing their directly after a shared rate reduction caused by a congestion event. 
 The timer starts at two RTT's of the flow that experienced the congestion event.
 The reasoning for using two RTT's is that it is assumed that a congestion event may last up to one RTT for the flow, with the extra RTT added in order to compensate for fluctuations in measured RTT value.
-Except for step 3a where S\_CR is updated based on DELTA, the rest of the algorithm remains the same as algorithm 1.
+Except for step 3a where S\_CR is updated based on DELTA, the rest of the algorithm remains the same as \ref{active-fse-1}.
+
 %TODO: write pesudocode for step 3a
 
 \paragraph{Passive FSE}
