@@ -278,24 +278,24 @@ In the active version FSE recalculates rates and notifies all the other flows in
 
 % What happens when a flow start
 % What happens when a flow UPDATES
-\begin{figure}
+\begin{table}
 \begin{center}
     \begin{tabular}{|c|c|}
         \hline
-        CC_R & The rate recevied from a flow's congestion controller when it calls UPDATE \\
-        new\_DR & The desired rate received from a flow when it calls UPDATE \\
-        FSE\_R & The rate allocated to a flow from the FSE \\
-        S\_CR & The total sum of calculated rates for all flows in the samme FG \\ 
+        CC\_R & Rate recevied from a flow's congestion controller \\
+        new\_DR & Desired rate of a flow when it calls UPDATE \\
+        FSE\_R & Rate allocated to a flow from the FSE \\
+        S\_CR & Total sum of calculated rates for all flows in the samme FG \\ 
         FG & A group of flows sharing the same bottleneck \\
-        P & The priority of a flow, received from the flow's congestion controller \\
-        S\_P & The sum of all prioritites in a flow group \\
-        DELTA & A variable used to calculate the difference between CC\_R and the previous FSE\_R \\  
+        P & The priority of a flow \\
+        S\_P & Sum of all prioritites in a flow group \\
+        DELTA & Used to calculate the difference between CC\_R and FSE\_R \\  
         \hline
     \end{tabular}
 \end{center}
 \caption{Variables used in active FSE}
 \label{active_fse_variables}
-\end{figure}
+\end{table}
 
 In \cite{rfc8699} there are two examples of active FSE algorithms outlined.
 In figure \ref{active_fse_variables} the variables used in both algorithms are outlined. 
@@ -319,12 +319,12 @@ d) Lastly the FSE actively distributes the newly calculated FSE\_R values to all
 %TODO: finish pseudocode
 \begin{algorithm}
     \caption{Active FSE - Example 1}
-    \begin{algorithmic}
-        \COMMENT{3a}
-        \STATE $S\_CR \leftarrow S\_CR + CC\_R(f) - FSE\_R(f)$ 
-        \COMMENT{3b}
+    %\begin{algorithmic}
+        %\COMMENT{3a}
+        %\STATE $S\_CR \leftarrow S\_CR + CC\_R(f) - FSE\_R(f)$ 
+        %\COMMENT{3b}
         %TODO: finish this 
-    \end{algorithmic}
+    %\end{algorithmic}
 \end{algorithm}
 
 
@@ -335,7 +335,7 @@ The problem essentially was that normally without FSE, two flows will often natu
 Now, if we consider the two flows coupled with the FSE again, when one tries to increase its rate and experiences congestion it halves its rate which only reduces the total rate a quarter.
 As a consequence there was a new active FSE algorithm made in order to fix the loss ratio and average queue growth.
 \paragraph{Example algorithm 2}
-The second algorithm aims to emulate a behavior similar what happens when flows get synchronized.
+The second algorithm aims to emulate a behavior similar to what happens when flows get synchronized.
 It does this by proportionally reducing the aggregate rate on congestion.
 %TODO: Summarize the algorithm
 In the second algorithm step 3a is altered by introducing the local variable DELTA which is used to calculate the difference between CC\_R and previously stored FSE\_R. 
