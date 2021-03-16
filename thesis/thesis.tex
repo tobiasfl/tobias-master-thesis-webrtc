@@ -204,27 +204,29 @@ d) Send periodic reports of congestion to the sender.
 \paragraph{}
 There are inherent differences in how quickly different types of congestion control react to congestion and combining them can therefore easily lead to unintentional side- effects. 
 This is a known issue especially when it comes to combining loss- based controls with delay- based controls.
-It has been shown to lead to a competition between the flows resulting in spikes in queueing delay and packet loss. 
-%TODO: Any sources to cite for this, e.g. in regards to WebRTC?
+In 
+It has been shown to lead to...FIND A CONCRETE EXAMPLE TO REFER TO HERE 
+%TODO: Any sources to cite for this, e.g. in regards to WebRTC or other examples of combined delay- based and loss- based?
+
 The main issue stems from the fact that delay always happens earlier than loss.
 The reason is that the first thing that happens when there is congestion is that the bottleneck queues will start filling, thus making packets more delayed but not necessarily dropped until the queue is full or close to full.
-%TODO: some article showing problems with combining loss-based and delay- based
 Intuitively, this means that delay is observable earlier than loss when there is congestion.
 The consequence of all this is that the delay- based control will decrease it's sending rate sooner than the loss- based will. 
 Such behaviour leads to a very bad dynamic where the delay- based control lowers the bitrate at such an early stage of congestion that the loss- based never experiences packet loss and thus keeps increasing its send rate. 
 The final result is that the delay- based control will get a smaller and smaller share of the available bandwidth because the loss- based control keeps increasing while the delay- based keeps backing down because of the congestion caused by the still- increasing traffic from the loss- based controller.
 \paragraph{Coupling the controls}
-A possible solution is to have the controllers cooperate by sharing their information, given that they are both located on the same host and are travelling the same path across the network i.e. coupling the flows.
-Firstly, such a mechanism could benefit both controllers by giving them more information, and different types of information to base their decisions on. 
-Secondly this could be used to ensure that the loss- based controllers behaves more fairly to controllers.
-One could for instance make sure that the loss- based control also decreases when the delay- based controller decreases the send rate.
-One mechanism for coupling is "The Congestion Manager" (CM) \cite{rfc3124}.
+A possible solution is to have the controllers cooperate by sharing their information i.e. coupling the flows.
+Such a mechanism could benefit both of the controllers by giving them more information, and different types of information to base their decisions on. 
+This could also be used to ensure that the loss- based controllers behave more fairly to other types of controllers.
+One could for instance make sure that the loss- based controller also decreases its rate when the delay- based controller decreases the send rate.
+One of the oldest and most well- known mechanisms for coupling is "The Congestion Manager" (CM) \cite{rfc3124}.
 CM couples flows by offering a single shared congestion controller for all the flows instead.
 The downside is that it is considered quite hard to implement because it requires an extra congestion controller and strips away all per- connection congestion control functionality, which is a drastic change.
 %TODO: Should actually read RFC3124 yourself
 %TODO: Maybe discuss Ensemble TCP?
+
 A newer solution called "Coupled Congestion Control" \cite{rfc8699} combines congestion controls travelling over the same bottleneck while at the same time being easier to implement than the congestion manager.
-As opposed to The Congestion Manager, Coupled Congestion Control tries to utilize the congestion control algorithms of the coupled flows by sharing the information they gather among them instead of completely removing them. 
+As opposed to The Congestion Manager, Coupled Congestion Control tries to utilize the flows' own congestion controllers by having them share information amongst each other instead of removing them. 
 The mechanism has aready shown promise in \cite{10.1145/2740070.2630089, 7502803} when implemented with homogenous congestion controls but has not been tested on heterogenous congestion controls. 
 %TODO: read about how it performs and cite/mention it around here
 %TODO: Explain why this could prove useful for WebRTC?
@@ -232,20 +234,20 @@ The mechanism has aready shown promise in \cite{10.1145/2740070.2630089, 7502803
 The design philosophy of Coupled Congestion Control is that the amount of required changes to existing applications should be minimal. 
 The system consists of three elements, Shared Bottleneck Detection(SBD), Flow State Exchange(FSE) and the flows. 
 
-\paragraph{Managing flows}
-
-When a flow starts it will register itself with the FSE and SBD, when it stops it will deregister from the FSE and carry out an UPDATE function call every time their congestion controller calculates a new rate.
+\subsection{The Flow State Exchange}
+The FSE can be described as a manager that maintains information exchanged between the flows and calculates a bit rate for each flow based on all the information gathered. 
+\paragraph{}
+When a flow starts it registers itself with the FSE and SBD, when it stops it deregisters from the FSE and every time the congestion controller calculates a new rate the flow executes an UPDATE call to the FSE.
 When a flow registers itself the SBD will assign it to a Flow Group by giving it a Flow Group Identifier.
 A flow group is defined as a group of flows that share the same bottleneck and thus should exchange information with each other. 
 The SBD is responsible for reassigning a flow to a different FG whenever the bottleneck changes.
-
-\subsection{The Flow State Exchange}
-The FSE can be described as a manager that maintains information exchanged between the flows and calculates a bit rate for each flow based on all the information gathered. 
-
-It can be implemented in two ways: \textit{active} or \textit{passive}.
+\paragraph{}
+The FSE component can be implemented in two ways: \textit{active} or \textit{passive}.
 In the active version, the FSE will actively initiate communication with each flow and SBD. 
 The passive version does not actively initiate communication and only has the task of internal state maintenance.
-Generally the FSE keeps a list of all flows that have registered with it and for each flow the FSE will store the following:
+
+\paragraph{}
+Generally, the FSE keeps a list of all flows that have registered with it and for each flow the FSE will store the following:
 \begin{itemize}
     \item A unique number f to identify the flow.
     \item The Flow Group Identifier (FGI).
@@ -273,7 +275,7 @@ When a flow f starts, FSE\_R is initialized with the initial rate calculated by 
 After the SBD assigns the flow to an FG, it adds its FSE\_R to S\_CR.
 The desired rate is smaller than the calculated rate when the flow is limited by an application, otherwise it will be the same as the calculated rate.
 
-\subsubsection{Active FSE}
+\subsection{Active FSE}
 In the active version FSE recalculates rates and notifies all the other flows in the FG as well whenever there is an UPDATE call from a single flow. 
 
 % What happens when a flow start
@@ -298,19 +300,23 @@ In the active version FSE recalculates rates and notifies all the other flows in
 \end{table}
 
 In \cite{rfc8699} there are two examples of active FSE algorithms outlined.
-In figure \ref{active_fse_variables} the variables used in both algorithms are outlined. 
+In table \ref{active_fse_variables} the variables used in both algorithms are outlined. 
 
 \paragraph{Example algorithm 1}
-The first algorithm was designed to be the simplest possible method for assigning rates according to prioritites of flows. 
+The first active FSE algorithm was designed to be the simplest possible method for assigning rates according to prioritites of flows. 
 It consists of three steps:
-1. When a flow f starts, it registers itselfi with SBD and FSE. FSE\_R(f) is initialized with f's congestion controllers initial rate. 
+\paragraph{1.}
+When a flow f starts, it registers itself with SBD and the FSE. 
+FSE\_R(f) is initialized with f's congestion controllers' initial rate. 
 SBD will also give f a correct FGI.
 After having received its FGI the FSE adds the FSE\_R(f) to the flow group's corresponding S\_CR.
-2. When a flow f stops or pauses it gets removed from the list of registered flows.
-3. Every time a flow f's congestion controller updates the send rate CC\_R(f), i make an UPDATE call to the FSE.
+\paragraph{2.}
+When a flow f stops or pauses it gets removed from the list of registered flows.
+\paragraph{3.}
+Every time a flow f's congestion controller updates the send rate CC\_R(f), i make an UPDATE call to the FSE.
 The UPDATE function completes four basic tasks (a- d) in order to calculate the new send rate for all flows in the same FG.
 A flow's UPDATE function uses three local (per- flow) temporary variables: S\_P, TLO and AR.
-UPDATE's tasks:
+\paragraph{UPDATE's tasks:}
 a) First it has to update S\_CR, this is done by adding the difference between CC\_R(f) and the previous FSE\_R(F) to the S\_CR.
 b) Then it calculates a new S\_P value and initializes FSE\_R(f) values of all flows in the FG to 0.
 c) In the third step it distributes the S\_CR among all the flows in the FG by calculating new FSE\_R values, while also ensuring that each flow's desired rate is not surpassed.
@@ -320,7 +326,6 @@ d) Lastly the FSE actively distributes the newly calculated FSE\_R values to all
 \begin{algorithm}[H]
     \SetAlgoLined
     \caption{Active FSE - Example 1}
-    \KwResult{Result here}
     \tcc{Update S\_CR}
     S\_CR = S\_CR + CC\_R(f) - FSE\_R(f)\;
     \tcc{Calculate new S\_P and initialize FSE\_R(f)}
@@ -356,17 +361,18 @@ d) Lastly the FSE actively distributes the newly calculated FSE\_R values to all
 \label{active-fse-1}
 \end{figure}
 
+\paragraph{}
 Even though algorithm 1 is simple and intuitive, it is shown to give both higher packet loss and queueing delay in \cite{10.1145/2740070.2630089} when tested with two heterogenous controls coupled. 
 The authors concluded that the reason for these unsatisfactory results happened because the FSE \textit{de-synchronizes} the flows.
 To illustrate the problem, consider some arbitrary congestion control that halves its send rate when experiencing congestion.
-The problem essentially was that normally without FSE, two flows will often naturally get synchronized and halve their rate at the same time, thus reducing the total rate by half.
-Now, if we consider the two flows coupled with the FSE again, when one tries to increase its rate and experiences congestion it halves its rate which only reduces the total rate a quarter.
+The problem essentially was that normally without FSE, two flows will often naturally get synchronized and halve their rates at the same time, thus reducing the total rate by half.
+Now, if we consider the two flows coupled with the FSE again, since they are de-synchronized only one will halve its rate at a time thus only reducing the total rate a quarter and giving less of a chance for the queues to drain resulting in more queue growth and loss.
 As a consequence there was a new active FSE algorithm made in order to fix the loss ratio and average queue growth.
 \paragraph{Example algorithm 2}
 The second algorithm aims to emulate a behavior similar to what happens when flows get synchronized.
 It does this by proportionally reducing the aggregate rate on congestion.
 %TODO: Summarize the algorithm
-In the second algorithm step 3a is altered by introducing the local variable DELTA which is used to calculate the difference between CC\_R and previously stored FSE\_R. 
+Step 3a is altered by introducing the local variable DELTA which is used to calculate the difference between CC\_R and previously stored FSE\_R. 
 To prevent flows from either ignoring congestion or overreacting, a timer is used to stop any flow form changing their directly after a shared rate reduction caused by a congestion event. 
 The timer starts at two RTT's of the flow that experienced the congestion event.
 The reasoning for using two RTT's is that it is assumed that a congestion event may last up to one RTT for the flow, with the extra RTT added in order to compensate for fluctuations in measured RTT value.
@@ -374,7 +380,7 @@ Except for step 3a where S\_CR is updated based on DELTA, the rest of the algori
 
 %TODO: write pesudocode for step 3a
 
-\paragraph{Passive FSE}
+\subsection{Passive FSE}
 In the passive version of FSE the rate is not calculated for other flow's than the one making the UPDATE call, as opposed to active FSE.
 This might be considered easier to implement but when flows have different RTT's, the ones with shorter RTT will update more often which could produce unwanted side- effects.
 The problem is even more significant in situations where a congestion controller's convergence is dependent on RTT. %TODO: explain why maybe?

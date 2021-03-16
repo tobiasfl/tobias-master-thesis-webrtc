@@ -42,10 +42,10 @@
       \strng{authornamehash}{c71b04d4d2b94e61f512f31f5bc54e28}
       \strng{authorfullhash}{c71b04d4d2b94e61f512f31f5bc54e28}
       \field{sortinit}{B}
-      \field{sortinithash}{8de16967003c7207dae369d874f1456e}
+      \field{sortinithash}{d7095fff47cda75ca2589920aae98399}
       \field{labelnamesource}{author}
       \field{labeltitlesource}{title}
-      \field{abstract}{This document describes the Congestion Manager (CM), an end-system module that enables an ensemble of multiple concurrent streams from a sender destined to the same receiver and sharing the same congestion properties to perform proper congestion avoidance and control, and allows applications to easily adapt to network congestion. [STANDARDS-TRACK]}
+      \field{abstract}{This document describes the Congestion Manager (CM), an end-system module that enables an ensemble of multiple concurrent streams from a sender destined to the same receiver and sharing the same congestion properties to perform proper congestion avoidance and control, and allows applications to easily adapt to network congestion. {[}STANDARDS-TRACK{]}}
       \field{howpublished}{RFC 3124}
       \field{month}{6}
       \field{number}{3124}
@@ -104,7 +104,7 @@
       \strng{authornamehash}{80b66d0149b89be128e34e27a33b1be8}
       \strng{authorfullhash}{a492a92ea81aa560a5311e8060e23c6e}
       \field{sortinit}{H}
-      \field{sortinithash}{6db6145dae8dc9e1271a8d556090b50a}
+      \field{sortinithash}{23a3aa7c24e56cfa16945d55545109b5}
       \field{labelnamesource}{author}
       \field{labeltitlesource}{title}
       \field{abstract}{This document describes two methods of congestion control when using real-time communications on the World Wide Web (RTCWEB); one delay- based and one loss-based. It is published as an input document to the RMCAT working group on congestion control for media streams. The mailing list of that working group is rmcat@ietf.org.}
@@ -153,7 +153,7 @@
       \strng{authorfullhash}{bb34825015e6063dcc6f04909aec529d}
       \field{extraname}{1}
       \field{sortinit}{I}
-      \field{sortinithash}{9417e9a1288a9371e2691d999083ed39}
+      \field{sortinithash}{8d291c51ee89b6cd86bf5379f0b151d8}
       \field{labelnamesource}{author}
       \field{labeltitlesource}{title}
       \field{abstract}{When multiple congestion controlled flows traverse the same network path, their resulting rate is usually an outcome of their competition at the bottleneck. The WebRTC / RTCWeb suite of standards for inter-browser communication is required to allow prioritization. This is addressed by our previously presented mechanism for coupled congestion control, called the Flow State Exchange (FSE). Here, we present our first simulation results using two mechanisms that have been proposed for IETF standardization: Google Congestion Control (GCC) and Network-Assisted Dynamic Adaptation (NADA). These two mechanisms exhibit aspects that allow us to use a simpler “passive” algorithm in our FSE. Passive coupling allows a less time-constrained request-response style of signaling between congestion control mechanisms and the FSE, which enables the FSE to run as a stand-alone management tool.}
@@ -197,7 +197,7 @@
       \strng{authornamehash}{1abe5c51684c7af00a346185f514dcbf}
       \strng{authorfullhash}{1abe5c51684c7af00a346185f514dcbf}
       \field{sortinit}{I}
-      \field{sortinithash}{9417e9a1288a9371e2691d999083ed39}
+      \field{sortinithash}{8d291c51ee89b6cd86bf5379f0b151d8}
       \field{labelnamesource}{author}
       \field{labeltitlesource}{title}
       \field{abstract}{When multiple congestion-controlled Real-time Transport Protocol (RTP) sessions traverse the same network bottleneck, combining their controls can improve the total on-the-wire behavior in terms of delay, loss, and fairness. This document describes such a method for flows that have the same sender, in a way that is as flexible and simple as possible while minimizing the number of changes needed to existing RTP applications. This document also specifies how to apply the method for the Network-Assisted Dynamic Adaptation (NADA) congestion control algorithm and provides suggestions on how to apply it to other congestion control algorithms.}
@@ -255,7 +255,7 @@
       \strng{authorfullhash}{df72c785629f36209aa1dc692f784cad}
       \field{extraname}{2}
       \field{sortinit}{I}
-      \field{sortinithash}{9417e9a1288a9371e2691d999083ed39}
+      \field{sortinithash}{8d291c51ee89b6cd86bf5379f0b151d8}
       \field{labelnamesource}{author}
       \field{labeltitlesource}{title}
       \field{abstract}{Congestion occurs at a bottleneck along an Internet path; multiple flows between the same sender and receiver pairs can benefit from using only a single congestion control instance when they share the same bottleneck. These benefits include the ability to control the rate allocation between flows and reduced overall delay (multiple congestion control instances cause more queuing delay than one since each has no knowledge of the congestion episodes experienced by the others). We present a mechanism for coupling congestion control for real-time media and show its benefits by coupling multiple congestion controlled flows that share the same bottleneck.}
@@ -276,6 +276,101 @@
       \verb https://doi.org/10.1145/2740070.2630089
       \endverb
       \keyw{fse,congestion control,rmcat,webrtc}
+    \endentry
+    \entry{XiaoqingZhu2013NAUC}{inproceedings}{}
+      \name{author}{2}{}{%
+        {{hash=0ee7a84685e773c5912591304769b36e}{%
+           family={Zhu},
+           familyi={Z\bibinitperiod},
+           given={Xiaoqing},
+           giveni={X\bibinitperiod}}}%
+        {{hash=3acacc1f684ef378918a00ece495d31b}{%
+           family={Pan},
+           familyi={P\bibinitperiod},
+           given={Rong},
+           giveni={R\bibinitperiod}}}%
+      }
+      \list{language}{1}{%
+        {eng}%
+      }
+      \list{publisher}{1}{%
+        {IEEE}%
+      }
+      \strng{namehash}{30bc7a133db368510251bd4192f70256}
+      \strng{fullhash}{30bc7a133db368510251bd4192f70256}
+      \strng{bibnamehash}{30bc7a133db368510251bd4192f70256}
+      \strng{authorbibnamehash}{30bc7a133db368510251bd4192f70256}
+      \strng{authornamehash}{30bc7a133db368510251bd4192f70256}
+      \strng{authorfullhash}{30bc7a133db368510251bd4192f70256}
+      \field{sortinit}{Z}
+      \field{sortinithash}{96892c0b0a36bb8557c40c49813d48b3}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{abstract}{Low-latency, interactive media applications (e.g., video conferencing) present a unique set of challenges for congestion control. Unlike TCP, the transport mechanism for interactive media needs to adapt fast to abrupt changes in available bandwidth, accommodate sluggish responses and output rate fluctuations of a live video encoder, and avoid high queuing delay over the network. An ideal scheme should also make effective use of all types of congestion signals from the network, including packet losses, queuing delay, and explicit congestion notification (ECN) markings. This paper presents a unified approach for congestion control of interactive video: network-assisted dynamic adaptation (NADA). In NADA, the sender regulates its sending rate based on a composite congestion signal calculated and reported by the receiver, which combines both implicit (e.g., loss and delay) and explicit (e.g., ECN marking) congestion indications from the network. Via a consistent set of sender adaptation rules, the scheme can reap the full benefits of proactive, explicit congestion notifications supported by advanced queue management schemes. It remains equally responsive in the absence of such notifications. Extensive simulation studies show that NADA interact well with a wide variety of queue management schemes: conventional drop-tail, random early detection (RED), recently proposed CoDel (controlled delay) and PIE (Proportional Integral controller Enhanced), as well as a token-bucket-based random marking scheme based on Pre-Congestion Notification (PCN). Furthermore, NADA reacts fast to changes over the network, allows for weighted bandwidth sharing among multiple competing video streams, and sustains a substantial share of bottleneck bandwidth when coexisting with TCP.}
+      \field{booktitle}{2013 20th International Packet Video Workshop}
+      \field{isbn}{1479921726}
+      \field{issn}{2167-969X}
+      \field{title}{NADA: A Unified Congestion Control Scheme for Low-Latency Interactive Video}
+      \field{year}{2013}
+      \field{pages}{1\bibrangedash 8}
+      \range{pages}{8}
+      \keyw{Streaming media ; Media ; Delays ; Packet loss ; Receivers ; Bandwidth}
+    \endentry
+    \entry{rfc8698}{misc}{}
+      \name{author}{4}{}{%
+        {{hash=0ee7a84685e773c5912591304769b36e}{%
+           family={Zhu},
+           familyi={Z\bibinitperiod},
+           given={Xiaoqing},
+           giveni={X\bibinitperiod}}}%
+        {{hash=8c0b4e5136b650aaee84fb317d4559ad}{%
+           family={*},
+           familyi={*\bibinitperiod},
+           given={Rong\bibnamedelima Pan},
+           giveni={R\bibinitperiod\bibinitdelim P\bibinitperiod}}}%
+        {{hash=020ba9c7607200f89a97ea74453f494b}{%
+           family={Ramalho},
+           familyi={R\bibinitperiod},
+           given={Michael\bibnamedelima A.},
+           giveni={M\bibinitperiod\bibinitdelim A\bibinitperiod}}}%
+        {{hash=206a736aa1b05ca27d39a4ada4a9ce7e}{%
+           family={Cruz},
+           familyi={C\bibinitperiod},
+           given={Sergio\bibnamedelima Mena},
+           giveni={S\bibinitperiod\bibinitdelim M\bibinitperiod},
+           prefix={de\bibnamedelima la},
+           prefixi={d\bibinitperiod\bibinitdelim l\bibinitperiod}}}%
+      }
+      \list{publisher}{1}{%
+        {RFC Editor}%
+      }
+      \strng{namehash}{7e1f50d5d1a041fae04089b03270de18}
+      \strng{fullhash}{d05600ac898bcca94ed47148168a5ab6}
+      \strng{bibnamehash}{7e1f50d5d1a041fae04089b03270de18}
+      \strng{authorbibnamehash}{7e1f50d5d1a041fae04089b03270de18}
+      \strng{authornamehash}{7e1f50d5d1a041fae04089b03270de18}
+      \strng{authorfullhash}{d05600ac898bcca94ed47148168a5ab6}
+      \field{sortinit}{Z}
+      \field{sortinithash}{96892c0b0a36bb8557c40c49813d48b3}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{abstract}{This document describes Network-Assisted Dynamic Adaptation (NADA), a novel congestion control scheme for interactive real-time media applications such as video conferencing. In the proposed scheme, the sender regulates its sending rate, based on either implicit or explicit congestion signaling, in a unified approach. The scheme can benefit from Explicit Congestion Notification (ECN) markings from network nodes. It also maintains consistent sender behavior in the absence of such markings by reacting to queuing delays and packet losses instead.}
+      \field{howpublished}{RFC 8698}
+      \field{month}{2}
+      \field{number}{8698}
+      \field{pagetotal}{26}
+      \field{series}{Request for Comments}
+      \field{title}{{Network-Assisted Dynamic Adaptation (NADA): A Unified Congestion Control Scheme for Real-Time Media}}
+      \field{year}{2020}
+      \verb{doi}
+      \verb 10.17487/RFC8698
+      \endverb
+      \verb{urlraw}
+      \verb https://rfc-editor.org/rfc/rfc8698.txt
+      \endverb
+      \verb{url}
+      \verb https://rfc-editor.org/rfc/rfc8698.txt
+      \endverb
     \endentry
   \enddatalist
 \endrefsection
