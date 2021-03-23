@@ -80,7 +80,7 @@ You can easily convert yuv, webm, etc. to y4m using:
  - [x] Add research questions to thesis
  - [ ] Describe organization of the rest of the thesis 
  - [ ] Video and Data flows: classes!  *NOT URGENT*
- - [ ] DEMO: implement FSE-active in chromium and use "front, back and screensharing using the media channel": PS: laptop doesn't have front two cameras but it is possible to use both camera and screen sharing?
+ - [ ] DEMO: implement FSE-active in chromium and use "front, back and screensharing using the media channel": PS: laptop doesn't have two cameras, but we can use both camera and screen sharing?
 
  ### Next meeting:
 
