@@ -72,6 +72,7 @@ You can easily convert yuv, webm, etc. to y4m using:
  - [x] Come up with your research question(s)
  - [ ] Read about Scream 
  - [ ] How to use screen sharing through data channel
+ - [ ] Look at papers form Julius
  - [x] Read RFC8699 (Coupled congestion control)
  - [ ] Coupled Congestion control section
  - [ ] WebRTC congestion controls section
