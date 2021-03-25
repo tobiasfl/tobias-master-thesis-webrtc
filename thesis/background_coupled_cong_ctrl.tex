@@ -1,0 +1,201 @@
+\section{Coupled Congestion Control}
+\subsection{Problems with combined controls}
+\paragraph{}
+There are inherent differences in how quickly different types of congestion control react to congestion and combining them can therefore easily lead to unintentional side- effects. 
+This is a known issue especially when it comes to combining loss- based controls with delay- based controls.
+In 
+It has been shown to lead to...FIND A CONCRETE EXAMPLE TO REFER TO HERE 
+%TODO: Any sources to cite for this, e.g. in regards to WebRTC or other examples of combined delay- based and loss- based?
+
+The main issue stems from the fact that delay always happens earlier than loss.
+The reason is that the first thing that happens when there is congestion is that the bottleneck queues will start filling, thus making packets more delayed but not necessarily dropped until the queue is full or close to full.
+Intuitively, this means that delay is observable earlier than loss when there is congestion.
+The consequence of all this is that the delay- based control will decrease it's sending rate sooner than the loss- based will. 
+Such behaviour leads to a very bad dynamic where the delay- based control lowers the bitrate at such an early stage of congestion that the loss- based never experiences packet loss and thus keeps increasing its send rate. 
+The final result is that the delay- based control will get a smaller and smaller share of the available bandwidth because the loss- based control keeps increasing while the delay- based keeps backing down because of the congestion caused by the still- increasing traffic from the loss- based controller.
+\paragraph{Coupling the controls}
+A possible solution is to have the controllers cooperate by sharing their information i.e. coupling the flows.
+Such a mechanism could benefit both of the controllers by giving them more information, and different types of information to base their decisions on. 
+This could also be used to ensure that the loss- based controllers behave more fairly to other types of controllers.
+One could for instance make sure that the loss- based controller also decreases its rate when the delay- based controller decreases the send rate.
+One of the oldest and most well- known mechanisms for coupling is "The Congestion Manager" (CM) \cite{rfc3124}.
+CM couples flows by offering a single shared congestion controller for all the flows instead.
+The downside is that it is considered quite hard to implement because it requires an extra congestion controller and strips away all per- connection congestion control functionality, which is a drastic change.
+%TODO: Should actually read RFC3124 yourself
+%TODO: Maybe discuss Ensemble TCP?
+
+A newer solution called "Coupled Congestion Control" \cite{rfc8699} combines congestion controls travelling over the same bottleneck while at the same time being easier to implement than the congestion manager.
+As opposed to The Congestion Manager, Coupled Congestion Control tries to utilize the flows' own congestion controllers by having them share information amongst each other instead of removing them. 
+The mechanism has aready shown promise in \cite{10.1145/2740070.2630089, 7502803} when implemented with homogenous congestion controls but has not been tested on heterogenous congestion controls. 
+%TODO: read about how it performs and cite/mention it around here
+%TODO: Explain why this could prove useful for WebRTC?
+\paragraph{Coupled Congestion Control Architecture}
+The design philosophy of Coupled Congestion Control is that the amount of required changes to existing applications should be minimal. 
+The system consists of three elements, Shared Bottleneck Detection(SBD), Flow State Exchange(FSE) and the flows. 
+
+\subsection{The Flow State Exchange}
+The FSE can be described as a manager that maintains information exchanged between the flows and calculates a bit rate for each flow based on all the information gathered. 
+\paragraph{}
+When a flow starts it registers itself with the FSE and SBD, when it stops it deregisters from the FSE and every time the congestion controller calculates a new rate the flow executes an UPDATE call to the FSE.
+When a flow registers itself the SBD will assign it to a Flow Group by giving it a Flow Group Identifier.
+A flow group is defined as a group of flows that share the same bottleneck and thus should exchange information with each other. 
+The SBD is responsible for reassigning a flow to a different FG whenever the bottleneck changes.
+\paragraph{}
+The FSE component can be implemented in two ways: \textit{active} or \textit{passive}.
+In the active version, the FSE will actively initiate communication with each flow and SBD. 
+The passive version does not actively initiate communication and only has the task of internal state maintenance.
+
+\paragraph{}
+Generally, the FSE keeps a list of all flows that have registered with it and for each flow the FSE will store the following:
+\begin{itemize}
+    \item A unique number f to identify the flow.
+    \item The Flow Group Identifier (FGI).
+    \item The priority value P(f).
+    \item The rate used by the flow which is calculted by the FSE in bits per second FSE\_R(f).
+    \item The desired rate of the flow, DR(f).
+\end{itemize}
+
+The priority value P is used to calculate the flow's priority portion out of the sum of all priority values.
+The desired rate might be smaller than the calculated rate, e.g. because the application wants to limit the flow or simply does not have enough data to send. 
+If there is no desired rate value given by the flow it should just be set to the sending rate provided by the flows congestion control.
+
+For each FG the FSE keeps a few static variables:
+\begin{itemize}
+    \item The sum S\_CR of calculated rates for all flows in th FG.
+    \item The sum S\_P of all priorities in the FG.
+    \item The total leftover rate TLO. This is the sum of leftover rate by rates limited by desired rate.
+    \item Aggregate rate AR given to flows that are not limited by desired rate. 
+\end{itemize}
+
+Every time a flow's congestion control normally would update the flow's rate they carry out an UPDATE call to FSE instead. 
+Through the UPDATE call they provide their newly calculated rate and optionally a desired rate. 
+Then FSE calculates rates for all the flows and sends them back. 
+When a flow f starts, FSE\_R is initialized with the initial rate calculated by f's congestion controller. 
+After the SBD assigns the flow to an FG, it adds its FSE\_R to S\_CR.
+The desired rate is smaller than the calculated rate when the flow is limited by an application, otherwise it will be the same as the calculated rate.
+
+\subsection{Active FSE}
+In the active version FSE recalculates rates and notifies all the other flows in the FG as well whenever there is an UPDATE call from a single flow. 
+
+% What happens when a flow start
+% What happens when a flow UPDATES
+\begin{table}
+\begin{center}
+    \begin{tabular}{|c|c|}
+        \hline
+        CC\_R & Rate recevied from a flow's congestion controller \\
+        new\_DR & Desired rate of a flow when it calls UPDATE \\
+        FSE\_R & Rate allocated to a flow from the FSE \\
+        S\_CR & Total sum of calculated rates for all flows in the samme FG \\ 
+        FG & A group of flows sharing the same bottleneck \\
+        P & The priority of a flow \\
+        S\_P & Sum of all prioritites in a flow group \\
+        DELTA & Used to calculate the difference between CC\_R and FSE\_R \\  
+        \hline
+    \end{tabular}
+\end{center}
+\caption{Variables used in active FSE}
+\label{active_fse_variables}
+\end{table}
+
+In \cite{rfc8699} there are two examples of active FSE algorithms outlined.
+In table \ref{active_fse_variables} the variables used in both algorithms are outlined. 
+
+\paragraph{Example algorithm 1}
+The first active FSE algorithm was designed to be the simplest possible method for assigning rates according to prioritites of flows. 
+It consists of three steps:
+\paragraph{1.}
+When a flow f starts, it registers itself with SBD and the FSE. 
+FSE\_R(f) is initialized with f's congestion controllers' initial rate. 
+SBD will also give f a correct FGI.
+After having received its FGI the FSE adds the FSE\_R(f) to the flow group's corresponding S\_CR.
+\paragraph{2.}
+When a flow f stops or pauses it gets removed from the list of registered flows.
+\paragraph{3.}
+Every time a flow f's congestion controller updates the send rate CC\_R(f), i make an UPDATE call to the FSE.
+The UPDATE function completes four basic tasks (a- d) in order to calculate the new send rate for all flows in the same FG.
+A flow's UPDATE function uses three local (per- flow) temporary variables: S\_P, TLO and AR.
+\paragraph{UPDATE's tasks:}
+a) First it has to update S\_CR, this is done by adding the difference between CC\_R(f) and the previous FSE\_R(F) to the S\_CR.
+b) Then it calculates a new S\_P value and initializes FSE\_R(f) values of all flows in the FG to 0.
+c) In the third step it distributes the S\_CR among all the flows in the FG by calculating new FSE\_R values, while also ensuring that each flow's desired rate is not surpassed.
+d) Lastly the FSE actively distributes the newly calculated FSE\_R values to all the flows in the FG.
+
+\begin{figure}
+\begin{algorithm}[H]
+    \SetAlgoLined
+    \caption{Active FSE - Example 1}
+    \tcc{Update S\_CR}
+    S\_CR = S\_CR + CC\_R(f) - FSE\_R(f)\;
+    \tcc{Calculate new S\_P and initialize FSE\_R(f)}
+    S\_P = 0\;
+    \ForEach{flow f in FG}{
+        S\_P = S\_P + P(f)\;
+        FSE\_R(f) = 0\;
+    }
+    \tcc{Distribute S\_CR among all flows}
+    TLO = S\_CR\;
+    \While{TLO > 0 and S\_P > 0}{
+        AR = 0\;
+        \ForEach{flow f in FG}{
+            \If{FSE\_R(f) < DR(f)}{
+                \eIf{TLO * P(f) / S\_P >= DR(f)}{
+                    TLO = TLO - DR(f)\;
+                    FSE\_R(f) = DR(f)\;
+                    S\_P = S\_P - P(f)\;
+                }
+                {
+                    FSE\_R(f) = TLO * P(f) / S\_P\;
+                    AR = AR + TLO * P(f) / S\_P\;
+                }
+            }
+        } 
+    }
+    \tcc{Distribute calculated FSE\_R among all flows}
+    \ForEach{flow f in FG}{
+        send(FSE\_R(f), f)
+    }
+\end{algorithm}
+\caption{Example algorithm 1 of active FSE}
+\label{active-fse-1}
+\end{figure}
+
+\paragraph{}
+Even though algorithm 1 is simple and intuitive, it is shown to give both higher packet loss and queueing delay in \cite{10.1145/2740070.2630089} when tested with two heterogenous controls coupled. 
+The authors concluded that the reason for these unsatisfactory results happened because the FSE \textit{de-synchronizes} the flows.
+To illustrate the problem, consider some arbitrary congestion control that halves its send rate when experiencing congestion.
+The problem essentially was that normally without FSE, two flows will often naturally get synchronized and halve their rates at the same time, thus reducing the total rate by half.
+Now, if we consider the two flows coupled with the FSE again, since they are de-synchronized only one will halve its rate at a time thus only reducing the total rate a quarter and giving less of a chance for the queues to drain resulting in more queue growth and loss.
+As a consequence there was a new active FSE algorithm made in order to fix the loss ratio and average queue growth.
+\paragraph{Example algorithm 2}
+The second algorithm aims to emulate a behavior similar to what happens when flows get synchronized.
+It does this by proportionally reducing the aggregate rate on congestion.
+%TODO: Summarize the algorithm
+Step 3a is altered by introducing the local variable DELTA which is used to calculate the difference between CC\_R and previously stored FSE\_R. 
+To prevent flows from either ignoring congestion or overreacting, a timer is used to stop any flow form changing their directly after a shared rate reduction caused by a congestion event. 
+The timer starts at two RTT's of the flow that experienced the congestion event.
+The reasoning for using two RTT's is that it is assumed that a congestion event may last up to one RTT for the flow, with the extra RTT added in order to compensate for fluctuations in measured RTT value.
+Except for step 3a where S\_CR is updated based on DELTA, the rest of the algorithm remains the same as \ref{active-fse-1}.
+
+%TODO: write pesudocode for step 3a
+
+\subsection{Passive FSE}
+In the passive version of FSE the rate is not calculated for other flow's than the one making the UPDATE call, as opposed to active FSE.
+This might be considered easier to implement but when flows have different RTT's, the ones with shorter RTT will update more often which could produce unwanted side- effects.
+The problem is even more significant in situations where a congestion controller's convergence is dependent on RTT. %TODO: explain why maybe?
+In the passive version of FSE the TLO variable is static per FG and is initialized to 0. 
+1. When a flow f starts it registers itself til SBD and FSE. FSE\_R(f) and DR(f) is initialized with the congestions controller's initial rate. 
+Additionally, S\_CR is limited to increase or decrease as conservatively as the flows's congestion controller decides in order to avoid sudden rate jumps.
+2. When a flow f stops or pauses, DR(f) is set to 0 and P(f) is set to -1. %TODO:Why -1?
+3. Every time a flow f's congestion controller calculates a new send rate CC\_R(f) it calls UPDATE.
+The UPDATE function uses some local(per- flow) temporary variables that are initialized to 0: DELTA, new\_S\_CR and S\_P.
+The UPDATE function of a flow f completes tasks a- e:
+a) For all flows in the same FG it calculates the sum of all calculated rates new\_S\_CR.
+Afterwards it calculates DELTA as the difference between FSE\_R(f) and CC\_R(f).
+b) It updates S\_CR, FSE\_R(f) and DR(f).
+c) It calculates TLO if there is any leftover rate, removes terminated flows from the list of flows and calculates the sum of all priorities, S\_P.
+d) It calculates the send rate, Rate(f) which is the minimum of DR(f) and prioritized share of S\_CR plus any leftovers from other flows.
+e) Lastly it updates DR(f) and FSE\_R with Rate(f).
+%TODO: explain more?
+
+

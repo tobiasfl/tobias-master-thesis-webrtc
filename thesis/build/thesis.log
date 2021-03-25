@@ -1,4 +1,4 @@
-This is pdfTeX, Version 3.14159265-2.6-1.40.21 (TeX Live 2020) (preloaded format=pdflatex 2021.3.14)  16 MAR 2021 10:42
+This is pdfTeX, Version 3.14159265-2.6-1.40.21 (TeX Live 2020) (preloaded format=pdflatex 2021.3.14)  25 MAR 2021 14:57
 entering extended mode
  restricted \write18 enabled.
  file:line:error style messages enabled.
@@ -688,23 +688,23 @@ Package hyperref Info: Option `pageanchor' set `true' on input line 22.
 
 ]
 Chapter 1.
-[1
+(./introduction_research_questions.tex) [1
 
 ] [2]
 Chapter 2.
-
+(./background_webrtc_architecture.tex) (./background_transport_protocols.tex
 Underfull \vbox (badness 10000) has occurred while \output is active []
 
  [3
 
-] [4] [5] [6]
+] [4]) (./background_congestion_control.tex) (./background_webrtc_cong_ctrls.tex [5] [6]) (./background_coupled_cong_ctrl.tex
 Underfull \vbox (badness 1789) has occurred while \output is active []
 
  [7] [8] [9] [10]
-LaTeX Font Info:    Trying to load font information for T1+cmtt on input line 329.
+LaTeX Font Info:    Trying to load font information for T1+cmtt on input line 128.
  (/usr/local/texlive/2020/texmf-dist/tex/latex/base/t1cmtt.fd
 File: t1cmtt.fd 2019/12/16 v2.5j Standard LaTeX font definitions
-) [11] [12] [13] [14]
+) [11] [12]) (./background_shared_bottleneck_detection.tex [13]) [14]
 Chapter 3.
 [15
 
@@ -732,10 +732,10 @@ Package logreq Info: Writing requests to 'thesis.run.xml'.
 
  ) 
 Here is how much of TeX's memory you used:
- 18597 strings out of 479022
- 318323 string characters out of 5859386
+ 18625 strings out of 479022
+ 319277 string characters out of 5859386
  1088606 words of memory out of 5000000
- 35633 multiletter control sequences out of 15000+600000
+ 35640 multiletter control sequences out of 15000+600000
  446726 words of font info for 88 fonts, out of 8000000 for 9000
  1141 hyphenation exceptions out of 8191
  88i,19n,91p,1892b,2251s stack positions out of 5000i,500n,10000p,200000b,80000s

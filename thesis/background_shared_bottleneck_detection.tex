@@ -1,0 +1,15 @@
+\section{Shared Bottleneck Detection}
+The SBD is an entity that is responsible for determining which flows are traversing the same bottleneck. 
+In \cite{rfc8699} three methods for deriving if flows share the same bottleneck are mentioned.
+
+\subsection{Multiplexed flows}
+One way is through comparing multiplexed flows. 
+%TODO: might want to explain the term five- tuple
+Since the flows with the same five- tuple will be routed along the same path, SBD can assume that they share the same bottleneck. 
+However this method cannot be used for coupled congestion controllers with one sender talking to multiple receivers, given that they will not have the same five- tuple. 
+Since WebRTC uses both SRTP and SCTP multiplexed on UDP, this ensures that they have the same five- tuple and that the first method will work. 
+\subsection{Measurement}
+One might also use measurements of e.g. delay and loss and look at correlations to derive if flows have a shared bottleneck.
+\subsection{Configuration}
+
+
