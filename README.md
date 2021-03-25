@@ -71,7 +71,6 @@ You can easily convert yuv, webm, etc. to y4m using:
  - [x] congestion control mechanisms for webrtc: GCC, NADA(CISCO) 
  - [x] Come up with your research question(s)
  - [ ] Read about Scream 
- - [ ] How to use screen sharing through data channel
  - [ ] Look at papers form Julius
  - [x] Read RFC8699 (Coupled congestion control)
  - [ ] Coupled Congestion control section
@@ -82,6 +81,8 @@ You can easily convert yuv, webm, etc. to y4m using:
  - [x] Add research questions to thesis
  - [ ] Describe organization of the rest of the thesis 
  - [ ] Video and Data flows: classes!  *NOT URGENT*
+ - [ ] Skim paper on ensemble TCP
+ - [ ] Skim paper on Congestion Manager 
  - [ ] DEMO: implement FSE-active in chromium and use "front, back and screensharing using the media channel": PS: laptop doesn't have two cameras, but we can use both camera and screen sharing?
 
  ### Next meeting:
