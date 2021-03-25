@@ -139,15 +139,13 @@
 \defcounter {refsection}{0}\relax 
 \contentsline {paragraph}{Example algorithm 2}{11}{section*.42}%
 \defcounter {refsection}{0}\relax 
-\contentsline {subsection}{\numberline {2.5.4}Passive FSE}{13}{subsection.2.5.4}%
-\defcounter {refsection}{0}\relax 
 \contentsline {section}{\numberline {2.6}Shared Bottleneck Detection}{13}{section.2.6}%
 \defcounter {refsection}{0}\relax 
 \contentsline {subsection}{\numberline {2.6.1}Multiplexed flows}{13}{subsection.2.6.1}%
 \defcounter {refsection}{0}\relax 
-\contentsline {subsection}{\numberline {2.6.2}Measurement}{14}{subsection.2.6.2}%
+\contentsline {subsection}{\numberline {2.6.2}Measurement}{13}{subsection.2.6.2}%
 \defcounter {refsection}{0}\relax 
-\contentsline {subsection}{\numberline {2.6.3}Configuration}{14}{subsection.2.6.3}%
+\contentsline {subsection}{\numberline {2.6.3}Configuration}{13}{subsection.2.6.3}%
 \defcounter {refsection}{0}\relax 
 \contentsline {chapter}{\numberline {3}Design}{15}{chapter.3}%
 \defcounter {refsection}{0}\relax 

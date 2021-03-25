@@ -8,7 +8,7 @@ It has been shown to lead to...FIND A CONCRETE EXAMPLE TO REFER TO HERE
 %TODO: Any sources to cite for this, e.g. in regards to WebRTC or other examples of combined delay- based and loss- based?
 
 The main issue stems from the fact that delay always happens earlier than loss.
-The reason is that the first thing that happens when there is congestion is that the bottleneck queues will start filling, thus making packets more delayed but not necessarily dropped until the queue is full or close to full.
+The first thing that happens when there is congestion is that the bottleneck queues will start filling, thus making packets more delayed but not necessarily dropped until the queue is full or close to full.
 Intuitively, this means that delay is observable earlier than loss when there is congestion.
 The consequence of all this is that the delay- based control will decrease it's sending rate sooner than the loss- based will. 
 Such behaviour leads to a very bad dynamic where the delay- based control lowers the bitrate at such an early stage of congestion that the loss- based never experiences packet loss and thus keeps increasing its send rate. 
@@ -26,7 +26,7 @@ The downside is that it is considered quite hard to implement because it require
 
 A newer solution called "Coupled Congestion Control" \cite{rfc8699} combines congestion controls travelling over the same bottleneck while at the same time being easier to implement than the congestion manager.
 As opposed to The Congestion Manager, Coupled Congestion Control tries to utilize the flows' own congestion controllers by having them share information amongst each other instead of removing them. 
-The mechanism has aready shown promise in \cite{10.1145/2740070.2630089, 7502803} when implemented with homogenous congestion controls but has not been tested on heterogenous congestion controls. 
+The mechanism has already shown promise in \cite{10.1145/2740070.2630089, 7502803} when implemented with homogenous congestion controls but has not been tested on heterogenous congestion controls. 
 %TODO: read about how it performs and cite/mention it around here
 %TODO: Explain why this could prove useful for WebRTC?
 \paragraph{Coupled Congestion Control Architecture}
@@ -44,6 +44,7 @@ The SBD is responsible for reassigning a flow to a different FG whenever the bot
 The FSE component can be implemented in two ways: \textit{active} or \textit{passive}.
 In the active version, the FSE will actively initiate communication with each flow and SBD. 
 The passive version does not actively initiate communication and only has the task of internal state maintenance.
+While the passive version has its own advantages and disadvantages and is relevant for other research projects it is beyond the scope of this paper.
 
 \paragraph{}
 Generally, the FSE keeps a list of all flows that have registered with it and for each flow the FSE will store the following:
@@ -175,27 +176,26 @@ Step 3a is altered by introducing the local variable DELTA which is used to calc
 To prevent flows from either ignoring congestion or overreacting, a timer is used to stop any flow form changing their directly after a shared rate reduction caused by a congestion event. 
 The timer starts at two RTT's of the flow that experienced the congestion event.
 The reasoning for using two RTT's is that it is assumed that a congestion event may last up to one RTT for the flow, with the extra RTT added in order to compensate for fluctuations in measured RTT value.
-Except for step 3a where S\_CR is updated based on DELTA, the rest of the algorithm remains the same as \ref{active-fse-1}.
+Except for step 3a where S\_CR is updated based on DELTA, the rest of the algorithm remains the same as \vref{active-fse-1}.
+The altered part of the algorithm is shown in figure \vref{active-fse-2}
 
-%TODO: write pesudocode for step 3a
-
-\subsection{Passive FSE}
-In the passive version of FSE the rate is not calculated for other flow's than the one making the UPDATE call, as opposed to active FSE.
-This might be considered easier to implement but when flows have different RTT's, the ones with shorter RTT will update more often which could produce unwanted side- effects.
-The problem is even more significant in situations where a congestion controller's convergence is dependent on RTT. %TODO: explain why maybe?
-In the passive version of FSE the TLO variable is static per FG and is initialized to 0. 
-1. When a flow f starts it registers itself til SBD and FSE. FSE\_R(f) and DR(f) is initialized with the congestions controller's initial rate. 
-Additionally, S\_CR is limited to increase or decrease as conservatively as the flows's congestion controller decides in order to avoid sudden rate jumps.
-2. When a flow f stops or pauses, DR(f) is set to 0 and P(f) is set to -1. %TODO:Why -1?
-3. Every time a flow f's congestion controller calculates a new send rate CC\_R(f) it calls UPDATE.
-The UPDATE function uses some local(per- flow) temporary variables that are initialized to 0: DELTA, new\_S\_CR and S\_P.
-The UPDATE function of a flow f completes tasks a- e:
-a) For all flows in the same FG it calculates the sum of all calculated rates new\_S\_CR.
-Afterwards it calculates DELTA as the difference between FSE\_R(f) and CC\_R(f).
-b) It updates S\_CR, FSE\_R(f) and DR(f).
-c) It calculates TLO if there is any leftover rate, removes terminated flows from the list of flows and calculates the sum of all priorities, S\_P.
-d) It calculates the send rate, Rate(f) which is the minimum of DR(f) and prioritized share of S\_CR plus any leftovers from other flows.
-e) Lastly it updates DR(f) and FSE\_R with Rate(f).
-%TODO: explain more?
-
-
+\begin{figure}
+\begin{algorithm}[H]
+    \SetAlgoLined
+    \caption{Active FSE - Example 2}
+    \tcc{Update S\_CR based on DELTA}
+    \If{Timer has expired or was not set}{
+        DELTA = CC\_R(f) - FSE\_R(f)\;
+        \eIf{DELTA < 0}{
+            \tcc{Reduce S\_CR proportionally}
+            S\_CR = S\_CR * CC\_R(f) / FSE\_R{f}\;
+            Set Timer for 2 RTTs\;
+        }
+        {
+            S\_CR = S\_CR + DELTA
+        }
+    }
+\end{algorithm}
+\caption{Step a of Example algorithm 2's altered UPDATE function}
+\label{active-fse-2}
+\end{figure}
