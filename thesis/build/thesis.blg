@@ -1,20 +1,20 @@
 [0] Config.pm:311> INFO - This is Biber 2.16
 [0] Config.pm:314> INFO - Logfile is 'build/thesis.blg'
-[80] biber:340> INFO - === to. mars 25, 2021, 14:53:11
+[80] biber:340> INFO - === lø. april  3, 2021, 12:37:54
 [95] Biber.pm:415> INFO - Reading 'build/thesis.bcf'
-[168] Biber.pm:952> INFO - Found 7 citekeys in bib section 0
-[181] Biber.pm:4340> INFO - Processing section 0
-[193] Biber.pm:4531> INFO - Looking for bibtex format file './bibdb/mybib.bib' for section 0
-[194] bibtex.pm:1689> INFO - LaTeX decoding ...
-[208] bibtex.pm:1494> INFO - Found BibTeX data source './bibdb/mybib.bib'
-[286] Utils.pm:395> WARN - legacy month field 'April' in entry '7502803' is not an integer - this will probably not sort properly.
-[287] Biber.pm:4531> INFO - Looking for bibtex format file './bibdb/allrefs.bib' for section 0
-[287] bibtex.pm:1689> INFO - LaTeX decoding ...
-[292] bibtex.pm:1494> INFO - Found BibTeX data source './bibdb/allrefs.bib'
-[318] UCollate.pm:68> INFO - Overriding locale 'en-UK' defaults 'variable = shifted' with 'variable = non-ignorable'
-[319] UCollate.pm:68> INFO - Overriding locale 'en-UK' defaults 'normalization = NFD' with 'normalization = prenormalized'
-[319] Biber.pm:4168> INFO - Sorting list 'nty/global//global/global' of type 'entry' with template 'nty' and locale 'en-UK'
-[319] Biber.pm:4174> INFO - No sort tailoring available for locale 'en-UK'
-[329] bbl.pm:654> INFO - Writing 'build/thesis.bbl' with encoding 'UTF-8'
-[335] bbl.pm:757> INFO - Output to build/thesis.bbl
-[335] Biber.pm:128> INFO - WARNINGS: 1
+[170] Biber.pm:952> INFO - Found 7 citekeys in bib section 0
+[183] Biber.pm:4340> INFO - Processing section 0
+[194] Biber.pm:4531> INFO - Looking for bibtex format file './bibdb/mybib.bib' for section 0
+[195] bibtex.pm:1689> INFO - LaTeX decoding ...
+[209] bibtex.pm:1494> INFO - Found BibTeX data source './bibdb/mybib.bib'
+[290] Utils.pm:395> WARN - legacy month field 'April' in entry '7502803' is not an integer - this will probably not sort properly.
+[293] Biber.pm:4531> INFO - Looking for bibtex format file './bibdb/allrefs.bib' for section 0
+[294] bibtex.pm:1689> INFO - LaTeX decoding ...
+[298] bibtex.pm:1494> INFO - Found BibTeX data source './bibdb/allrefs.bib'
+[324] UCollate.pm:68> INFO - Overriding locale 'en-UK' defaults 'normalization = NFD' with 'normalization = prenormalized'
+[324] UCollate.pm:68> INFO - Overriding locale 'en-UK' defaults 'variable = shifted' with 'variable = non-ignorable'
+[324] Biber.pm:4168> INFO - Sorting list 'nty/global//global/global' of type 'entry' with template 'nty' and locale 'en-UK'
+[325] Biber.pm:4174> INFO - No sort tailoring available for locale 'en-UK'
+[335] bbl.pm:654> INFO - Writing 'build/thesis.bbl' with encoding 'UTF-8'
+[341] bbl.pm:757> INFO - Output to build/thesis.bbl
+[341] Biber.pm:128> INFO - WARNINGS: 1
