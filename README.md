@@ -84,12 +84,12 @@ You can easily convert yuv, webm, etc. to y4m using:
 
 ### Implementation/ testing tasks
  - [ ] Video and Data flows: classes!  *NOT URGENT*
- - [ ] DEMO: implement FSE-active in chromium and use "front, back and screensharing using the media channel": PS: laptop doesn't have two cameras, but we can use both camera and screen sharing?
  - [ ] 1. Implement example algorithm 1 of active FSE in chromium
  - [ ] 1. Extend the webrtc app with screen sharing over media channel
  - [ ] 1. Test with video and screen sharing using only media channel 
- - [ ] 2. Implement and test FSE-NG and test with video and data flow
+ - [ ] 2. Implement and test FSE-NG with video and data flow
  - [ ] 3. Test algorithm 1 with video+data at the same time
+ - [ ] Implement screen sharing over data channel in the webrtc app
 
  ### Next meeting:
 
