@@ -63,7 +63,7 @@ You can easily convert yuv, webm, etc. to y4m using:
  https://www.dropbox.com/sh/0gz5okspfma41oh/AACoKqwkon78KOoASe22c9pya?dl=0
  
  
-### Task
+### Writing/ reading tasks
 
  - [x] Prepare a structure of your thesis: just headings, and create table of contents.
  - [x] Subheadings for your background sections: start with what your audience should know: webrtc architecture, transport protocols, congestion controls, coupled congestion and shared bottleneck detection 
@@ -73,17 +73,23 @@ You can easily convert yuv, webm, etc. to y4m using:
  - [ ] Read about Scream 
  - [x] Look at papers form Julius
  - [x] Read RFC8699 (Coupled congestion control)
- - [ ] Coupled Congestion control section
- - [ ] WebRTC congestion controls section
- - [ ] Congestion control section
- - [ ] Coupled congestion algorithm design section(algorithm steps and integrating with data and video)
- - [ ] Write about metrics to use in evaluation section (look at Safiqul's papers for which fairness index and etc. ) 
- - [x] Add research questions to thesis
+ - [ ] Draft Coupled Congestion control section
+ - [ ] Draft WebRTC congestion controls section
+ - [ ] Draft Congestion control section
+ - [ ] Draft Coupled congestion algorithm design section(algorithm steps and integrating with data and video)
+ - [ ] Draft about metrics to use in evaluation section (look at Safiqul's papers for which fairness index and etc. ) 
  - [ ] Describe organization of the rest of the thesis 
- - [ ] Video and Data flows: classes!  *NOT URGENT*
  - [ ] Skim paper on ensemble TCP
  - [ ] Skim paper on Congestion Manager 
+
+### Implementation/ testing tasks
+ - [ ] Video and Data flows: classes!  *NOT URGENT*
  - [ ] DEMO: implement FSE-active in chromium and use "front, back and screensharing using the media channel": PS: laptop doesn't have two cameras, but we can use both camera and screen sharing?
+ - [ ] 1. Implement example algorithm 1 of active FSE in chromium
+ - [ ] 1. Extend the webrtc app with screen sharing over media channel
+ - [ ] 1. Test with video and screen sharing using only media channel 
+ - [ ] 2. Implement and test FSE-NG and test with video and data flow
+ - [ ] 3. Test algorithm 1 with video+data at the same time
 
  ### Next meeting:
 
