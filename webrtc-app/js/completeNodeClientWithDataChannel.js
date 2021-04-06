@@ -89,7 +89,7 @@ var pc_constraints = {
 var sdpConstraints = {};
 
 var room = 'mithun';
-var socket = io.connect("http://10.0.3.1:51002");  //http://109.189.94.126:51002
+var socket = io.connect("http://127.0.0.1:51002");  //http://109.189.94.126:51002
 var constraints = {video: true, audio: false};
 socket.emit('join_room', room);
 
