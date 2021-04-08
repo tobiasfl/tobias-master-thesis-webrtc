@@ -85,7 +85,7 @@ You can easily convert yuv, webm, etc. to y4m using:
 ### Implementation/ testing tasks
  - [ ] Video and Data flows: classes!  *NOT URGENT*
  - [ ] 1. Implement example algorithm 1 of active FSE in chromium
- - [ ] 1. Extend the webrtc app with screen sharing over media channel
+ - [x] 1. Extend the webrtc app with screen sharing over media channel
  - [ ] 1. Test with video and screen sharing using only media channel 
  - [ ] 2. Implement and test FSE-NG with video and data flow
  - [ ] 3. Test algorithm 1 with video+data at the same time
