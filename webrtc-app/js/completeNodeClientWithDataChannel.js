@@ -42,6 +42,8 @@ var transferSizeInput = document.querySelector('input#transferSize')
 // HTML5 <video> elements
 var localVideo = document.querySelector('#localVideo');
 var remoteVideo = document.querySelector('#remoteVideo');
+var localScreenVideo = document.querySelector('#localScreenCapture');
+var remoteScreenVideo = document.querySelector('#remoteScreenCapture');
 
 /* File transfer */
 var receivedMetadata = null; /* This is actually file metadata */
@@ -68,6 +70,11 @@ var isStarted = false;
 var pc;
 var localStream;
 var remoteStream;
+var localScreenStream;
+var remoteScreenStream;
+
+var gotRemoteVideo = false;
+var gotRemoteScreen = false;
 
 const sleep = (milliseconds) => {
     return new Promise(resolve => setTimeout(resolve, milliseconds))
@@ -89,7 +96,7 @@ var pc_constraints = {
 var sdpConstraints = {};
 
 var room = 'mithun';
-var socket = io.connect("http://10.0.3.1:51002");  //http://109.189.94.126:51002
+var socket = io.connect("http://127.0.0.1:51002");  //http://109.189.94.126:51002
 var constraints = {video: true, audio: false};
 socket.emit('join_room', room);
 
@@ -99,6 +106,7 @@ socket.emit('join_room', room);
 socket.on('created', function (room){
     isInitiator = true;
     navigator.getUserMedia(constraints, handleUserMedia, handleUserMediaError);
+    startScreenCapture();
 });
 socket.on('join', function (room, cnt){
     if (cnt >= 2)
@@ -107,6 +115,7 @@ socket.on('join', function (room, cnt){
 socket.on('joined', function (room){
     requiredNumberOfHostReached = true;
     navigator.getUserMedia(constraints, handleUserMedia, handleUserMediaError);
+    startScreenCapture();
 });
 socket.on('full', function (room){
     console.log("Room full, please make sure no more than two browsers are active");
@@ -118,8 +127,8 @@ socket.on('log', function (array){
 
 function handleUserMedia(stream) {
     localStream = stream;
-    attachMediaStream(localVideo, stream);
-    sendMessage('got user media');
+    attachMediaStream(localVideo, localStream);
+    sendMessage('got user video');
 }
 function handleUserMediaError(error){
     console.log('navigator.getUserMedia error: ', error);
@@ -128,9 +137,11 @@ function handleUserMediaError(error){
 
 // Receive message from the other peer via the signaling server
 socket.on('message', function (message){
-    if (message === 'got user media') {
-        checkAndStart();
-    } else if (message.type === 'offer') {
+    if (message === 'got user video') {
+        gotRemoteVideo = true;
+    } else if (message === 'got user screen'){
+        gotRemoteScreen = true;
+    }  else if (message.type === 'offer') {
         if (!isInitiator && !isStarted) {
             checkAndStart();
         }
@@ -144,19 +155,23 @@ socket.on('message', function (message){
         pc.addIceCandidate(candidate);
     } else if (message === 'bye' && isStarted) {
         handleRemoteHangup();
-	isInitiator = true;
-	requiredNumberOfHostReached = false;
+        isInitiator = true;
+        requiredNumberOfHostReached = false;
     } else if (message.identifier == 'identifier') {
 	console.log("handleMessage should have metadata");
         receivedMetadata = message;
 
-	/* Reset all state related to transfer */
-	receiveBuffer = [];
-	receivedSize = 0;
-	receiveProgress.value = 0;
-	timestampStart = (new Date()).getTime();
+        /* Reset all state related to transfer */
+        receiveBuffer = [];
+        receivedSize = 0;
+        receiveProgress.value = 0;
+        timestampStart = (new Date()).getTime();
         receiveProgress.max = receivedMetadata.size;
     }
+    if (gotRemoteScreen && gotRemoteVideo && (message === 'got user video' || message === 'got user screen')){
+        checkAndStart();
+    }
+
 });
 
 function getAndSendFileInfo() {
@@ -210,9 +225,12 @@ function createPeerConnection() {
     try {
         pc = new RTCPeerConnection(pc_config, pc_constraints);
 	//pc = new RTCPeerConnection(pc_config, null);
-	if (localStream)
+        if (localScreenStream && localScreenStream) {
+            console.log("Adding streams to peerConnection");
             pc.addStream(localStream);
-        pc.onicecandidate = handleIceCandidate;
+            pc.addStream(localScreenStream);
+            pc.onicecandidate = handleIceCandidate;
+        }
     } catch (e) {
         alert('Cannot create RTCPeerConnection object.');
         return;
@@ -222,20 +240,19 @@ function createPeerConnection() {
 
     if (isInitiator) {
         try {
-	    // Create a reliable data channel
+            // Create a reliable data channel
             sendChannel = pc.createDataChannel("sendDataChannel",
 					       {reliable: true});
-	    console.log("Data channel should be created:" + sendChannel);
+            console.log("Data channel should be created:" + sendChannel);
         } catch (e) {
             alert('Failed to create data channel. ');
-	    console.log("failed to create data channel");
+            console.log("failed to create data channel");
         }
         sendChannel.onopen = handleSendChannelStateChange;
         sendChannel.onclose = handleSendChannelStateChange;
     } else { // Joiner
         pc.ondatachannel = gotReceiveChannel;
     }
-
 }
 
 // Data channel management
@@ -453,10 +470,20 @@ function setLocalAndSendMessage(sessionDescription) {
 }
 // Remote stream handlers...
 function handleRemoteStreamAdded(event) {
-    console.log('Remote stream added.');
-    attachMediaStream(remoteVideo, event.stream);
-    console.log('Remote stream attached!!.');
-    remoteStream = event.stream;
+    console.log("Handling remote stream");
+    //hacky way to identify if it is screenshare or camera
+    if(remoteStream) {
+        console.log('Remote stream added.');
+        attachMediaStream(remoteScreenVideo, event.stream);
+        console.log('Remote stream attached!!.');
+        remoteScreenStream = event.stream;
+    }
+    else {
+        console.log('Remote stream added.');
+        attachMediaStream(remoteVideo, event.stream);
+        console.log('Remote stream attached!!.');
+        remoteStream = event.stream;
+    }
 }
 
 function handleRemoteStreamRemoved(event) {
@@ -600,4 +627,17 @@ function getBrowserVideoStats() {
 	    }
 	});
     }
+}
+
+//screen capture management
+function startScreenCapture() {
+    //seems invalid in firefox
+    navigator.mediaDevices.getDisplayMedia()
+        .then(stream => {
+            localScreenStream = stream;
+            attachMediaStream(localScreenVideo, localScreenStream);
+            //send a message here?
+            sendMessage('got user screen');
+        })
+        .catch(err => {console.log("Error: " + err); return null; });
 }
