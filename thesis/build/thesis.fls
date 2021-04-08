@@ -1089,6 +1089,7 @@ OUTPUT ./build/thesis.run.xml
 INPUT /usr/local/texlive/2020/texmf-dist/fonts/enc/dvips/cm-super/cm-super-t1.enc
 INPUT /usr/local/texlive/2020/texmf-dist/fonts/enc/dvips/base/8r.enc
 INPUT /usr/local/texlive/2020/texmf-dist/fonts/type1/public/amsfonts/cm/cmr10.pfb
+INPUT /usr/local/texlive/2020/texmf-dist/fonts/type1/public/mathpazo/fplmr.pfb
 INPUT /usr/local/texlive/2020/texmf-dist/fonts/type1/public/cm-super/sfss1095.pfb
 INPUT /usr/local/texlive/2020/texmf-dist/fonts/type1/public/cm-super/sftt1095.pfb
 INPUT /usr/local/texlive/2020/texmf-dist/fonts/type1/urw/helvetic/uhvr8a.pfb

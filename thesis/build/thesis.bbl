@@ -63,6 +63,76 @@
       \verb https://rfc-editor.org/rfc/rfc3124.txt
       \endverb
     \endentry
+    \entry{8065803}{inproceedings}{}
+      \name{author}{2}{}{%
+        {{hash=840c28b68e4230801f86a754b92d4c2a}{%
+           family={{Flohr}},
+           familyi={F\bibinitperiod},
+           given={J.},
+           giveni={J\bibinitperiod}}}%
+        {{hash=09df42f4616d649b458d9d46efca4351}{%
+           family={{Rathgeb}},
+           familyi={R\bibinitperiod},
+           given={E.\bibnamedelimi P.},
+           giveni={E\bibinitperiod\bibinitdelim P\bibinitperiod}}}%
+      }
+      \strng{namehash}{3dd1bd90f18616ec9e79079227d5f286}
+      \strng{fullhash}{3dd1bd90f18616ec9e79079227d5f286}
+      \strng{bibnamehash}{3dd1bd90f18616ec9e79079227d5f286}
+      \strng{authorbibnamehash}{3dd1bd90f18616ec9e79079227d5f286}
+      \strng{authornamehash}{3dd1bd90f18616ec9e79079227d5f286}
+      \strng{authorfullhash}{3dd1bd90f18616ec9e79079227d5f286}
+      \field{sortinit}{F}
+      \field{sortinithash}{2638baaa20439f1b5a8f80c6c08a13b4}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{booktitle}{2017 29th International Teletraffic Congress (ITC 29)}
+      \field{title}{ROSIEE: Reduction of Self Inflicted Queuing Delay in WebRTC}
+      \field{volume}{3}
+      \field{year}{2017}
+      \field{pages}{7\bibrangedash 12}
+      \range{pages}{6}
+      \verb{doi}
+      \verb 10.23919/ITC.2017.8065803
+      \endverb
+    \endentry
+    \entry{8638084}{inproceedings}{}
+      \name{author}{3}{}{%
+        {{hash=840c28b68e4230801f86a754b92d4c2a}{%
+           family={{Flohr}},
+           familyi={F\bibinitperiod},
+           given={J.},
+           giveni={J\bibinitperiod}}}%
+        {{hash=a083e04b3094f1c8c29115d9b13042e5}{%
+           family={{Volodina}},
+           familyi={V\bibinitperiod},
+           given={E.},
+           giveni={E\bibinitperiod}}}%
+        {{hash=09df42f4616d649b458d9d46efca4351}{%
+           family={{Rathgeb}},
+           familyi={R\bibinitperiod},
+           given={E.\bibnamedelimi P.},
+           giveni={E\bibinitperiod\bibinitdelim P\bibinitperiod}}}%
+      }
+      \strng{namehash}{2ff10894b93b106bf587d3d52ea3ae6c}
+      \strng{fullhash}{2ff10894b93b106bf587d3d52ea3ae6c}
+      \strng{bibnamehash}{2ff10894b93b106bf587d3d52ea3ae6c}
+      \strng{authorbibnamehash}{2ff10894b93b106bf587d3d52ea3ae6c}
+      \strng{authornamehash}{2ff10894b93b106bf587d3d52ea3ae6c}
+      \strng{authorfullhash}{2ff10894b93b106bf587d3d52ea3ae6c}
+      \field{sortinit}{F}
+      \field{sortinithash}{2638baaa20439f1b5a8f80c6c08a13b4}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{booktitle}{2018 IEEE 43rd Conference on Local Computer Networks (LCN)}
+      \field{title}{FSE-NG for managing real time media flows and SCTP data channel in WebRTC}
+      \field{year}{2018}
+      \field{pages}{315\bibrangedash 318}
+      \range{pages}{4}
+      \verb{doi}
+      \verb 10.1109/LCN.2018.8638084
+      \endverb
+    \endentry
     \entry{draft-ietf-rmcat-gcc}{report}{}
       \name{author}{5}{}{%
         {{hash=e27d0f0a460c67d45e704c7824ea5103}{%

@@ -27,8 +27,7 @@ The downside is that it is considered quite hard to implement because it require
 A newer solution called "Coupled Congestion Control" \cite{rfc8699} combines congestion controls travelling over the same bottleneck while at the same time being easier to implement than the congestion manager.
 As opposed to The Congestion Manager, Coupled Congestion Control tries to utilize the flows' own congestion controllers by having them share information amongst each other instead of removing them. 
 The mechanism has already shown promise in \cite{10.1145/2740070.2630089, 7502803} when implemented with homogenous congestion controls but has not been tested on heterogenous congestion controls. 
-%TODO: read about how it performs and cite/mention it around here
-%TODO: Explain why this could prove useful for WebRTC?
+
 \paragraph{Coupled Congestion Control Architecture}
 The design philosophy of Coupled Congestion Control is that the amount of required changes to existing applications should be minimal. 
 The system consists of three elements, Shared Bottleneck Detection(SBD), Flow State Exchange(FSE) and the flows. 
@@ -52,7 +51,7 @@ Generally, the FSE keeps a list of all flows that have registered with it and fo
     \item A unique number f to identify the flow.
     \item The Flow Group Identifier (FGI).
     \item The priority value P(f).
-    \item The rate used by the flow which is calculted by the FSE in bits per second FSE\_R(f).
+    \item The rate used by the flow which is calculated by the FSE in bits per second FSE\_R(f).
     \item The desired rate of the flow, DR(f).
 \end{itemize}
 
@@ -199,3 +198,15 @@ The altered part of the algorithm is shown in figure \vref{active-fse-2}
 \caption{Step a of Example algorithm 2's altered UPDATE function}
 \label{active-fse-2}
 \end{figure}
+
+\paragraph{}
+Another coupling mechanism called "Reduction of Self Inflicted Queueing Delay in WebRTC" (ROSIEE) \cite{8065803} tries to reduce self- inflicted queueing delay in WebRTC by coupling NADA and the SCTP congestion control. 
+As opposed to other mechanisms like \cite{rfc8699} and \cite{rfc3124} that try to explicitly control the congestion window they propose only calculating a max congestion window ${CWND_{max}}$ solely based on the rate calculated by NADA. 
+The algorithm itself uses change in send rate $\Delta{R_i}$ and ${RTT_i}$ received from NADA every time an RTCP message $i$ is received to gradually converge on a maximum allowed SCTP sending rate that is later converted to ${CWND_{max}}$.
+%TODO: Perhaps discuss problems with the mechanism after we have tried it?
+Though the mechanism did in fact couple the WebRTC congestion controllers it did not provide the possibility to prioritize the different flows which is a key requirement for WebRTC.
+Accordingly they released another paper \cite{8638084} that combines active FSE from \cite{rfc8699} with the ROSIEE algorithm in order to also support prioritization of flows while still being able to couple and manage both loss- based and delay- based flows.
+As with original FSE, FSE-NG calculates a sum of rates and assigns it based on priority, but only based on the rate received from RTP flows.
+They also still don't use information from the loss- based flows when calculating the sum of rates.
+To calculate the upper limits for the SCTP flows they take a share of the sum of rates and split it amongst the SCTP flows.
+%TODO: The FSE-NG explanation is a bit imprecise 

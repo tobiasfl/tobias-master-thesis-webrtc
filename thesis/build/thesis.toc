@@ -139,35 +139,37 @@
 \defcounter {refsection}{0}\relax 
 \contentsline {paragraph}{Example algorithm 2}{11}{section*.42}%
 \defcounter {refsection}{0}\relax 
+\contentsline {paragraph}{}{13}{section*.43}%
+\defcounter {refsection}{0}\relax 
 \contentsline {section}{\numberline {2.6}Shared Bottleneck Detection}{13}{section.2.6}%
 \defcounter {refsection}{0}\relax 
-\contentsline {subsection}{\numberline {2.6.1}Multiplexed flows}{13}{subsection.2.6.1}%
+\contentsline {subsection}{\numberline {2.6.1}Multiplexed flows}{14}{subsection.2.6.1}%
 \defcounter {refsection}{0}\relax 
-\contentsline {subsection}{\numberline {2.6.2}Measurement}{13}{subsection.2.6.2}%
+\contentsline {subsection}{\numberline {2.6.2}Measurement}{14}{subsection.2.6.2}%
 \defcounter {refsection}{0}\relax 
-\contentsline {subsection}{\numberline {2.6.3}Configuration}{13}{subsection.2.6.3}%
+\contentsline {subsection}{\numberline {2.6.3}Configuration}{14}{subsection.2.6.3}%
 \defcounter {refsection}{0}\relax 
 \contentsline {chapter}{\numberline {3}Design}{15}{chapter.3}%
 \defcounter {refsection}{0}\relax 
 \contentsline {section}{\numberline {3.1}Active FSE algorithm}{15}{section.3.1}%
 \defcounter {refsection}{0}\relax 
-\contentsline {paragraph}{Registering and de- registering flows}{15}{section*.43}%
+\contentsline {paragraph}{Registering and de- registering flows}{15}{section*.44}%
 \defcounter {refsection}{0}\relax 
-\contentsline {paragraph}{Converting SCTP's CWND to bit rate}{15}{section*.44}%
+\contentsline {paragraph}{Converting SCTP's CWND to bit rate}{15}{section*.45}%
 \defcounter {refsection}{0}\relax 
 \contentsline {chapter}{\numberline {4}Implementation}{17}{chapter.4}%
 \defcounter {refsection}{0}\relax 
 \contentsline {section}{\numberline {4.1}Manager}{17}{section.4.1}%
 \defcounter {refsection}{0}\relax 
-\contentsline {paragraph}{}{17}{section*.45}%
+\contentsline {paragraph}{}{17}{section*.46}%
 \defcounter {refsection}{0}\relax 
 \contentsline {section}{\numberline {4.2}System Architecture}{17}{section.4.2}%
 \defcounter {refsection}{0}\relax 
-\contentsline {paragraph}{Manager}{17}{section*.46}%
+\contentsline {paragraph}{Manager}{17}{section*.47}%
 \defcounter {refsection}{0}\relax 
-\contentsline {paragraph}{Shared Bottleneck Detection}{17}{section*.47}%
+\contentsline {paragraph}{Shared Bottleneck Detection}{17}{section*.48}%
 \defcounter {refsection}{0}\relax 
-\contentsline {paragraph}{IPC}{17}{section*.48}%
+\contentsline {paragraph}{IPC}{17}{section*.49}%
 \defcounter {refsection}{0}\relax 
 \contentsline {chapter}{\numberline {5}Evaluation}{19}{chapter.5}%
 \defcounter {refsection}{0}\relax 
