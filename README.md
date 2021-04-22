@@ -1,4 +1,5 @@
-
+## Overleaf link
+https://www.overleaf.com/project/60817333215ca555bef3aa17
 
 ## Background
 
@@ -81,6 +82,7 @@ You can easily convert yuv, webm, etc. to y4m using:
  - [ ] Describe organization of the rest of the thesis 
  - [ ] Skim paper on ensemble TCP
  - [ ] Skim paper on Congestion Manager 
+ - [ ] Finish draft of chapter 2 by May 6
 
 ### Implementation/ testing tasks
  - [ ] Video and Data flows: classes!  *NOT URGENT*
