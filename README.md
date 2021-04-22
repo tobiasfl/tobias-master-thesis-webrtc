@@ -91,9 +91,12 @@ You can easily convert yuv, webm, etc. to y4m using:
  - [ ] 3. Test algorithm 1 with video+data at the same time
  - [ ] Implement screen sharing over data channel in the webrtc app
 
- ### Next meeting:
+ ### May meetings:
 
-Time: April 22, 2021 2:00 PM Oslo
+May 6, 2021 2:00 PM Oslo
+May 20, 2021 2:00 PM Oslo
+May 27, 2021 2:00 PM Oslo
+
 
 Join Zoom Meeting
 https://uio.zoom.us/j/9693289755
