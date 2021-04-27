@@ -96,7 +96,9 @@ You can easily convert yuv, webm, etc. to y4m using:
  ### May meetings:
 
 May 6, 2021 2:00 PM Oslo
+
 May 20, 2021 2:00 PM Oslo
+
 May 27, 2021 2:00 PM Oslo
 
 
