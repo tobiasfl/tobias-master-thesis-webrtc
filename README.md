@@ -96,7 +96,7 @@ You can easily convert yuv, webm, etc. to y4m using:
  ### Next meeting:
 
 
-June 10, 2021 2:00 PM Oslo
+August 25, 2021 1:00 PM Oslo
 
 Join Zoom Meeting
 https://uio.zoom.us/j/9693289755
