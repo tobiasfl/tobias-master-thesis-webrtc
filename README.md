@@ -65,18 +65,17 @@ You can easily convert yuv, webm, etc. to y4m using:
  
 ### Checking out and building on mac:  
  
-It seems some of the steps are different for me on linux versus you on Mac and they are well documented, so I provide you with the guide for getting the code instead of me reiterating the same stuff. Just follow follow the guide in the link below for getting the system requirements and fetching the code until you have completed the step called "setting up the build": 
+It seems some of the steps are different on linux and Mac but the steps on Mac are well documented, so I provide the guide for getting the code onj mac instead of me reiterating the same stuff. Just follow follow the guide in the link below for getting any requirements and fetching the code until you have completed the step called "setting up the build": 
 
 [https://chromium.googlesource.com/chromium/src/+/refs/heads/main/docs/mac_build_instructions.md](https://chromium.googlesource.com/chromium/src/+/refs/heads/main/docs/mac_build_instructions.md)
 
-### After the "setting up the build":
-
+### After the "setting up the build" step:
 Use the following command to build chromium while located in the `chromium/src` directory:
 ```
 $ autoninja -C out/Default chrome
 ```
 
-Then you must place the video you provided me with last semester in the `src/` directory if you want fake video. (The video is called `KristenAndSara_1280x720_60.y4m`, I don't remember if .y4m was the original format or if I had to convert it to that)
+Then you must place the video you provided me with last semester in the `src/` directory if you want fake video. (The video is called `KristenAndSara_1280x720_60.y4m`, there is a link for getting the video file and converting above in this readme)
 
 Then to run chromium with with flags for fake video + logging try the command below(I have not been able to test it myself since I am on linux and there seems to be a different command when running on mac): 
 ```
