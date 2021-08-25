@@ -1,4 +1,5 @@
-
+## Overleaf link
+https://www.overleaf.com/project/60817333215ca555bef3aa17
 
 ## Background
 
@@ -73,18 +74,19 @@ You can easily convert yuv, webm, etc. to y4m using:
  - [ ] Read about Scream 
  - [x] Look at papers form Julius
  - [x] Read RFC8699 (Coupled congestion control)
- - [ ] Draft Coupled Congestion control section
- - [ ] Draft WebRTC congestion controls section
- - [ ] Draft Congestion control section
+ - [x] Draft Coupled Congestion control section
+ - [x] Draft WebRTC congestion controls section
+ - [x] Draft Congestion control section
  - [ ] Draft Coupled congestion algorithm design section(algorithm steps and integrating with data and video)
  - [ ] Draft about metrics to use in evaluation section (look at Safiqul's papers for which fairness index and etc. ) 
  - [ ] Describe organization of the rest of the thesis 
  - [ ] Skim paper on ensemble TCP
  - [ ] Skim paper on Congestion Manager 
+ - [x] Finish draft of chapter 2 by May 6
 
 ### Implementation/ testing tasks
  - [ ] Video and Data flows: classes!  *NOT URGENT*
- - [ ] 1. Implement example algorithm 1 of active FSE in chromium
+ - [ ] 1. Implement example algorithm 1 of active FSE in chromium *FINISH BEFORE JUNE 10. MEETING*
  - [x] 1. Extend the webrtc app with screen sharing over media channel
  - [ ] 1. Test with video and screen sharing using only media channel 
  - [ ] 2. Implement and test FSE-NG with video and data flow
@@ -93,7 +95,8 @@ You can easily convert yuv, webm, etc. to y4m using:
 
  ### Next meeting:
 
-Time: April 22, 2021 2:00 PM Oslo
+
+August 25, 2021 1:00 PM Oslo
 
 Join Zoom Meeting
 https://uio.zoom.us/j/9693289755
