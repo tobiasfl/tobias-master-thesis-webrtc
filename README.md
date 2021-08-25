@@ -124,7 +124,7 @@ $ out/Default/Chromium.app/Contents/MacOS/Chromium --enable-logging=stderr --v=1
  ### Next meeting:
 
 
-August 25, 2021 1:00 PM Oslo
+September 1, 2021 12:00 AM Oslo
 
 Join Zoom Meeting
 https://uio.zoom.us/j/9693289755
