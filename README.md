@@ -63,7 +63,35 @@ You can easily convert yuv, webm, etc. to y4m using:
  
  https://www.dropbox.com/sh/0gz5okspfma41oh/AACoKqwkon78KOoASe22c9pya?dl=0
  
+## Checking out and building Chromium on mac:  
  
+It seems some of the steps are different on linux and Mac but the steps on Mac are well documented, so I provide the guide for getting the code onj mac instead of me reiterating the same stuff. Just follow follow the guide in the link below for getting any requirements and fetching the code until you have completed the step called "setting up the build": 
+
+[https://chromium.googlesource.com/chromium/src/+/refs/heads/main/docs/mac_build_instructions.md](https://chromium.googlesource.com/chromium/src/+/refs/heads/main/docs/mac_build_instructions.md)
+
+### After the "setting up the build" step:
+Use the following command to build chromium while located in the `chromium/src` directory:
+```
+$ autoninja -C out/Default chrome
+```
+
+Then you must place the video you provided me with last semester in the `src/` directory if you want fake video. (The video is called `KristenAndSara_1280x720_60.y4m`, there is a link for getting the video file and converting above in this readme)
+
+Then to run chromium with with flags for fake video + logging try the command below(I have not been able to test it myself since I am on linux and there seems to be a different command when running on mac): 
+```
+$ out/Default/Chromium.app/Contents/MacOS/Chromium --use-fake-device-for-media-stream  --use-file-for-fake-video-capture=src/KristenAndSara_1280x720_60.y4m --enable-logging=stderr --v=1 > log.txt 2>&1
+```
+
+In case that doesn't work, you can perhaps try to run the same command as me: 
+```
+$ out/Default/chrome --use-fake-device-for-media-stream --use-file-for-fake-video-capture=KristenAndSara_1280x720_60.y4m --enable-logging=stderr --v=1 > log.txt 2>&1
+```
+
+If you don't need fake video just run without the flags:
+```
+$ out/Default/Chromium.app/Contents/MacOS/Chromium --enable-logging=stderr --v=1 > log.txt 2>&1
+```
+
 ### Writing/ reading tasks
 
  - [x] Prepare a structure of your thesis: just headings, and create table of contents.
@@ -96,7 +124,7 @@ You can easily convert yuv, webm, etc. to y4m using:
  ### Next meeting:
 
 
-August 25, 2021 1:00 PM Oslo
+September 1, 2021 12:00 AM Oslo
 
 Join Zoom Meeting
 https://uio.zoom.us/j/9693289755
