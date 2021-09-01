@@ -9,29 +9,36 @@
 #include <unordered_set>
 
 #include "absl/strings/match.h"
+#include "absl/types/optional.h"
 #include "api/units/data_rate.h"
 #include "api/units/timestamp.h"
-#include "modules/congestion_controller/goog_cc/send_side_bandwidth_estimation.h"
-//#include "modules/congestion_controller/goog_cc/fse_flow.h"
-//#include "modules/congestion_controller/goog_cc/fse_flow_group.h"
 
 namespace webrtc {
 
+class SendSideBandwidthEstimation;
+
+#define CR_DEFINE_STATIC_LOCAL(type, name, arguments) \
+  static type& name = *new type arguments
+
 class FseFlow {
  public:
-  FseFlow(int priority, DataRate fse_rate, DataRate desired_rate);
+  FseFlow(int priority,
+          DataRate fse_rate,
+          DataRate desired_rate,
+          SendSideBandwidthEstimation& flow_cc);
   ~FseFlow();
   DataRate GetFseRate() const;
   void SetFseRate(DataRate new_rate);
   DataRate GetDesiredRate() const;
   void SetDesiredRate(DataRate new_rate);
   int GetPriority() const;
+  SendSideBandwidthEstimation& GetFlowCc() const;
 
  private:
   int priority_;
   DataRate fse_rate_;
   DataRate desired_rate_;
-  // SendSideBandwidthEstimation& cc_;
+  SendSideBandwidthEstimation& flow_cc_;
 };
 
 class FseFlowGroup {
@@ -51,10 +58,16 @@ class FseFlowGroup {
 };
 
 class FlowStateExchange {
+ protected:
+  // making the singletion friend of this class to allow
+  // Singleton<FlowStateExchange> to create an object of FlowStateExchange
+  // friend class TSingleton<FlowStateExchange>;
+  // Standard constructor protected one can't create another object
+
  public:
-  ~FlowStateExchange();
-  static FlowStateExchange& GetInstance();
-  // creates a Flow object, assigns to FG and returns the flow id
+  static FlowStateExchange& Instance();
+
+  // creates a Flow object, assigns to FG and returns the flow
   std::shared_ptr<FseFlow> Register(DataRate initial_bit_rate_,
                                     absl::optional<DataRate> desired_rate,
                                     int priority,
@@ -67,7 +80,7 @@ class FlowStateExchange {
 
  private:
   FlowStateExchange();
-
+  ~FlowStateExchange();
   std::shared_ptr<FseFlowGroup> flow_group_;
 };
 

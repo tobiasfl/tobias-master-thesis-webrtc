@@ -20,39 +20,41 @@ with open(args[1]) as logfile:
     for line in lines:
         if "TOBIAS" in line:
             splitted = line.split()
+            splitlen = len(splitted)
             #(object-address, timestamp, rate)
-            data.append((splitted[2], int(splitted[3]), int(splitted[4])))
+            data.append((splitted[splitlen-3], int(splitted[splitlen-2]), int(splitted[splitlen-1])))
 
 #make timestamps start from 0 (it varies at what point the communicaton/cc is started)
 if len(data) > 0:
-    data = [(objaddr, ts - data[0][1], rate) for (objaddr, ts, rate) in data]
+    data = [(objid, ts - data[0][1], rate) for (objid, ts, rate) in data]
 
 with open(args[2], "w") as extractedlogfile:
     extractedlogfile.write("\n".join([" ".join(map(str, row)) for row in data]))
 
 objaddr_grouped = {}
-for objaddr, ts, rate in data:
-    if objaddr in objaddr_grouped:
-        objaddr_grouped[objaddr].append((objaddr, ts, rate))
+for objid, ts, rate in data:
+    if objid in objaddr_grouped:
+        objaddr_grouped[objid].append((objid, ts, rate))
     else:
-        objaddr_grouped[objaddr] = [(objaddr, ts, rate)]
+        objaddr_grouped[objid] = [(objid, ts, rate)]
 
 
 
 for group in list(objaddr_grouped.values()):
     #sort by timestamp
     group.sort(key=lambda tup: tup[1])
-
-    objaddr = group[0][0]
-    timestamps = [ts for (objaddr, ts, rate) in group]
-    rates = [rate for (objaddr, ts, rate) in group]
-    plt.plot(timestamps, rates, label = objaddr)
+    objid = group[0][0]
+    timestamps = [ts for (objid, ts, rate) in group]
+    rates = [rate for (objid, ts, rate) in group]
+    plt.plot(timestamps, rates, label = objid)
 
 plt.xlabel("Time from first recorded target update (ms)")
 plt.ylabel("Rate (kbps)")
 
-plt.xlim(0)
+plt.xlim(left=0, right=15000)
 plt.ylim(0)
+
+plt.legend()
 
 plt.savefig(args[3])
 plt.show()
