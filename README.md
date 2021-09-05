@@ -95,6 +95,8 @@ If you don't need fake video just run without the flags:
 ```
 $ out/Default/Chromium.app/Contents/MacOS/Chromium --enable-logging=stderr --v=1 > log.txt 2>&1
 ```
+### New version of test-app
+https://github.com/tobiasfl/webrtc-test-app
 
 ### Writing/ reading tasks
 
