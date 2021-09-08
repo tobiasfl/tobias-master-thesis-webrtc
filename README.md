@@ -126,13 +126,6 @@ https://github.com/tobiasfl/webrtc-test-app
  - [ ] 2. Implement and test FSE-NG with video and data flow
  - [ ] 3. Test algorithm 1 with video+data at the same time
  - [ ] Implement screen sharing over data channel in the webrtc app
-
- ### Next meeting:
-
-
-September 8, 2021 12:00 AM Oslo
-
- 
  
 ### Deadlines
 * Essay: 01.06.2021
