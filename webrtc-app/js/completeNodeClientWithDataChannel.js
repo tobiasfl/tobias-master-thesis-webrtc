@@ -241,8 +241,7 @@ function createPeerConnection() {
     if (isInitiator) {
         try {
             // Create a reliable data channel
-            sendChannel = pc.createDataChannel("sendDataChannel",
-					       {reliable: true});
+            sendChannel = pc.createDataChannel("sendDataChannel");
             console.log("Data channel should be created:" + sendChannel);
         } catch (e) {
             alert('Failed to create data channel. ');
