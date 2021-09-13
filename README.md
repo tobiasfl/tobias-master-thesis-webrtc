@@ -63,6 +63,10 @@ You can easily convert yuv, webm, etc. to y4m using:
  
  https://www.dropbox.com/sh/0gz5okspfma41oh/AACoKqwkon78KOoASe22c9pya?dl=0
  
+ sctp dump and rtp dump:
+ 
+ https://webrtchacks.com/facetime-finally-faces-webrtc-implementation-deep-dive/
+ 
 ## Checking out and building Chromium on mac:  
  
 It seems some of the steps are different on linux and Mac but the steps on Mac are well documented, so I provide the guide for getting the code onj mac instead of me reiterating the same stuff. Just follow follow the guide in the link below for getting any requirements and fetching the code until you have completed the step called "setting up the build": 
@@ -91,6 +95,8 @@ If you don't need fake video just run without the flags:
 ```
 $ out/Default/Chromium.app/Contents/MacOS/Chromium --enable-logging=stderr --v=1 > log.txt 2>&1
 ```
+### New version of test-app
+https://github.com/tobiasfl/webrtc-test-app
 
 ### Writing/ reading tasks
 
@@ -120,15 +126,6 @@ $ out/Default/Chromium.app/Contents/MacOS/Chromium --enable-logging=stderr --v=1
  - [ ] 2. Implement and test FSE-NG with video and data flow
  - [ ] 3. Test algorithm 1 with video+data at the same time
  - [ ] Implement screen sharing over data channel in the webrtc app
-
- ### Next meeting:
-
-
-September 1, 2021 12:00 AM Oslo
-
-Join Zoom Meeting
-https://uio.zoom.us/j/9693289755
- 
  
 ### Deadlines
 * Essay: 01.06.2021
