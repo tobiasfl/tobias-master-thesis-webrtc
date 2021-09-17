@@ -23,7 +23,8 @@ class SendSideBandwidthEstimation;
 
 class FseFlow {
  public:
-  FseFlow(int priority,
+  FseFlow(int id,
+          int priority,
           DataRate fse_rate,
           DataRate desired_rate,
           SendSideBandwidthEstimation& flow_cc);
@@ -32,10 +33,12 @@ class FseFlow {
   void SetFseRate(DataRate new_rate);
   DataRate DesiredRate() const;
   void SetDesiredRate(DataRate new_rate);
+  int Id() const;
   int Priority() const;
   SendSideBandwidthEstimation& GetFlowCc() const;
 
  private:
+  int id_;
   int priority_;
   DataRate fse_rate_;
   DataRate desired_rate_;
@@ -65,7 +68,7 @@ class FlowStateExchange {
 
   // creates a Flow object, assigns to FG and returns the flow
   std::shared_ptr<FseFlow> Register(DataRate initial_bit_rate_,
-                                    absl::optional<DataRate> desired_rate,
+                                    DataRate desired_rate,
                                     int priority,
                                     SendSideBandwidthEstimation& cc);
   void Unregister(std::shared_ptr<FseFlow> flow);
@@ -79,6 +82,7 @@ class FlowStateExchange {
   ~FlowStateExchange();
   std::shared_ptr<FseFlowGroup> flow_group_;
   std::mutex fse_mutex_;
+  int flow_id_counter_;
 };
 
 }  // namespace webrtc
