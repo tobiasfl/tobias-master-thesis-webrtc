@@ -166,15 +166,18 @@ std::shared_ptr<FseFlow> FlowStateExchange::Register(
   fse_mutex_.lock();
   std::cout << "FSE Registering new flow with addr: " << &cc << "\n";
 
-  /* ONLY FOR TESTING CASE 3
-  if (flow_group_->GroupSize() == 1) {
-    priority = 2;
-  }*/
-
-  // ONLY FOR TESTING CASE 2
-  desired_rate =
-      flow_id_counter_ == 0 ? DataRate::KilobitsPerSec(1024) : desired_rate;
-  //
+  switch (CURRENT_TEST_CASE) {
+    case case1:
+      break;
+    case case2:
+      desired_rate =
+          flow_id_counter_ == 0 ? DataRate::KilobitsPerSec(1024) : desired_rate;
+      break;
+    case case3:
+      if (flow_group_->GroupSize() == 1) {
+        priority = 2;
+      }
+  }
 
   std::shared_ptr<FseFlow> newFlow =
       std::make_shared<FseFlow>(flow_id_counter_++, priority,
@@ -197,10 +200,17 @@ void FlowStateExchange::Update(std::shared_ptr<FseFlow> flow,
                                DataRate desired_rate,
                                Timestamp at_time) {
   fse_mutex_.lock();
-  // ONLY FOR TESTING CASE 2
-  desired_rate =
-      flow->Id() == 0 ? DataRate::KilobitsPerSec(1024) : desired_rate;
-  //
+
+  switch (CURRENT_TEST_CASE) {
+    case case1:
+      break;
+    case case2:
+      desired_rate =
+          flow->Id() == 0 ? DataRate::KilobitsPerSec(1024) : desired_rate;
+      break;
+    case case3:
+      break;
+  }
 
   flow_group_->OnFlowUpdated(flow, cc_rate.bps(), desired_rate.bps(), at_time);
   fse_mutex_.unlock();
