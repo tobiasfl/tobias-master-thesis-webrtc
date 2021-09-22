@@ -5,12 +5,12 @@ import matplotlib.pyplot as plt
 import sys
 
 #Original lines to parse:
-#[13318:12:0826/200633.769709:INFO:send_side_bandwidth_estimation.cc(650)] TOBIAS(before) 0x28d5137c1a20 3253799 300
+#[13318:12:0826/200633.769709:INFO:send_side_bandwidth_estimation.cc(650)] TOBIAS(before) FLOW-1 3253799 300
 
 args = sys.argv
 
-if len(args) != 4:
-    print("Usage: rateplotter.py <logfile.txt> <extracted-log-data-fname> <plotfile-fname>")
+if len(args) != 3:
+    print("Usage: rateplotter.py <logfile.txt> <output file name prefix")
     sys.exit(1)
 
 data = []
@@ -21,26 +21,28 @@ with open(args[1]) as logfile:
         if "TOBIAS" in line:
             splitted = line.split()
             splitlen = len(splitted)
-            #(object-address, timestamp, rate)
+            #(flow id, timestamp, rate)
             data.append((splitted[splitlen-3], int(splitted[splitlen-2]), int(splitted[splitlen-1])))
+
+
+#write the tuples to file
+with open(args[2] + ".txt", "w") as extractedlogfile:
+    extractedlogfile.write("\n".join([" ".join(map(str, row)) for row in data]))
 
 #make timestamps start from 0 (it varies at what point the communicaton/cc is started)
 if len(data) > 0:
     data = [(objid, ts - data[0][1], rate) for (objid, ts, rate) in data]
 
-with open(args[2], "w") as extractedlogfile:
-    extractedlogfile.write("\n".join([" ".join(map(str, row)) for row in data]))
-
-objaddr_grouped = {}
+id_grouped = {}
 for objid, ts, rate in data:
-    if objid in objaddr_grouped:
-        objaddr_grouped[objid].append((objid, ts, rate))
+    if objid in id_grouped:
+        id_grouped[objid].append((objid, ts, rate))
     else:
-        objaddr_grouped[objid] = [(objid, ts, rate)]
+        id_grouped[objid] = [(objid, ts, rate)]
 
 
 
-for group in list(objaddr_grouped.values()):
+for group in list(id_grouped.values()):
     #sort by timestamp
     group.sort(key=lambda tup: tup[1])
     objid = group[0][0]
@@ -51,10 +53,10 @@ for group in list(objaddr_grouped.values()):
 plt.xlabel("Time from first recorded target update (ms)")
 plt.ylabel("Rate (kbps)")
 
-plt.xlim(left=0, right=15000)
+plt.xlim(left=0)
 plt.ylim(0)
 
 plt.legend()
 
-plt.savefig(args[3])
+plt.savefig(args[2] + ".png")
 plt.show()

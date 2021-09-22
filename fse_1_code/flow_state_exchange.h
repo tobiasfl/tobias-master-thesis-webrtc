@@ -25,14 +25,14 @@ class FseFlow {
  public:
   FseFlow(int id,
           int priority,
-          DataRate fse_rate,
-          DataRate desired_rate,
+          double fse_rate,
+          double desired_rate,
           SendSideBandwidthEstimation& flow_cc);
   ~FseFlow();
-  DataRate FseRate() const;
-  void SetFseRate(DataRate new_rate);
-  DataRate DesiredRate() const;
-  void SetDesiredRate(DataRate new_rate);
+  double FseRate() const;
+  void SetFseRate(double new_rate);
+  double DesiredRate() const;
+  void SetDesiredRate(double new_rate);
   int Id() const;
   int Priority() const;
   SendSideBandwidthEstimation& GetFlowCc() const;
@@ -40,8 +40,8 @@ class FseFlow {
  private:
   int id_;
   int priority_;
-  DataRate fse_rate_;
-  DataRate desired_rate_;
+  double fse_rate_;
+  double desired_rate_;
   SendSideBandwidthEstimation& flow_cc_;
 };
 
@@ -52,14 +52,15 @@ class FseFlowGroup {
   void AddFlow(std::shared_ptr<FseFlow> flow);
   void RemoveFlow(std::shared_ptr<FseFlow> flow);
   void OnFlowUpdated(std::shared_ptr<FseFlow> flow,
-                     DataRate cc_rate,
-                     DataRate desired_rate,
+                     double cc_rate,
+                     double desired_rate,
                      Timestamp at_time);
   int GroupSize();
 
  private:
-  DataRate sum_calculated_rates_;
+  double sum_calculated_rates_;
   std::unordered_set<std::shared_ptr<FseFlow>> flows_;
+  void PrintFseGroupState();
 };
 
 class FlowStateExchange {

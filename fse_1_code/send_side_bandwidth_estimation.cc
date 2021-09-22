@@ -250,12 +250,10 @@ SendSideBandwidthEstimation::SendSideBandwidthEstimation(
 
   // Added by TOBIAS
   fse_is_enabled_ = true;
-
-  if (fse_is_enabled_) {
-    fseFlow_ = FlowStateExchange::Instance().Register(
-        current_target_, DataRate::KilobitsPerSec(1000000), 1, *this);
-  }
-
+  // Register even though fse might not be enabled,
+  // it does not affect anything until update calls anyway
+  fseFlow_ = FlowStateExchange::Instance().Register(
+      current_target_, DataRate::KilobitsPerSec(1000000), 1, *this);
   // Added by TOBIAS
 }
 
@@ -657,8 +655,6 @@ void SendSideBandwidthEstimation::UpdateTargetBitrate(DataRate new_bitrate,
     if (new_bitrate < min_bitrate_configured_) {
       new_bitrate = min_bitrate_configured_;
     }
-    RTC_LOG(LS_INFO) << "TOBIAS(cc_r_update) " << fseFlow_->Id() << "-CC_R "
-                     << at_time.ms() << " " << new_bitrate.kbps();
 
     FlowStateExchange::Instance().Update(
         fseFlow_, new_bitrate, DataRate::KilobitsPerSec(1000000), at_time);
@@ -669,6 +665,9 @@ void SendSideBandwidthEstimation::UpdateTargetBitrate(DataRate new_bitrate,
       new_bitrate = min_bitrate_configured_;
     }
     current_target_ = new_bitrate;
+
+    RTC_LOG(LS_INFO) << "TOBIAS(fse_cc_update) " << fseFlow_->Id() << "-CC_R "
+                     << at_time.ms() << " " << current_target_.kbps();
 
     MaybeLogLossBasedEvent(at_time);
     link_capacity_.OnRateUpdate(acknowledged_rate_, current_target_, at_time);

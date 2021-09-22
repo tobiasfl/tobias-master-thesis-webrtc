@@ -6,6 +6,7 @@
 
 #include <stdint.h>
 
+#include <cstdint>
 #include <iostream>
 #include <memory>
 #include <mutex>
@@ -20,8 +21,8 @@ namespace webrtc {
 
 FseFlow::FseFlow(int id,
                  int priority,
-                 DataRate fse_rate,
-                 DataRate desired_rate,
+                 double fse_rate,
+                 double desired_rate,
                  SendSideBandwidthEstimation& flow_cc)
     : id_(id),
       priority_(priority),
@@ -35,11 +36,11 @@ SendSideBandwidthEstimation& FseFlow::GetFlowCc() const {
   return flow_cc_;
 }
 
-DataRate FseFlow::FseRate() const {
+double FseFlow::FseRate() const {
   return fse_rate_;
 }
 
-void FseFlow::SetFseRate(DataRate new_rate) {
+void FseFlow::SetFseRate(double new_rate) {
   fse_rate_ = new_rate;
 }
 
@@ -51,21 +52,21 @@ int FseFlow::Priority() const {
   return priority_;
 }
 
-DataRate FseFlow::DesiredRate() const {
+double FseFlow::DesiredRate() const {
   return desired_rate_;
 }
 
-void FseFlow::SetDesiredRate(DataRate new_rate) {
+void FseFlow::SetDesiredRate(double new_rate) {
   desired_rate_ = new_rate;
 }
 
-FseFlowGroup::FseFlowGroup() : sum_calculated_rates_(DataRate::Zero()) {}
+FseFlowGroup::FseFlowGroup() : sum_calculated_rates_(0.0) {}
 
 FseFlowGroup::~FseFlowGroup() = default;
 
 void FseFlowGroup::AddFlow(std::shared_ptr<FseFlow> flow) {
   flows_.insert(flow);
-  sum_calculated_rates_ = sum_calculated_rates_ + flow->FseRate();
+  sum_calculated_rates_ += flow->FseRate();
 }
 
 void FseFlowGroup::RemoveFlow(std::shared_ptr<FseFlow> flow) {
@@ -74,64 +75,79 @@ void FseFlowGroup::RemoveFlow(std::shared_ptr<FseFlow> flow) {
 }
 
 void FseFlowGroup::OnFlowUpdated(std::shared_ptr<FseFlow> flow,
-                                 DataRate cc_rate,
-                                 DataRate desired_rate,
+                                 double cc_rate,
+                                 double desired_rate,
                                  Timestamp at_time) {
-  // TODO: is it correct to set desired rate here????
-  flow->SetDesiredRate(desired_rate);
+  if (flows_.size() > 1) {
+    // TODO: is it correct to set desired rate here????
+    flow->SetDesiredRate(desired_rate);
 
-  // a. update S_CR
-  sum_calculated_rates_ = sum_calculated_rates_ + cc_rate - flow->FseRate();
-  // b. calculate the sum of all priorities and initialize FSE_R
-  int sum_priorities = 0;
-  for (const auto& i : flows_) {
-    sum_priorities += i->Priority();
-    i->SetFseRate(DataRate::Zero());
-  }
+    // a. update S_CR
+    sum_calculated_rates_ = sum_calculated_rates_ + cc_rate - flow->FseRate();
 
-  // c.Distribute S_CR among all flows, ensuring desired rate is not exceeded
-  DataRate total_leftover_rate = sum_calculated_rates_;
-  DataRate aggregate_rate = DataRate::Zero();
-  // while there is more rate to distribute
-  // TODO: make it check for more than 0 not this ugly thing
-  while (total_leftover_rate - aggregate_rate > DataRate::BitsPerSec(1) &&
-         sum_priorities > 0) {
-    aggregate_rate = DataRate::Zero();
+    // b. calculate the sum of all priorities and initialize FSE_R
+    int sum_priorities = 0;
     for (const auto& i : flows_) {
-      // if the current fse rate is less than desired
-      if (i->FseRate() < i->DesiredRate()) {
-        // TODO: find way to safely handle this thing properly
-        DataRate flow_rate = DataRate::BitsPerSec(
-            (total_leftover_rate.bps()) * i->Priority() / sum_priorities);
+      sum_priorities += i->Priority();
+      i->SetFseRate(0.0);
+    }
 
-        // if the flow can get more than it desires
-        if (flow_rate >= i->DesiredRate()) {
-          total_leftover_rate -= i->DesiredRate();
-          i->SetFseRate(i->DesiredRate());
-          sum_priorities -= i->Priority();
-        } else {
-          i->SetFseRate(flow_rate);
-          aggregate_rate += flow_rate;
+    // c.Distribute S_CR among all flows, ensuring desired rate is not exceeded
+    double total_leftover_rate = sum_calculated_rates_;
+    double aggregate_rate = 0.0;
+    // while there is more rate to distribute
+    // TODO: might still be bug related to while check
+    while (total_leftover_rate - aggregate_rate > 1 && sum_priorities > 0) {
+      aggregate_rate = 0.0;
+      for (const auto& i : flows_) {
+        // if the current fse rate is less than desired
+        if (i->FseRate() < i->DesiredRate()) {
+          double flow_rate =
+              total_leftover_rate * i->Priority() / sum_priorities;
+
+          // if the flow can get more than it desires
+          if (flow_rate >= i->DesiredRate()) {
+            total_leftover_rate -= i->DesiredRate();
+            i->SetFseRate(i->DesiredRate());
+            sum_priorities -= i->Priority();
+          } else {
+            i->SetFseRate(flow_rate);
+            aggregate_rate += flow_rate;
+          }
         }
       }
     }
+    // d. distribute FSE_R to all the flows
+    for (const auto& i : flows_) {
+      i->GetFlowCc().FseUpdateTargetBitrate(DataRate::BitsPerSec(i->FseRate()),
+                                            at_time);
+    }
+  } else {
+    // TODO: this might not be enough, e.g. for cases where two flows
+    // are DR- limited then followed by one with DR==infinity
+    flow->SetDesiredRate(desired_rate);
+    // a. update S_CR
+    sum_calculated_rates_ = sum_calculated_rates_ + cc_rate - flow->FseRate();
 
-    std::cout << "gonne check while condition now \nTLO - AR: "
-              << (total_leftover_rate - aggregate_rate).bps()
-              << "\nTLO - AR > DataRate::Zero(): "
-              << ((total_leftover_rate - aggregate_rate) > DataRate::Zero())
-              << "\n";
-    std::cout << "TLO: " << total_leftover_rate.bps()
-              << "\nAR: " << aggregate_rate.bps() << "\n";
-  }
-  // d. distribute FSE_R to all the flows
-  for (const auto& i : flows_) {
-    i->GetFlowCc().FseUpdateTargetBitrate(i->FseRate(), at_time);
+    flow->SetFseRate(sum_calculated_rates_);
+
+    // c. distribute
+    flow->GetFlowCc().FseUpdateTargetBitrate(
+        DataRate::BitsPerSec(flow->FseRate()), at_time);
   }
 }
 
 int FseFlowGroup::GroupSize() {
   return flows_.size();
+}
+
+void FseFlowGroup::PrintFseGroupState() {
+  std::cout << "sum_calculated_rates: " << sum_calculated_rates_ << "\n";
+  for (const auto& i : flows_) {
+    std::cout << "flow_id: " << i->Id() << "\n";
+    std::cout << "flow fse_rate: " << i->FseRate() << "\n";
+    std::cout << "flow desired_rate: " << i->DesiredRate() << "\n";
+  }
 }
 
 FlowStateExchange::FlowStateExchange()
@@ -148,18 +164,21 @@ std::shared_ptr<FseFlow> FlowStateExchange::Register(
     // TODO: maybe pass a callback update-method instead of the object
     SendSideBandwidthEstimation& cc) {
   fse_mutex_.lock();
-
   std::cout << "FSE Registering new flow with addr: " << &cc << "\n";
 
-  /* ONLY FOR TESTING PRIOTITIES
+  /* ONLY FOR TESTING CASE 3
   if (flow_group_->GroupSize() == 1) {
     priority = 2;
-  }
-  ONLY FOR TESTING PRIOTITIES
-  */
+  }*/
 
-  std::shared_ptr<FseFlow> newFlow = std::make_shared<FseFlow>(
-      flow_id_counter_++, priority, initial_bit_rate, desired_rate, cc);
+  // ONLY FOR TESTING CASE 2
+  desired_rate =
+      flow_id_counter_ == 0 ? DataRate::KilobitsPerSec(1024) : desired_rate;
+  //
+
+  std::shared_ptr<FseFlow> newFlow =
+      std::make_shared<FseFlow>(flow_id_counter_++, priority,
+                                initial_bit_rate.bps(), desired_rate.bps(), cc);
   flow_group_->AddFlow(newFlow);
 
   fse_mutex_.unlock();
@@ -178,7 +197,12 @@ void FlowStateExchange::Update(std::shared_ptr<FseFlow> flow,
                                DataRate desired_rate,
                                Timestamp at_time) {
   fse_mutex_.lock();
-  flow_group_->OnFlowUpdated(flow, cc_rate, desired_rate, at_time);
+  // ONLY FOR TESTING CASE 2
+  desired_rate =
+      flow->Id() == 0 ? DataRate::KilobitsPerSec(1024) : desired_rate;
+  //
+
+  flow_group_->OnFlowUpdated(flow, cc_rate.bps(), desired_rate.bps(), at_time);
   fse_mutex_.unlock();
 }
 
