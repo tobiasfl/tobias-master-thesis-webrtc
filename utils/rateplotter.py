@@ -18,7 +18,7 @@ data = []
 with open(args[1]) as logfile:
     lines = logfile.readlines()
     for line in lines:
-        if "TOBIAS" in line:
+        if "PLOT_THIS" in line:
             splitted = line.split()
             splitlen = len(splitted)
             #(flow id, timestamp, rate)
