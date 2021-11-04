@@ -1,6 +1,6 @@
 #
 # Copyright (C) 2015-2015 Oleg Alexeenkov
-# Copyright (C) 2015-2020 Felix Weinrank
+# Copyright (C) 2015-2019 Felix Weinrank
 #
 # All rights reserved.
 #
@@ -29,188 +29,256 @@
 # SUCH DAMAGE.
 #
 
+project(usrsctplib C)
+cmake_minimum_required(VERSION 3.0)
 
-#################################################
-# INCLUDE MODULES AND SETTINGS
-#################################################
+# Debug build type as default
+if (NOT CMAKE_BUILD_TYPE)
+	message(STATUS "No build type selected, using DEBUG")
+	set(CMAKE_BUILD_TYPE "DEBUG")
+endif ()
 
-set(VERSION "0.9.5.0")
+list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
 
-# Shared library API and ABI versions
-# Notice: shared library version must be in X.Y.Z format only
-set(SOVERSION_FULL "2.0.0")
-set(SOVERSION_SHORT "2")
-
-include(GNUInstallDirs)
-set(prefix ${CMAKE_INSTALL_PREFIX})
-set(exec_prefix ${prefix})
-set(libdir ${exec_prefix}/${CMAKE_INSTALL_LIBDIR})
-set(includedir ${prefix}/${CMAKE_INSTALL_INCLUDEDIR})
-
-set(CMAKE_REQUIRED_INCLUDES ${CMAKE_CURRENT_SOURCE_DIR})
-set(CMAKE_MACOSX_RPATH 1)
-
+include(CheckStructHasMember)
+include(CheckIncludeFile)
+include(CheckIncludeFiles)
 include(CheckCCompilerFlag)
 
+#################################################
+# CHECK OPTIONS
+#################################################
 
-option(SCTP_USE_MBEDTLS_SHA1 "Build with mbedtls sha1 support." OFF)
+option(sctp_invariants "Add runtime checks" 0)
+if (sctp_invariants)
+	add_definitions(-DINVARIANTS)
+endif ()
 
-add_definitions(-D__Userspace__)
-add_definitions(-DSCTP_SIMPLE_ALLOCATOR)
-add_definitions(-DSCTP_PROCESS_LEVEL_LOCKS)
+option(sctp_debug "Provide debug information" 1)
+if (sctp_debug)
+	add_definitions(-DSCTP_DEBUG)
+endif ()
 
-if(SCTP_USE_MBEDTLS_SHA1)
-	add_definitions(-DSCTP_USE_MBEDTLS_SHA1)
-	find_package(MbedTLS REQUIRED)
+option(sctp_inet "Support IPv4" 1)
+if (sctp_inet)
+	add_definitions(-DINET)
+endif ()
+
+option(sctp_inet6 "Support IPv6" 1)
+if (sctp_inet6)
+	add_definitions(-DINET6)
+endif ()
+
+option(sctp_werror "Treat warning as error" 1)
+
+option(sctp_build_shared_lib "Build USRSCTP as shared library" 0)
+
+option(sctp_build_programs "Build example programs" 1)
+
+option(sctp_sanitizer_address "Compile with address sanitizer" 0)
+
+option(sctp_sanitizer_memory "Compile with memory sanitizer" 0)
+
+option(sctp_build_fuzzer "Compile in clang fuzzing mode" 0)
+
+if (sctp_sanitizer_address AND sctp_sanitizer_memory)
+	message(FATAL_ERROR "Can not compile with both sanitizer options")
+endif ()
+
+
+#################################################
+# CHECK FOR TYPES AND FUNCTIONS
+#################################################
+
+check_include_files("sys/queue.h" have_sys_queue_h)
+if (have_sys_queue_h)
+	add_definitions(-DHAVE_SYS_QUEUE_H)
+endif ()
+
+check_include_files("sys/socket.h;linux/if_addr.h" have_linux_if_addr_h)
+if (have_linux_if_addr_h)
+	add_definitions(-DHAVE_LINUX_IF_ADDR_H)
+endif ()
+
+check_include_files("sys/socket.h;linux/rtnetlink.h" have_linux_rtnetlink_h)
+if (have_linux_rtnetlink_h)
+	add_definitions(-DHAVE_LINUX_RTNETLINK_H)
+endif ()
+
+check_include_files("sys/types.h;netinet/in.h;netinet/ip.h;netinet/ip_icmp.h" have_netinet_ip_icmp_h)
+if (have_netinet_ip_icmp_h)
+	add_definitions(-DHAVE_NETINET_IP_ICMP_H)
+endif ()
+
+check_include_files("net/route.h" have_net_route_h)
+if (have_net_route_h)
+	add_definitions(-DHAVE_NET_ROUTE_H)
+endif ()
+
+check_include_files("stdatomic.h" have_stdatomic_h)
+if (have_stdatomic_h)
+	add_definitions(-DHAVE_STDATOMIC_H)
+endif ()
+
+
+#################################################
+# CHECK STRUCT MEMBERS
+#################################################
+
+set(CMAKE_REQUIRED_INCLUDES "${CMAKE_CURRENT_SOURCE_DIR}/usrsctplib")
+
+check_include_file(usrsctp.h have_usrsctp_h)
+if (NOT have_usrsctp_h)
+	message(FATAL_ERROR "usrsctp.h not found")
+endif ()
+
+check_struct_has_member("struct sockaddr" "sa_len" "sys/types.h;sys/socket.h" have_sa_len)
+if (have_sa_len)
+	message(STATUS "have_sa_len")
+	add_definitions(-DHAVE_SA_LEN)
+endif ()
+
+check_struct_has_member("struct sockaddr_in" "sin_len" "sys/types.h;netinet/in.h" have_sin_len)
+if (have_sin_len)
+	message(STATUS "have_sin_len")
+	add_definitions(-DHAVE_SIN_LEN)
+endif ()
+
+check_struct_has_member("struct sockaddr_in6" "sin6_len" "sys/types.h;netinet/in.h" have_sin6_len)
+if (have_sin6_len)
+	message(STATUS "have_sin6_len")
+	add_definitions(-DHAVE_SIN6_LEN)
+endif ()
+
+check_struct_has_member("struct sockaddr_conn" "sconn_len" "usrsctp.h" have_sconn_len)
+if (have_sconn_len)
+	message(STATUS "HAVE_SCONN_LEN")
+	add_definitions(-DHAVE_SCONN_LEN)
+endif ()
+
+
+#################################################
+# COMPILER SETTINGS
+#################################################
+
+# Determine if compiler is Visual Studio compiler or Clang in MSVC compatible mode
+if (CMAKE_C_COMPILER_ID MATCHES "MSVC" OR CMAKE_C_SIMULATE_ID MATCHES "MSVC")
+  set(C_COMPILER_IS_MSVC_LIKE TRUE)
 endif()
 
+# SETTINGS FOR VISUAL STUDIO COMPILER
+if (C_COMPILER_IS_MSVC_LIKE)
+	if (CMAKE_C_FLAGS MATCHES "/W[0-4]")
+		string(REGEX REPLACE "/W[0-4]" "/W4" CMAKE_C_FLAGS "${CMAKE_C_FLAGS}")
+	else ()
+		set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} /W4")
+	endif ()
 
-#################################################
-# OS DEPENDENT
-#################################################
+	set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} /wd4100") # 'identifier' : unreferenced formal parameter
+	set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} /wd4127") # conditional expression is constant
+	set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} /wd4200") # nonstandard extension used : zero-sized array in struct/union
+	set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} /wd4214") # bit field types other than int
+	set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} /wd4706") # assignment within conditional expression
+	set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} /wd4245") # 'conversion' : conversion from 'type1' to 'type2', signed/unsigned mismatch
+	set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} /wd4389") # 'operator' : signed/unsigned mismatch
+	set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} /wd4702") # unreachable code
+	set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} /wd4701") # Potentially uninitialized local variable 'name' used
 
-check_c_compiler_flag(-Wno-address-of-packed-member has_wno_address_of_packed_member)
-if (has_wno_address_of_packed_member)
-	set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-address-of-packed-member")
+	# ToDo
+	set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} /wd4244") # 'conversion' conversion from 'type1' to 'type2', possible loss of data
+
+	if (sctp_werror)
+		set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} /WX")
+
+		if (CMAKE_C_COMPILER_ID MATCHES "Clang")
+			# temporary disable exta clang warnings preventing compilation
+			set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} /clang:-Wno-unused-function")
+			set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} /clang:-Wno-missing-field-initializers")
+			set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} /clang:-Wno-sign-compare")
+			set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} /clang:-Wno-format")
+		endif()
+	endif ()
+# SETTINGS FOR UNIX COMPILER
+elseif (CMAKE_C_COMPILER_ID MATCHES "Clang" OR CMAKE_C_COMPILER_ID MATCHES "AppleClang" OR CMAKE_C_COMPILER_ID MATCHES "GNU")
+	set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=c99 -pedantic -Wall -Wextra")
+
+	check_c_compiler_flag(-Wfloat-equal has_wfloat_equal)
+	if (has_wfloat_equal)
+		set(CMAKE_C_FLAGS  "${CMAKE_C_FLAGS} -Wfloat-equal")
+	endif ()
+
+	check_c_compiler_flag(-Wshadow has_wshadow)
+	if (has_wshadow)
+		set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wshadow")
+	endif ()
+
+	check_c_compiler_flag(-Wpointer-arith has_wpointer_aritih)
+	if (has_wpointer_aritih)
+		set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wpointer-arith")
+	endif ()
+
+	check_c_compiler_flag(-Wunreachable-code has_wunreachable_code)
+	if (has_wunreachable_code)
+		set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wunreachable-code")
+	endif ()
+
+	check_c_compiler_flag(-Winit-self has_winit_self)
+	if (has_winit_self)
+		set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Winit-self")
+	endif ()
+
+	check_c_compiler_flag(-Wno-unused-function has_wno_unused_function)
+	if (has_wno_unused_function)
+		set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-unused-function")
+	endif ()
+
+	check_c_compiler_flag(-Wno-unused-parameter has_wno_unused_parameter)
+	if (has_wno_unused_parameter)
+		set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-unused-parameter")
+	endif ()
+
+	check_c_compiler_flag(-Wno-unreachable-code has_wno_unreachable_code)
+	if (has_wno_unreachable_code)
+		set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-unreachable-code")
+	endif ()
+
+	check_c_compiler_flag(-Wstrict-prototypes has_wstrict_prototypes)
+	if (has_wstrict_prototypes)
+		set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wstrict-prototypes")
+	endif ()
+
+	if (sctp_werror)
+		set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Werror")
+	endif ()
+
+	if (sctp_sanitizer_address)
+		set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fsanitize=address,undefined,signed-integer-overflow -fno-omit-frame-pointer -fno-sanitize-recover=all -fsanitize-address-use-after-scope ")
+	endif ()
+
+	if (sctp_sanitizer_memory)
+		set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fsanitize=memory -fno-omit-frame-pointer -fsanitize-memory-track-origins -fPIE")
+	endif ()
+
+	if (sctp_build_fuzzer)
+		set(CMAKE_BUILD_TYPE "RelWithDebInfo")
+		add_definitions(-DFUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION)
+		set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fsanitize=fuzzer-no-link")
+	endif ()
 endif ()
 
-check_c_compiler_flag(-Wno-deprecated-declarations has_wno_deprecated_declarations)
-if (has_wno_deprecated_declarations)
-	set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-deprecated-declarations")
+message(STATUS "Compiler flags (CMAKE_C_FLAGS): ${CMAKE_C_FLAGS}")
+
+
+#################################################
+# INCLUDE SUBDIRS
+#################################################
+
+add_subdirectory(usrsctplib)
+
+if (sctp_build_programs)
+	add_subdirectory(programs)
 endif ()
 
-if (CMAKE_SYSTEM_NAME MATCHES "Linux")
-	add_definitions(-D_GNU_SOURCE)
+if (sctp_build_fuzzer)
+	add_subdirectory(fuzzer)
 endif ()
-
-if (CMAKE_SYSTEM_NAME MATCHES "Darwin")
-	add_definitions(-D__APPLE_USE_RFC_2292)
-endif ()
-
-#################################################
-# MISC
-#################################################
-
-if (sctp_build_shared_lib)
-	set(BUILD_SHARED_LIBS 1)
-endif ()
-
-#################################################
-# LIBRARY FILES
-#################################################
-
-include_directories(${CMAKE_CURRENT_SOURCE_DIR})
-
-list(APPEND usrsctp_root_headers
-	user_atomic.h
-	user_environment.h
-	user_inpcb.h
-	user_ip_icmp.h
-	user_ip6_var.h
-	user_malloc.h
-	user_mbuf.h
-	user_queue.h
-	user_recv_thread.h
-	user_route.h
-	user_socketvar.h
-	user_uma.h
-	usrsctp.h
-)
-
-list(APPEND usrsctp_netinet_headers
-	netinet/sctp_asconf.h
-	netinet/sctp_auth.h
-	netinet/sctp_bsd_addr.h
-	netinet/sctp_callout.h
-	netinet/sctp_constants.h
-	netinet/sctp_crc32.h
-	netinet/sctp_header.h
-	netinet/sctp_indata.h
-	netinet/sctp_input.h
-	netinet/sctp_lock_userspace.h
-	netinet/sctp_os_userspace.h
-	netinet/sctp_os.h
-	netinet/sctp_output.h
-	netinet/sctp_pcb.h
-	netinet/sctp_peeloff.h
-	netinet/sctp_process_lock.h
-	netinet/sctp_sha1.h
-	netinet/sctp_structs.h
-	netinet/sctp_sysctl.h
-	netinet/sctp_timer.h
-	netinet/sctp_uio.h
-	netinet/sctp_var.h
-	netinet/sctputil.h
-	netinet/sctp.h
-)
-
-list(APPEND usrsctp_netinet6_headers
-	netinet6/sctp6_var.h
-)
-
-list(APPEND usrsctp_headers
-	${usrsctp_root_headers}
-	${usrsctp_netinet_headers}
-	${usrsctp_netinet6_headers}
-)
-
-list(APPEND usrsctp_sources
-	netinet/sctp_asconf.c
-	netinet/sctp_auth.c
-	netinet/sctp_bsd_addr.c
-	netinet/sctp_callout.c
-	netinet/sctp_cc_functions.c
-	netinet/sctp_crc32.c
-	netinet/sctp_indata.c
-	netinet/sctp_input.c
-	netinet/sctp_output.c
-	netinet/sctp_pcb.c
-	netinet/sctp_peeloff.c
-	netinet/sctp_sha1.c
-	netinet/sctp_ss_functions.c
-	netinet/sctp_sysctl.c
-	netinet/sctp_timer.c
-	netinet/sctp_userspace.c
-	netinet/sctp_usrreq.c
-	netinet/sctputil.c
-	netinet6/sctp6_usrreq.c
-	user_environment.c
-	user_mbuf.c
-	user_recv_thread.c
-	user_socket.c
-)
-
-add_library(usrsctp ${usrsctp_sources} ${usrsctp_headers})
-
-target_include_directories(usrsctp PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
-
-if(SCTP_USE_MBEDTLS_SHA1)
-	target_include_directories(usrsctp PRIVATE ${MBEDTLS_INCLUDE_DIRS})
-endif()
-
-if (WIN32)
-	message(STATUS "link library: ws2_32")
-	target_link_libraries(usrsctp ws2_32 iphlpapi)
-endif ()
-
-if(SCTP_USE_MBEDTLS_SHA1)
-	target_link_libraries(usrsctp PRIVATE ${MBEDTLS_LIBRARIES})
-endif()
-
-
-set_target_properties(usrsctp PROPERTIES IMPORT_SUFFIX "_import.lib")
-set_target_properties(usrsctp PROPERTIES SOVERSION ${SOVERSION_SHORT} VERSION ${SOVERSION_FULL})
-
-#################################################
-# INSTALL LIBRARY AND HEADER
-#################################################
-
-install(TARGETS usrsctp DESTINATION ${CMAKE_INSTALL_LIBDIR})
-install(FILES usrsctp.h DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
-
-#################################################
-# GENERATE AND INSTALL PKG-CONFIG FILE
-#################################################
-
-configure_file("${PROJECT_SOURCE_DIR}/usrsctp.pc.in" "${CMAKE_CURRENT_BINARY_DIR}/usrsctp.pc" @ONLY)
-install(FILES "${CMAKE_CURRENT_BINARY_DIR}/usrsctp.pc" DESTINATION "${CMAKE_INSTALL_LIBDIR}/pkgconfig")
