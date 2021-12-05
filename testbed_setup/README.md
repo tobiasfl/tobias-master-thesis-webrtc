@@ -10,6 +10,7 @@ To start the server run:
     bash run_app.sh
 
 # Getting the fake video file
+Only necessary to have this on the machine that wants to send a video stream. 
 I have created a share link to the file on google drive. If you run the "get\_fake\_video.sh" script it will automatically be downloaded with wget and placed in $HOME. The other scripts for running chrome with fake video assumes it is placed there.
 
 # Running Chrome with fake video, or sending a dummy file:
