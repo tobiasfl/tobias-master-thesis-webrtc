@@ -1,5 +1,5 @@
 if [ $# -eq 0 ]; then
-    echo ": run_chromium.sh <test-app IP-address>"
+    echo "Usage: run_chromium.sh <test-app IP-address>"
     exit 1
 fi
 #Assumes google chrome is installed on the machine
