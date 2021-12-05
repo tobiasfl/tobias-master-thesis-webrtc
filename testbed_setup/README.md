@@ -1,10 +1,12 @@
 # Getting the test app:
 Make sure node, git and npm is installed on the machine.
 To get the repo, install npm dependencies and build the code run:
+
     bash setup_app.hs
 
 The test-app repo will be placed in the $HOME directory.
 To start the server run:
+
     bash run_app.sh
 
 # Getting the fake video file
