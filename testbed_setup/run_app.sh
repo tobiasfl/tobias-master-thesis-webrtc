@@ -1,6 +1,4 @@
-APP_LOCATION='${HOME}/webrtc-test-app'
-node ${APP_LOCATION}/dist/index.js
+cd $HOME/webrtc-test-app
 
-#node ./dist/index.js
-
+node $HOME/webrtc-test-app/dist/index.js
 
