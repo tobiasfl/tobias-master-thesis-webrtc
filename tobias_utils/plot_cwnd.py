@@ -25,7 +25,7 @@ if args[3] not in valid_cc_vals:
 def extract_info(list_of_lines, cc_attribute, filename):
     result = []
 
-    #gets the HHMMSS.MIKROSECONDS timestamp
+    #gets the HHMMSS.MICROSECONDS timestamp
     timestamp_regex = r"^\[\d+:\d+:\d+/(\d+\.\d+):"
     #get the identity of the SctpTransport
     sctp_id_regex = r".+ (DcSctpTransport\d+)"
