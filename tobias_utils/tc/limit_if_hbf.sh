@@ -1,7 +1,7 @@
 IF=enp0s31f6
 DELAY=50ms
 BW=3mbit
-QUEUELIMIT=12
+QUEUELIMIT=15
 
 tc qdisc del dev $IF root
 

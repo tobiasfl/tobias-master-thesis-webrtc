@@ -23,10 +23,12 @@ cleanup ()
 	cwn=$(cat sender-ss.txt |   sed -e ':a; /<->$/ { N; s/<->\n//; ba; }' | grep "ESTAB"    |  grep "unacked" | grep -oP '\bcwnd:.*(\s|$)\bbytes_acked' | awk -F '[: ]' '{print $2","$4}')
 
 
-        
+        # get rtt                                                                                                             #\b means left edge is non word char
+                                                                                                                              #then *(\s|$) means catch group of 
+	rtt=$(cat sender-ss.txt |   sed -e ':a; /<->$/ { N; s/<->\n//; ba; }' | grep "ESTAB"    |  grep "unacked" | grep -oP '\brtt:.*(\s|$)\bmss' | awk -F '[:/ ]' '{print $2}')
 
 	# concatenate into one CSV
-	paste -d ',' <(printf %s "$ts") <(printf %s "$sender") <(printf %s "$retr") <(printf %s "$cwn") > sender-ss.csv
+        paste -d ',' <(printf %s "$ts") <(printf %s "$sender") <(printf %s "$retr") <(printf %s "$cwn") <(printf %s "$rtt") > sender-ss.csv
 
 	exit 0
 }

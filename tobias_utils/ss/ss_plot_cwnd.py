@@ -37,7 +37,6 @@ def extract_info(list_of_lines, cc):
 
         line_res = (dt + delta, val)
         result.append(line_res)
-        print(line_res)
     
     return result
     
