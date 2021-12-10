@@ -7,7 +7,7 @@ from datetime import timedelta
 import pandas as pd
 
 #original line with cwnd
-#ts,ip:port,,,cwnd,ssthresh
+#ts,ip:port,,,cwnd,ssthresh,rtt
 #1638953696.353329,10.0.0.2:38624,,,23,13
 
 args = sys.argv
@@ -17,7 +17,6 @@ if len(args) != 2:
     print("Usage: ss_plot_cwnd.py [cwnd|rtt|ssthresh] ")
     sys.exit(1)
 
-#TODO: make script parse rtt as well
 cc_vals = {"cwnd":4, "ssthresh":5, "rtt":6,}
 if args[1] not in cc_vals:
     print("invalid cc attribute")
@@ -27,13 +26,13 @@ def extract_info(list_of_lines, cc):
     result = []
 
     for line in list_of_lines:
-        splitted = line.split(',')
+        splitted = line.strip('\n').split(',')
         
         ts_split = splitted[0].split('.')
         dt = datetime.fromtimestamp(int(ts_split[0]))
         delta = timedelta(microseconds=int(ts_split[1]))
 
-        val = int(splitted[cc_vals[cc]])
+        val = float(splitted[cc_vals[cc]])
 
         line_res = (dt + delta, val)
         result.append(line_res)
