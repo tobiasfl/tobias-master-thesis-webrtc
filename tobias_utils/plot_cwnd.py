@@ -10,10 +10,10 @@ import pandas as pd
 
 args = sys.argv
 
-valid_cc_vals = {"cwnd", "ssthresh", "rtt", "srtt", "rto", "rate"}
+valid_cc_vals = {"cwnd", "ssthresh", "rtt", "srtt", "rto", "rate", "cwnd_segments"}
 
 if len(args) != 4:
-    print("Usage: plot_cwnd.py <logfile.txt> <outfile name> [cwnd|rtt|srtt|ssthresh] ")
+    print("Usage: plot_cwnd.py <logfile.txt> <outfile name> [cwnd|rtt|srtt|ssthresh|cwnd_segments] ")
     sys.exit(1)
 
 if args[3] not in valid_cc_vals:
@@ -97,10 +97,18 @@ def plot(list_of_tuples, cc_attribute, filename):
 
 with open(args[1]) as logfile:
     lines = logfile.readlines()
+
+    data = []
+
     if args[3] == 'rate':
         cwnd_data = extract_info(lines, 'cwnd', '/tmp/cwnd_log_data')
         rtt_data = extract_info(lines, 'rtt', '/tmp/rtt_log_data')
         rate_aggregate(cwnd_data, rtt_data)        
+    elif args[3] == "cwnd_segments":
+        data = extract_info(lines, 'cwnd', args[2])
+        SCTP_MSS = 1230
+        data = [(ts, cc_val/SCTP_MSS, sctp_id) for (ts, cc_val, sctp_id) in data]
     else:
         data = extract_info(lines, args[3], args[2])
-        plot(data, args[3], args[2])
+    
+    plot(data, args[3], args[2])

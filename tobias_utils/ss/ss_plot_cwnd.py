@@ -13,12 +13,12 @@ import pandas as pd
 args = sys.argv
 
 
-if len(args) != 2:
-    print("Usage: ss_plot_cwnd.py [cwnd|rtt|ssthresh] ")
+if len(args) != 3:
+    print("Usage: ss_plot_cwnd.py <csv file> [cwnd|rtt|ssthresh|cwnd_bytes] ")
     sys.exit(1)
 
-cc_vals = {"cwnd":4, "ssthresh":5, "rtt":6,}
-if args[1] not in cc_vals:
+cc_vals = {"cwnd":4, "ssthresh":5, "rtt":6, "cwnd_bytes":4}
+if args[2] not in cc_vals:
     print("invalid cc attribute")
     sys.exit(1)
 
@@ -61,7 +61,16 @@ def plot(list_of_tuples, cc):
     plt.show()
 
 
-with open('sender-ss.csv') as logfile:
+with open(args[1]) as logfile:
     lines = logfile.readlines()
-    data = extract_info(lines, args[1])
-    plot(data, args[1])
+
+    data = []
+
+    if args[2] == "cwnd_bytes":
+        data = extract_info(lines, "cwnd")
+        TCP_MSS = 1448
+        data = [(ts, v*TCP_MSS) for (ts, v) in data]
+    else:
+        data = extract_info(lines, args[2])
+
+    plot(data, args[2])

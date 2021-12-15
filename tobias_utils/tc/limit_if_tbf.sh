@@ -1,10 +1,13 @@
-IF=lo
-DELAY=25ms
-BW=10mbit
+IF=enp0s31f6
+DELAY=10ms
+BW=3mbit
+QUEUELIMIT=5
 
 tc qdisc del dev $IF root
 
-#sets up root qdisc with a handle name 1:0 and delay
-tc qdisc add dev $IF root handle 1:0 netem delay $DELAY 
+# latency is how long a packet can be buffered before it is thrown away, can be replaced with limit
+tc qdisc add dev $IF handle 10: root tbf rate $BW burst 150kbit limit 150kbit 
 
-tc qdisc add dev $IF parent 1:1 handle 10: tbf rate $BW burst 80kbit latency 400ms 
+#sets up root qdisc with a handle name 1:0 and delay
+tc qdisc add dev $IF parent 10:1 handle 100: netem limit $QUEUELIMIT delay $DELAY loss 0.0%
+
