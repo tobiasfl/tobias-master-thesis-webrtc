@@ -94,11 +94,11 @@ https://github.com/tobiasfl/webrtc-test-app
  - [x] Finish draft of chapter 2 by May 6
 
 ### Implementation/ testing tasks
- - [ ] Video and Data flows: classes!  *NOT URGENT*
- - [ ] 1. Implement example algorithm 1 of active FSE in chromium *FINISH BEFORE JUNE 10. MEETING*
+ - [X] Video and Data flows: classes!  *NOT URGENT*
+ - [X] 1. Implement example algorithm 1 of active FSE in chromium *FINISH BEFORE JUNE 10. MEETING*
  - [x] 1. Extend the webrtc app with screen sharing over media channel
  - [ ] 1. Test with video and screen sharing using only media channel 
- - [ ] 2. Implement and test FSE-NG with video and data flow
+ - [X] 2. Implement and test FSE-NG with video and data flow
  - [ ] 3. Test algorithm 1 with video+data at the same time
  - [ ] Implement screen sharing over data channel in the webrtc app
  
