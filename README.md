@@ -97,6 +97,7 @@ https://github.com/tobiasfl/webrtc-test-app
  	- [ ] Evaluate
  - [ ] Webrtc test application
  	- [ ] Implement screen sharing over data channel in the webrtc app
+ 	- [ ] Implement proper closing of media channels
  	- [ ] Show stats(e.g. current average throughput)
  
  ### Writing tasks
