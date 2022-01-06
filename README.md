@@ -73,35 +73,51 @@ You can easily convert yuv, webm, etc. to y4m using:
 ### New version of test-app
 https://github.com/tobiasfl/webrtc-test-app
 
-### Writing/ reading tasks
-
- - [x] Prepare a structure of your thesis: just headings, and create table of contents.
- - [x] Subheadings for your background sections: start with what your audience should know: webrtc architecture, transport protocols, congestion controls, coupled congestion and shared bottleneck detection 
- - [x] RTP, RTCP, SCTP in detail
- - [x] congestion control mechanisms for webrtc: GCC, NADA(CISCO) 
- - [x] Come up with your research question(s)
- - [ ] Read about Scream 
- - [x] Look at papers form Julius
- - [x] Read RFC8699 (Coupled congestion control)
- - [x] Draft Coupled Congestion control section
- - [x] Draft WebRTC congestion controls section
- - [x] Draft Congestion control section
- - [ ] Draft Coupled congestion algorithm design section(algorithm steps and integrating with data and video)
- - [ ] Draft about metrics to use in evaluation section (look at Safiqul's papers for which fairness index and etc. ) 
- - [ ] Describe organization of the rest of the thesis 
+### Reading tasks
  - [ ] Skim paper on ensemble TCP
  - [ ] Skim paper on Congestion Manager 
- - [x] Finish draft of chapter 2 by May 6
 
-### Implementation/ testing tasks
- - [X] Video and Data flows: classes!  *NOT URGENT*
- - [X] 1. Implement example algorithm 1 of active FSE in chromium *FINISH BEFORE JUNE 10. MEETING*
- - [x] 1. Extend the webrtc app with screen sharing over media channel
- - [ ] 1. Test with video and screen sharing using only media channel 
- - [X] 2. Implement and test FSE-NG with video and data flow
- - [ ] 3. Test algorithm 1 with video+data at the same time
- - [ ] Implement screen sharing over data channel in the webrtc app
+### Implementation tasks
+ - [ ] Data channel analysis
+ 	- [ ] Test dataChannel only without FSE with 3 computers
+ 	- [ ] Test dataChannel only without FSE in testbed
+ 	- [ ] report bug????  
+ - [ ] FSE for media only
+ 	- [ ] Deregistration
+ 	- [ ] Test with video and screen sharing using only media channel???
+ - [ ] FSE-NG for media and data
+ 	- [ ] Deregistration of media flows
+	- [ ] Deregistration of data flows
+	- [ ] Run in testbed
+	- [ ] Evaluate results, find any issues
+ - [ ] FSE mechanism for media and data
+ 	- [ ] Create algorithm
+ 	- [ ] Implement
+ 	- [ ] Run in testbed
+ 	- [ ] Evaluate
+ - [ ] Webrtc test application
+ 	- [ ] Implement screen sharing over data channel in the webrtc app
+ 	- [ ] Show stats(e.g. current average throughput)
  
+ ### Writing tasks
+ - [ ] Design chapter
+ 	- [ ] FSE for media only
+ 	- [ ] FSE-NG
+ 	- [ ] new FSE mechanism for media and data
+ 	- [ ] WebRTC test application
+ - [ ] Implementation chapter
+  	- [ ] FSE for media only
+ 	- [ ] FSE-NG
+ 	- [ ] new FSE mechanism for media and data
+ 	- [ ] WebRTC test application
+ 	- [ ] WebRTC DataChannel evaluation(bug)
+ - [ ] Evaluation chapter
+   	- [ ] Define the test cases(number/types of flows)
+   	- [ ] Write about metrics(look at Safiqul's papers for which fairness index and etc. ) 
+   	- [ ] Write about testbed setup(limitations, topology, chromium version etc.)
+	- [ ] Evaluate/compare with and without implemented mechanisms	
+ - [ ] Conclusion chapter
+
+  
 ### Deadlines
-* Essay: 01.06.2021
 * Master thesis: 16.05.2022
