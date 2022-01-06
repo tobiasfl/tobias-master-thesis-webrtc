@@ -83,10 +83,10 @@ https://github.com/tobiasfl/webrtc-test-app
  	- [ ] Test dataChannel only without FSE in testbed
  	- [ ] report bug????  
  - [ ] FSE for media only
- 	- [ ] Deregistration
+ 	- [X] Deregistration
  	- [ ] Test with video and screen sharing using only media channel???
  - [ ] FSE-NG for media and data
- 	- [ ] Deregistration of media flows
+ 	- [X] Deregistration of media flows
 	- [ ] Deregistration of data flows
 	- [ ] Run in testbed
 	- [ ] Evaluate results, find any issues
