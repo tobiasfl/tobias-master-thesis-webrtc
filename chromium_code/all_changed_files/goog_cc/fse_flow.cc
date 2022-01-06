@@ -122,6 +122,7 @@ FseNgRateFlow::FseNgRateFlow(
                 DataRate initial_bit_rate,
                 SendSideBandwidthEstimation& flow_cc)
     : FseFlow(id, priority),
+      initial_rate_(initial_bit_rate),
       fse_rate_(initial_bit_rate),
       flow_cc_(flow_cc) {
   RTC_LOG(LS_INFO) << "creating a FseNgRateFlow";
@@ -138,6 +139,10 @@ void FseNgRateFlow::UpdateFlow(DataRate new_fse_rate, Timestamp at_time) {
 
 DataRate FseNgRateFlow::FseRate() const {
     return fse_rate_;
+}
+
+DataRate FseNgRateFlow::InitialRate() const {
+    return initial_rate_;
 }
 
 }  // namespace webrtc

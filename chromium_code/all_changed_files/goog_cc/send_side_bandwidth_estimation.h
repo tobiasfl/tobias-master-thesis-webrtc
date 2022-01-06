@@ -16,7 +16,6 @@
 #include <stdint.h>
 
 #include <deque>
-#include <memory>
 #include <utility>
 #include <vector>
 
@@ -30,11 +29,10 @@
 #include "modules/congestion_controller/goog_cc/loss_based_bwe_v2.h"
 #include "rtc_base/experiments/field_trial_parser.h"
 
-// Added by Tobias
 #include "modules/congestion_controller/goog_cc/flow_state_exchange.h"
 #include "modules/congestion_controller/goog_cc/fse_flow.h"
 #include "modules/congestion_controller/goog_cc/fse_ng.h"
-// Added by Tobias
+
 
 namespace webrtc {
 
@@ -120,7 +118,6 @@ class SendSideBandwidthEstimation {
                    Timestamp at_time);
   void SetSendBitrate(DataRate bitrate, Timestamp at_time);
   void FseUpdateTargetBitrate(DataRate new_bitrate, Timestamp at_time);
-
   void SetMinMaxBitrate(DataRate min_bitrate, DataRate max_bitrate);
   int GetMinBitrate() const;
   void SetAcknowledgedRate(absl::optional<DataRate> acknowledged_rate,
@@ -207,13 +204,12 @@ class SendSideBandwidthEstimation {
   DataRate bitrate_threshold_;
   LossBasedBandwidthEstimation loss_based_bandwidth_estimator_v1_;
   LossBasedBweV2 loss_based_bandwidth_estimator_v2_;
-  FieldTrialFlag receiver_limit_caps_only_;
+  FieldTrialFlag disable_receiver_limit_caps_only_;
+
 
   // Added by TOBIAS
   std::shared_ptr<RateFlow> fseFlow_;
   std::shared_ptr<FseNgRateFlow> fseNgFlow_;
-  bool fse_is_enabled_;
-  bool fse_ng_is_enabled_;
   // Added by TOBIAS
 };
 }  // namespace webrtc

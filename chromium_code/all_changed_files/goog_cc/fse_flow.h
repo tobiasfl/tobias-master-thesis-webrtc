@@ -92,10 +92,12 @@ class FseNgRateFlow : public FseFlow {
   void UpdateFlow(DataRate new_fse_rate, Timestamp at_time);
   DataRate FseRate() const;
   void SetFseRate(DataRate new_rate);
+  DataRate InitialRate() const;
  private:
+  DataRate initial_rate_;
   DataRate fse_rate_;
   SendSideBandwidthEstimation& flow_cc_;
 };
 
 }  // namespace webrtc
-#endif  // MODULES_CONGESTION_CONTROLLER_GOOG_CC_CHROMIUM_FLOW_STATE_EXCHANGE_H
+#endif  // MODULES_CONGESTION_CONTROLLER_GOOG_CC_FSE_FLOW_H

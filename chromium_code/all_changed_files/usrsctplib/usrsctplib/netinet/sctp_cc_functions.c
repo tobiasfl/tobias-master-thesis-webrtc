@@ -61,14 +61,14 @@ __FBSDID("$FreeBSD$");
 static void
 sctp_enforce_cwnd_limit(struct sctp_association *assoc, struct sctp_nets *net, struct sctp_tcb *stcb)
 {
-  //Added by TOBIAS
-  if (assoc->cwnd_changed) {
-    void *ulp_info;
-    int retrieved = retrieve_ulp_info(stcb->sctp_socket, &ulp_info);
-    //TODO: check return value???
-    assoc->cwnd_changed(net->cwnd, net->rtt, ulp_info);
-  }
-  //Added by TOBIAS
+      //Added by TOBIAS
+      if (assoc->cwnd_changed) {
+        void *ulp_info;
+        int retrieved = retrieve_ulp_info(stcb->sctp_socket, &ulp_info);
+        //TODO: check return value???
+        assoc->cwnd_changed(net->cwnd, net->rtt, ulp_info);
+      }
+      //Added by TOBIAS
 
 	if ((assoc->max_cwnd > 0) &&
 	    (net->cwnd > assoc->max_cwnd) &&
@@ -78,16 +78,6 @@ sctp_enforce_cwnd_limit(struct sctp_association *assoc, struct sctp_nets *net, s
 			net->cwnd = net->mtu - sizeof(struct sctphdr);
 		}
 	}
-  struct timeval tv;
-  SCTP_GETPTIME_TIMEVAL(&tv);
-  uint64_t epoc_time_millis = (tv.tv_sec * (uint64_t)1000) + (tv.tv_usec / 1000);
-  SCTP_PRINTF("PLOT_THIS(sctp_cc) someIdHere-CWND_AS_RATE %lu %lu", epoc_time_millis,  
-       net->rtt == 0 ? 
-       0 :
-       ((1000000 * ((uint64_t)net->cwnd) << 3) / net->rtt) / 1000); //TODO:converting to kbps correctly?
-  SCTP_PRINTF("last rtt_ms in enforce_cwnd_limit: %lu", net->rtt / 1000);
-  SCTP_PRINTF("max_cwnd in enforce_cwnd_limit: %lu", assoc->max_cwnd);
-
 }
 
 static void

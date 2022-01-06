@@ -1284,10 +1284,9 @@ struct sctp_association {
 	uint64_t abandoned_unsent[SCTP_PR_SCTP_MAX + 1];
 	uint64_t abandoned_sent[SCTP_PR_SCTP_MAX + 1];
 
-  // Added by TOBIAS
-  uint32_t (*cwnd_changed)(uint32_t cwnd, uint64_t last_rtt, void *ulp_info);
-  // Added by TOBIAS
-
+        // Added by TOBIAS
+        uint32_t (*cwnd_changed)(uint32_t cwnd, uint64_t last_rtt, void *ulp_info);
+        // Added by TOBIAS
 };
 
 #endif

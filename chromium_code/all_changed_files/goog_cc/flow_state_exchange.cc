@@ -17,6 +17,7 @@
 #include "api/units/timestamp.h"
 #include "modules/congestion_controller/goog_cc/fse_flow.h"
 #include "modules/congestion_controller/goog_cc/send_side_bandwidth_estimation.h"
+#include "rtc_base/logging.h"
 
 namespace webrtc {
 
@@ -96,26 +97,6 @@ FlowStateExchange::FlowStateExchange()
 
 FlowStateExchange::~FlowStateExchange() = default;
 
-std::shared_ptr<WindowBasedFlow> FlowStateExchange::RegisterWindowBasedFlow(
-    uint32_t initial_cwnd,
-    uint64_t last_rtt,
-    int priority,
-    cricket::UsrsctpTransport& transport) {
-  fse_mutex_.lock();
-
-  std::cout << "FSE Registering new window- based flow with addr: "
-            << &transport << " initial_cwnd: " << initial_cwnd << "\n";
-  // TODO: more stuff will happen in this method
-  std::shared_ptr<WindowBasedFlow> new_flow = std::make_shared<WindowBasedFlow>(
-      flow_id_counter_++, priority, initial_cwnd, last_rtt, transport);
-  cwnd_flows_.insert(new_flow);
-  sum_calculated_rates_ += FseFlow::CwndToRate(initial_cwnd, last_rtt);
-
-  fse_mutex_.unlock();
-
-  return new_flow;
-}
-
 std::shared_ptr<RateFlow> FlowStateExchange::Register(
     DataRate initial_bit_rate,
     DataRate desired_rate,
@@ -123,8 +104,7 @@ std::shared_ptr<RateFlow> FlowStateExchange::Register(
     // TODO: maybe pass a callback update-method instead of the object
     SendSideBandwidthEstimation& cc) {
   fse_mutex_.lock();
-  std::cout << "FSE Registering new flow with addr: " << &cc << "\n";
-
+  RTC_LOG(LS_INFO) << "FSE Registering new flow with addr: " << &cc << "\n";
   switch (CURRENT_TEST_CASE) {
     case case1:
       break;
@@ -149,18 +129,10 @@ std::shared_ptr<RateFlow> FlowStateExchange::Register(
 }
 
 void FlowStateExchange::DeRegister(std::shared_ptr<RateFlow> flow) {
+  RTC_LOG(LS_INFO) << "deregistering flow with id" << flow->Id();
   fse_mutex_.lock();
   flows_.erase(flow);
-  //TODO: might not be necessary to remove from sum
-  sum_calculated_rates_ = sum_calculated_rates_ - flow->FseRate();
   fse_mutex_.unlock();
-}
-
-void FlowStateExchange::UpdateWindowBasedFlow(
-    std::shared_ptr<WindowBasedFlow> flow,
-    uint32_t new_cwnd,
-    uint64_t last_rtt) {
-  std::cout << "TOBIAS UpdateWindowBasedFlow was called\n";
 }
 
 void FlowStateExchange::Update(std::shared_ptr<RateFlow> flow,
@@ -170,7 +142,7 @@ void FlowStateExchange::Update(std::shared_ptr<RateFlow> flow,
   fse_mutex_.lock();
 
   if (flows_.find(flow) == flows_.end()) {
-    std::cout << "flow in FSE Update call is not registereded!\n";
+    RTC_LOG(LS_INFO) << "flow in FSE Update call is not registereded!\n";
     return;
   }
 

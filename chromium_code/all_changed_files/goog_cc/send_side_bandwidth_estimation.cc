@@ -9,6 +9,7 @@
  */
 
 #include "modules/congestion_controller/goog_cc/send_side_bandwidth_estimation.h"
+#include "modules/congestion_controller/goog_cc/fse_config.h"
 
 #include <algorithm>
 #include <cstdio>
@@ -19,7 +20,6 @@
 #include <chrono>
 
 #include "absl/strings/match.h"
-#include "absl/types/optional.h"
 #include "api/rtc_event_log/rtc_event.h"
 #include "api/rtc_event_log/rtc_event_log.h"
 #include "api/transport/webrtc_key_value_config.h"
@@ -29,7 +29,6 @@
 #include "modules/congestion_controller/goog_cc/loss_based_bwe_v2.h"
 #include "modules/remote_bitrate_estimator/include/bwe_defines.h"
 #include "rtc_base/checks.h"
-#include "rtc_base/diagnostic_logging.h"
 #include "rtc_base/logging.h"
 #include "system_wrappers/include/field_trial.h"
 #include "system_wrappers/include/metrics.h"
@@ -233,7 +232,7 @@ SendSideBandwidthEstimation::SendSideBandwidthEstimation(
       bitrate_threshold_(kDefaultBitrateThreshold),
       loss_based_bandwidth_estimator_v1_(key_value_config),
       loss_based_bandwidth_estimator_v2_(key_value_config),
-      receiver_limit_caps_only_("Enabled") {
+      disable_receiver_limit_caps_only_("Disabled") {
   RTC_DCHECK(event_log);
   if (BweLossExperimentIsEnabled()) {
     uint32_t bitrate_threshold_kbps;
@@ -246,27 +245,23 @@ SendSideBandwidthEstimation::SendSideBandwidthEstimation(
       bitrate_threshold_ = DataRate::KilobitsPerSec(bitrate_threshold_kbps);
     }
   }
-  ParseFieldTrial({&receiver_limit_caps_only_},
+  ParseFieldTrial({&disable_receiver_limit_caps_only_},
                   key_value_config->Lookup("WebRTC-Bwe-ReceiverLimitCapsOnly"));
-
   // Added by TOBIAS
-  fse_is_enabled_ = false;
-  fse_ng_is_enabled_ = false;
   fseFlow_ = nullptr;
   fseNgFlow_ = nullptr;  
   // Added by TOBIAS
 }
 
 SendSideBandwidthEstimation::~SendSideBandwidthEstimation() {
-  //TODO: I assume there is no point setting their pointers to null at this point
-  if (fse_is_enabled_ && fseFlow_) {
-    RTC_LOG(LS_INFO) << "SRTP deregistering from FlowStateExchange";
+  //Added By TOBIAS
+  if(fseFlow_) {
     FlowStateExchange::Instance().DeRegister(fseFlow_);
   }
-  if (fse_ng_is_enabled_ && fseNgFlow_) {
-    RTC_LOG(LS_INFO) << "SRTP deregistering from FseNg";
+  if(fseNgFlow_) {
     FseNg::Instance().DeRegisterRateFlow(fseNgFlow_);
   }
+  //Added By TOBIAS
 }
 
 void SendSideBandwidthEstimation::OnRouteChange() {
@@ -334,7 +329,7 @@ int SendSideBandwidthEstimation::GetMinBitrate() const {
 
 DataRate SendSideBandwidthEstimation::target_rate() const {
   DataRate target = current_target_;
-  if (receiver_limit_caps_only_)
+  if (!disable_receiver_limit_caps_only_)
     target = std::min(target, receiver_limit_);
   return std::max(min_bitrate_configured_, target);
 }
@@ -630,7 +625,7 @@ void SendSideBandwidthEstimation::UpdateMinHistory(Timestamp at_time) {
 
 DataRate SendSideBandwidthEstimation::GetUpperLimit() const {
   DataRate upper_limit = delay_based_limit_;
-  if (!receiver_limit_caps_only_)
+  if (disable_receiver_limit_caps_only_)
     upper_limit = std::min(upper_limit, receiver_limit_);
   return std::min(upper_limit, max_bitrate_configured_);
 }
@@ -661,41 +656,43 @@ void SendSideBandwidthEstimation::MaybeLogLossBasedEvent(Timestamp at_time) {
 void SendSideBandwidthEstimation::UpdateTargetBitrate(DataRate new_bitrate,
                                                       Timestamp at_time) {
   new_bitrate = std::min(new_bitrate, GetUpperLimit());
-
   if (new_bitrate < min_bitrate_configured_) {
     MaybeLogLowBitrateWarning(new_bitrate, at_time);
     new_bitrate = min_bitrate_configured_;
   }
-
-  if (fse_is_enabled_) {
-    if(!fseFlow_) {
-      fseFlow_ = FlowStateExchange::Instance().Register(
-            new_bitrate, DataRate::KilobitsPerSec(1000000), 1, *this);
+  switch (FseConfig::CurrentFse()) {
+    case fse: {
+      if(!fseFlow_) {
+        fseFlow_ = FlowStateExchange::Instance()
+            .Register(new_bitrate, DataRate::KilobitsPerSec(1000000), 1, *this);
+      }
+      RTC_LOG(LS_INFO) << "GCC calling update on FSE " << fseFlow_->Id() << "-CC_R "
+                       << at_time.ms() << " " << new_bitrate.bps();
+      FlowStateExchange::Instance()
+          .Update(fseFlow_, new_bitrate, DataRate::KilobitsPerSec(1000000), at_time);
+      break;
     }
-
-    /*RTC_LOG(LS_INFO) << "PLOT_THIS(fse_cc_update) " << fseFlow_->Id() << "-CC_R "
-                     << at_time.ms() << " " << current_target_.kbps();*/
-
-    FlowStateExchange::Instance().Update(
-        fseFlow_, new_bitrate, DataRate::KilobitsPerSec(1000000), at_time);
-  } else if (fse_ng_is_enabled_) {
-    if(!fseNgFlow_) {
-      fseNgFlow_ = FseNg::Instance().RegisterRateFlow(new_bitrate, 1, *this);
+    case fse_ng: {
+      if(!fseNgFlow_) {
+        fseNgFlow_ = FseNg::Instance().RegisterRateFlow(new_bitrate, 1, *this);
+      }
+      /*RTC_LOG(LS_INFO) << "PLOT_THIS(fse_cc_update) " << fseNgFlow_->Id() << "-CC_R "
+                       << at_time.ms() << " " << current_target_.kbps();*/
+      FseNg::Instance().SrtpUpdate(fseNgFlow_, current_target_, new_bitrate, GetUpperLimit(),
+                                        last_round_trip_time_, at_time);
+      break;
     }
-
-    /*RTC_LOG(LS_INFO) << "PLOT_THIS(fse_cc_update) " << fseNgFlow_->Id() << "-CC_R "
-                     << at_time.ms() << " " << current_target_.kbps();*/
-
-    FseNg::Instance().SrtpUpdate(fseNgFlow_, current_target_, new_bitrate, GetUpperLimit(),
-                                      last_round_trip_time_, at_time);
-  } else {
-    current_target_ = new_bitrate;
-
-    RTC_LOG(LS_INFO) << "PLOT_THIS(fse_cc_update) " << this << "-CC_R "
-                     << Timestamp::Millis(std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count()).ms() << " " << current_target_.kbps();
-
-    MaybeLogLossBasedEvent(at_time);
-    link_capacity_.OnRateUpdate(acknowledged_rate_, current_target_, at_time);
+    default: {
+      current_target_ = new_bitrate;
+      RTC_LOG(LS_INFO) << "PLOT_THIS(fse_cc_update) " << this << "-CC_R "
+                           << Timestamp::Millis(
+                                   std::chrono::duration_cast<std::chrono::milliseconds>(
+                                       std::chrono::system_clock::now().time_since_epoch())
+                                   .count()).ms() << " " << current_target_.bps();
+      
+      MaybeLogLossBasedEvent(at_time);
+      link_capacity_.OnRateUpdate(acknowledged_rate_, current_target_, at_time);
+    }
   }
 }
 
@@ -705,6 +702,7 @@ void SendSideBandwidthEstimation::FseUpdateTargetBitrate(DataRate new_bitrate,
 
   link_capacity_.OnRateUpdate(acknowledged_rate_, current_target_, at_time);
 }
+
 
 void SendSideBandwidthEstimation::ApplyTargetLimits(Timestamp at_time) {
   UpdateTargetBitrate(current_target_, at_time);

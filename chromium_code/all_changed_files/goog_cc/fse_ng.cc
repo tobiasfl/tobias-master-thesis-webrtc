@@ -155,13 +155,15 @@ void FseNg::DeRegisterWindowBasedFlow(std::shared_ptr<FseNgWindowBasedFlow> flow
 
 void FseNg::DeRegisterRateFlow(std::shared_ptr<FseNgRateFlow> flow) {
   fse_mutex_.lock();
-  RTC_LOG(LS_INFO) << "DeRegisterRateFlow was called";
-  //TODO: Either this or remove the current CC rate instead 
-  sum_calculated_rates_ -= flow->FseRate();
+  RTC_LOG(LS_INFO) 
+      << "DeRegisterRateFlow was called, removing rate: " 
+      << flow->InitialRate().bps();
+  //According to paper, RTP flows should remove their initial sending rate
+  sum_calculated_rates_ -= flow->InitialRate();
 
   rate_flows_.erase(flow);
 
-  // If last RTP flow leaves, the window limits of all window based flows are removed
+  // If last RTP flow leaves, the window limits f all window based flows are removed
   // Since no congestion control info is available
   if (rate_flows_.empty()){
     for (const auto& cwnd_flow : cwnd_flows_) {
