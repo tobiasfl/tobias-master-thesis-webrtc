@@ -1,5 +1,5 @@
-IFA=enp0s31f6
-IFB=enp0s20f0u1
+IFA=enp3s0
+IFB=enx00e096660248
 
 echo 1 > /proc/sys/net/ipv4/ip_forward
 
