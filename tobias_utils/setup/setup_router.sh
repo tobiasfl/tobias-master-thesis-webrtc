@@ -30,13 +30,3 @@ tc qdisc add dev $IFRECV parent 1:1 handle 1001: netem limit ${QUEUELIMIT} delay
 
 tc filter add dev $IFRECV protocol ip parent 1: prio 1 matchall flowid 1:1
 
-#disable TCP offloading, interferes with test results
-ethtool -K $IFRECV gro off
-ethtool -K $IFRECV tso off
-ethtool -K $IFRECV lso off
-ethtool -K $IFRECV lro off
-
-ethtool -K $IFSND gro off
-ethtool -K $IFSND tso off
-ethtool -K $IFSND lso off
-ethtool -K $IFSND lro off

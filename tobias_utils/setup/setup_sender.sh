@@ -11,5 +11,3 @@ ip route add default via 10.0.0.1
 #add static route to other subnet
 ip route add 192.168.0.0/24 via 10.0.0.1 dev enp0s31f6
 
-#Disable TCP- offloading, can lead to larger packets than MTU 
-ethtool -K enp0s31f6 tso off
