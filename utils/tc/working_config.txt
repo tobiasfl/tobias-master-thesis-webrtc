@@ -1,0 +1,8 @@
+qdisc noqueue 0: dev lo root refcnt 2 
+qdisc htb 1: dev enp3s0 root refcnt 2 r2q 10 default 0x1 direct_packets_stat 0 direct_qlen 1000
+qdisc pfifo 1001: dev enp3s0 parent 1:1 limit 15p
+qdisc fq_codel 0: dev enx00e096660248 root refcnt 2 limit 10240p flows 1024 quantum 1514 target 5.0ms interval 100.0ms memory_limit 32Mb ecn 
+qdisc ingress ffff: dev enx00e096660248 parent ffff:fff1 ---------------- 
+qdisc htb 1: dev ifb0 root refcnt 2 r2q 10 default 0x1 direct_packets_stat 0 direct_qlen 32
+qdisc netem 1001: dev ifb0 parent 1:1 limit 1000 delay 50.0ms
+qdisc fq_codel 0: dev ifb1 root refcnt 2 limit 10240p flows 1024 quantum 1514 target 5.0ms interval 100.0ms memory_limit 32Mb ecn 
