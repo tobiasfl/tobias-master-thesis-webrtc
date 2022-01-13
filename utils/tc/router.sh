@@ -25,5 +25,8 @@ tc filter add dev ifb0 protocol ip parent 1: handle 1 fw flowid 1:1 action mirre
 tc class add dev ifb1 parent 2: classid 2:1 htb rate 1000mbit ceil 1000mbit
 tc qdisc add dev ifb1 parent 2:1 handle 1002: netem limit 1000 delay 50ms loss 0.0%
 tc filter add dev ifb1 protocol ip parent 2: prio 1 handle 2 fw flowid 1:1 
+tc qdisc show
+
 
 iptables -t mangle -A POSTROUTING -s 10.0.0.2/24 -d 192.168.0.2/24 -j MARK --set-mark 1
+iptables -t mangle -L
