@@ -3,7 +3,7 @@
 IFSND=enx00e096660248
 IFRCV=enp3s0
 IFVIR=ifb0
-DELAY_MS=50
+DELAY_MS=10
 RATE_MBIT=3
 QUEUELIMIT=15
 
@@ -18,7 +18,7 @@ tc filter add dev ${IFSND} parent ffff: \
 	protocol ip u32 match u32 0 0 flowid 1:1 action mirred egress redirect dev ${IFVIR}
 
 #add delay to incoming packets
-tc qdisc del dev ${IFVIR} 
+tc qdisc del dev ${IFVIR} root 
 tc qdisc add dev ${IFVIR} root handle 1: htb default 1
 tc class add dev ${IFVIR} parent 1: classid 1:1 htb rate 1000mbit ceil 1000mbit 
 tc qdisc add dev ${IFVIR} parent 1:1 handle 1001: netem limit 1000 delay ${DELAY_MS}ms loss 0.0%
