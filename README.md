@@ -78,10 +78,7 @@ https://github.com/tobiasfl/webrtc-test-app
  - [ ] Skim paper on Congestion Manager 
 
 ### Implementation tasks
- - [ ] Data channel analysis
- 	- [ ] Test dataChannel only without FSE with 3 computers
- 	- [ ] Test dataChannel only without FSE in testbed
- 	- [ ] report bug????  
+ - [ ] Data channel analysis 
  - [ ] FSE for media only
  	- [X] Deregistration
  	- [ ] Test with video and screen sharing using only media channel???
