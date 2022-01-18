@@ -16,9 +16,6 @@ ip addr list $IFSND
 echo net.ipv4.ip_forward=1 > /etc/sysctl.conf
 sysctl -p /etc/sysctl.conf
 
-#limit stuff
-bash ../tc/router.sh
-
 #turn off offloading
 bash turn_off_offloading.sh $IFSND
 bash turn_off_offloading.sh $IFRECV
