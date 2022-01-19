@@ -1,15 +1,22 @@
+#!/bin/bash
+
+if [ $# -lt 3 ]; then
+    echo "USAGE: $0 <bandwidth mbit/s limit> <delay ms> <queue length pkts>"
+    exit 1
+fi
+
 IFSND=enx00e096660248
 IFRCV=enp3s0
 IFVIR=ifb0
 
-DELAY_MS=10
-RATE_MBIT=3
-PKT_MTU=1230
+RATE_MBIT=$1
+DELAY_MS=$2
 
-BDP_BYTES=$(echo "($DELAY_MS/1000.0)*($RATE_MBIT*1000000.0/8.0)" | bc -q -l)
-BDP_PKTS=(echo "$BDP_BYTES/1250" | bc -q)
+#PKT_MTU=1230
+#BDP_BYTES=$(echo "($DELAY_MS/1000.0)*($RATE_MBIT*1000000.0/8.0)" | bc -q -l)
+#BDP_PKTS=(echo "$BDP_BYTES/1250" | bc -q)
 
-LIMIT_PKTS=15
+PKT_LIMIT=$3
 
 modprobe ifb
 
@@ -31,6 +38,6 @@ tc qdisc add dev ${IFVIR} parent 1:1 handle 1001: netem limit 1000 delay ${DELAY
 tc qdisc del dev ${IFRCV} root
 tc qdisc add dev ${IFRCV} root handle 1: htb default 1
 tc class add dev ${IFRCV} parent 1: classid 1:1 htb rate ${RATE_MBIT}mbit ceil ${RATE_MBIT}mbit 
-tc qdisc add dev ${IFRCV} parent 1:1 handle 1001: pfifo limit ${LIMIT_PKTS} 
+tc qdisc add dev ${IFRCV} parent 1:1 handle 1001: pfifo limit ${PKT_LIMIT} 
 tc filter add dev ${IFRCV} protocol ip parent 1: prio 1 matchall flowid 1:1
 
