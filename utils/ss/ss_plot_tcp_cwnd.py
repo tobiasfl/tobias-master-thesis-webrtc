@@ -14,7 +14,7 @@ args = sys.argv
 
 
 if len(args) != 3:
-    print("Usage: ss_plot_cwnd.py <csv file> [cwnd|rtt|ssthresh|cwnd_bytes] ")
+    print("Usage: <csv file> [cwnd|rtt|ssthresh|cwnd_bytes] ")
     sys.exit(1)
 
 cc_vals = {"cwnd":4, "ssthresh":5, "rtt":6, "cwnd_bytes":4}
