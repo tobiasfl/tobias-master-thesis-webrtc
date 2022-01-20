@@ -106,8 +106,9 @@ with open(args[1]) as logfile:
         rate_aggregate(cwnd_data, rtt_data)        
     elif args[3] == "cwnd_segments":
         data = extract_info(lines, 'cwnd', args[2])
-        SCTP_MSS = 1230
-        data = [(ts, cc_val/SCTP_MSS, sctp_id) for (ts, cc_val, sctp_id) in data]
+        SCTP_MTU = 1267
+        SCTP_MSS = 1188
+        data = [(ts, cc_val/SCTP_MTU, sctp_id) for (ts, cc_val, sctp_id) in data]
     else:
         data = extract_info(lines, args[3], args[2])
     

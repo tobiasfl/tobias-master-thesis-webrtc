@@ -1,8 +1,8 @@
 #!/bin/bash
 
 #TODO: add args for choosing web page/number and type of flows
-if [ $# -lt 5 ]; then
-    echo "USAGE: $0 <bandwidth mbit/s limit> <delay ms> <queue length pkts> <test run length sec.> <output directory>"
+if [ $# -lt 6 ]; then
+    echo "USAGE: $0 <bandwidth mbit/s limit> <delay ms> <queue length pkts> <test run length sec.> <output directory> <web page>"
     exit 1
 fi
 
@@ -19,16 +19,19 @@ fi
 ssh -t tobias@10.0.0.1 "sudo bash ~/Code/tobias-master-thesis-webrtc/utils/tc/limit_router.sh $1 $2 $3"
 
 #TODO: ssh into receiver and start chrome from terminal(and maybe exit after everything is finished)
+#ssh -t tobias@192.168.0.2 "google-chrome $6"
 
-#start tcpdump, store pid so it can be exited after chromium has finished its run
 #TODO: may also start tcpdumps at router and receiver if neccessary
-tcpdump -i enp0s31f6 -w $out_dir/if_dump.pcap &
+
+sudo tcpdump -i enp0s31f6 -w $out_dir/if_dump.pcap &
 tcpdump_pid=$!
 
-#run chromium for some time before exiting
-timeout $4 bash run_chromium.sh $out_dir
+#hacky way to make sure I get time to enter password if neccessary
+sleep 10
+
+
+#run chromium and tcpdump for some time before exiting
+timeout $4 bash run_chromium.sh $out_dir $6
 chromium_pid=$!
 
-wait $chromium_pid
-#stop dumping once, chromium run finished
-kill $tcpdump_pid
+sudo kill $tcpdump_pid
