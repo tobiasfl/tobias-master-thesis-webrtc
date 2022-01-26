@@ -1,6 +1,6 @@
-cat log.txt | grep -a SCTP_PACKET > filtered.log
+cat log.txt | grep -a SCTP_PACKET > sctp_dump.log
 
-text2pcap -t "%H:%M:%S." -D -u 1024,1024 filtered.log filtered.pcap
+text2pcap -t "%H:%M:%S." -D -u 1024,1024 sctp_dump.log sctp_dump.pcap
 
 
 # The value "1024" isn't important, we just need a port for the dummy UDP

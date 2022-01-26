@@ -23,15 +23,8 @@ ssh -t tobias@10.0.0.1 "sudo bash ~/Code/tobias-master-thesis-webrtc/utils/tc/li
 
 #TODO: may also start tcpdumps at router and receiver if neccessary
 
-sudo tcpdump -i enp0s31f6 -w $out_dir/if_dump.pcap &
-tcpdump_pid=$!
-
-#hacky way to make sure I get time to enter password if neccessary
-sleep 10
-
+timeout $4 tcpdump -i enp0s31f6 -w $out_dir/if_dump.pcap &
 
 #run chromium and tcpdump for some time before exiting
-timeout $4 bash run_chromium.sh $out_dir $6
-chromium_pid=$!
+timeout $4 bash ~/Code/tobias-master-thesis-webrtc/utils/testing/run_chromium.sh $out_dir $6
 
-sudo kill $tcpdump_pid
