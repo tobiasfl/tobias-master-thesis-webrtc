@@ -12,26 +12,9 @@ import pandas as pd
 
 args = sys.argv
 
-valid_cc_vals = {
-        "cwnd",
-        "ssthresh", 
-        "rtt", 
-        "srtt", 
-        "rto", 
-        "rate",
-        "max_cwnd",
-        "cwnd_segments"}
-
-if len(args) != 3:
-    print(f'Usage: {args[0]} <outfile name> [{"|".join(valid_cc_vals)}]')
+if len(args) != 2:
+    print(f'Usage: {args[0]} <cc_val>')
     sys.exit(1)
-
-if args[2] not in valid_cc_vals:
-    print(args[2])
-    print("invalid cc attribute")
-    sys.exit(1)
-
-
 
 def extract_info(list_of_lines, cc_attribute, id_string):
     result = []
@@ -53,8 +36,7 @@ def extract_info(list_of_lines, cc_attribute, id_string):
             datetime_obj = datetime.strptime(line_res[0][0], date_time_format)
             cc_val = int(line_res[0][2])
             id_str = line_res[0][1]
-            #multiply by 1000 to convert posix timestamp to ms
-            result.append((datetime_obj.timestamp()*1000, cc_val, id_str))
+            result.append((datetime_obj.timestamp(), cc_val, id_str))
             lines_to_save.append(line)
 
     with open(cc_attribute + "_from_log" + ".txt", "w") as extractedlogfile:
@@ -85,7 +67,7 @@ def plot(list_of_tuples, cc_attribute, filename):
 
         plt.plot(timestamps, cc_vals, label = group[0][2])
     
-    plt.xlabel("time")
+    plt.xlabel("time(s)")
     plt.ylabel(cc_attribute)
 
     plt.xlim(left=0)
@@ -106,7 +88,7 @@ def cwnd2rate(rtt_ms, cwnd_bytes):
 def cwnd2cwnd_segments(cwnd_bytes):
     SCTP_MTU = 1267 #based on tcpdump
     SCTP_MSS = 1191 #based on checking difference for each cwnd increase in log file
-    return cwnd_bytes/SCTP_MSS
+    return cwnd_bytes/SCTP_MTU
 
 
 with open("log.txt") as logfile:
@@ -114,10 +96,10 @@ with open("log.txt") as logfile:
 
     data = []
 
-    if args[2] == "cwnd_segments":
+    if args[1] == "cwnd_segments":
         data = extract_info(lines, 'cwnd', 'PLOT_THIS')
         data = [(ts, cwnd2cwnd_segments(cc_val), sctp_id) for (ts, cc_val, sctp_id) in data]
     else:
-        data = extract_info(lines, args[2], 'PLOT_THIS')
+        data = extract_info(lines, args[1], 'PLOT_THIS')
     
-    plot(data, args[2], args[1])
+    plot(data, args[1], args[1])
