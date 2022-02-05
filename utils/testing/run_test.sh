@@ -5,12 +5,15 @@ RECEIVER=192.168.0.2
 SENDER=10.0.0.2
 
 if [ $# -lt 6 ]; then
-    echo "USAGE: $0 <bandwidth mbit/s> <delay ms> <queue length pkts> <test run length sec.> <output directory> <web page query config>"
+    echo "USAGE: $0 <bandwidth mbit/s> <delay ms> <queue length pkts> <test run length sec.> <output directory> <web page query config> [optional experiment label]"
     exit 1
 fi
 
-now=$(date + )
 out_dir=$5/$1mbit_$2ms_$3pkts_$4sec_$6
+if [ $# -eq 7 ]; then
+    out_dir=$5/$7_$1mbit_$2ms_$3pkts_$4sec_$6  #if optional label is included
+fi
+
 #Create directory for output data
 if [ -d $5 ]; then
     if [ -d $out_dir ]; then
