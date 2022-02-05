@@ -52,8 +52,7 @@ RateFlow::~RateFlow() = default;
 
 void RateFlow::UpdateCc(Timestamp at_time) {
 
-  RTC_LOG(LS_INFO) << "PLOT_THIS(fse_r_update) " << id_ << "-FSE_R "
-                   << at_time.ms() << " " << FseRate().kbps();
+  RTC_LOG(LS_INFO) << "PLOT_THIS_SRTP_FSE_RATE_KBPS" << id_ << " rate=" << FseRate().kbps();
   flow_cc_.FseUpdateTargetBitrate(fse_rate_, at_time);
 }
 
@@ -106,9 +105,6 @@ FseNgWindowBasedFlow::FseNgWindowBasedFlow(int id,
 FseNgWindowBasedFlow::~FseNgWindowBasedFlow() = default;
 
 void FseNgWindowBasedFlow::UpdateCc(uint32_t max_cwnd) {
-  //RTC_LOG(LS_INFO) << "updating an SCTP flow with max cwnd: " << max_cwnd;
-  
-
   sctp_transport_.SetMaxCwnd(max_cwnd);
 }
 
@@ -120,10 +116,12 @@ FseNgRateFlow::FseNgRateFlow(
                 int id,
                 int priority,
                 DataRate initial_bit_rate,
+                DataRate initial_max_rate,
                 SendSideBandwidthEstimation& flow_cc)
     : FseFlow(id, priority),
       initial_rate_(initial_bit_rate),
       fse_rate_(initial_bit_rate),
+      curr_max_rate_(initial_max_rate),
       flow_cc_(flow_cc) {
   RTC_LOG(LS_INFO) << "creating a FseNgRateFlow";
 }
@@ -131,10 +129,11 @@ FseNgRateFlow::FseNgRateFlow(
 FseNgRateFlow::~FseNgRateFlow() = default;
 
 void FseNgRateFlow::UpdateFlow(DataRate new_fse_rate, Timestamp at_time) {
-  fse_rate_ = new_fse_rate;
-  RTC_LOG(LS_INFO) << "PLOT_THIS(fse_r_update) " << id_ << "-FSE_R "
-                   << at_time.ms() << " " << new_fse_rate.kbps();
-  flow_cc_.FseUpdateTargetBitrate(fse_rate_, at_time);
+  flow_cc_.FseUpdateTargetBitrate(new_fse_rate, at_time);
+}
+
+void FseNgRateFlow::SetFseRate(DataRate fse_rate) {
+    fse_rate_ = fse_rate; 
 }
 
 DataRate FseNgRateFlow::FseRate() const {
@@ -143,6 +142,18 @@ DataRate FseNgRateFlow::FseRate() const {
 
 DataRate FseNgRateFlow::InitialRate() const {
     return initial_rate_;
+}
+
+bool FseNgRateFlow::IsApplicationLimited() {
+    return FseRate() >= curr_max_rate_;
+}
+
+void FseNgRateFlow::SetCurrMaxRate(DataRate max_rate) {
+    curr_max_rate_ = max_rate;
+}
+
+DataRate FseNgRateFlow::CurrMaxRate() const {
+    return curr_max_rate_;
 }
 
 }  // namespace webrtc

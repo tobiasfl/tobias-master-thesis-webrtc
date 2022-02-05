@@ -3,6 +3,7 @@
 //
 
 #include "modules/congestion_controller/goog_cc/fse_ng.h"
+#include "modules/congestion_controller/goog_cc/fse_config.h"
 
 #include <algorithm>
 #include <cstdint>
@@ -23,10 +24,11 @@ class UsrsctpTransport;
 namespace webrtc {
 
 FseNg::FseNg()
-    : base_rtt_(TimeDelta::Seconds(100000000)),
+    : base_rtt_(TimeDelta::PlusInfinity()),
       sum_calculated_rates_(DataRate::Zero()),
       update_call_num(0),
-      flow_id_counter_(0) {}
+      rate_flow_id_counter_(0),
+      cwnd_flow_id_counter_(0){}
 
 std::shared_ptr<FseNgWindowBasedFlow> FseNg::RegisterWindowBasedFlow(
     uint32_t initial_max_cwnd,
@@ -35,8 +37,9 @@ std::shared_ptr<FseNgWindowBasedFlow> FseNg::RegisterWindowBasedFlow(
 
   RTC_LOG(LS_INFO) << "FseNgRegisterWindowBasedFlow was called";
 
+  int id = cwnd_flow_id_counter_++;
   std::shared_ptr<FseNgWindowBasedFlow> new_flow =
-      std::make_shared<FseNgWindowBasedFlow>(flow_id_counter_++, 1, 
+      std::make_shared<FseNgWindowBasedFlow>(id, FseConfig::ResolveSctpPriority(id), 
               initial_max_cwnd, transport);
   cwnd_flows_.insert(new_flow);
 
@@ -46,97 +49,109 @@ std::shared_ptr<FseNgWindowBasedFlow> FseNg::RegisterWindowBasedFlow(
 }
 
 void FseNg::SrtpUpdate(std::shared_ptr<FseNgRateFlow> flow,
-                            DataRate prev_rate,
+                            int64_t relative_rate_change,
                             DataRate new_rate,
                             DataRate max_rate,
                             TimeDelta last_rtt,
                             Timestamp at_time) {
   fse_mutex_.lock();
 
-  if (last_rtt.ms() < MIN_RTT) {
-    last_rtt = TimeDelta::Millis(MIN_RTT);
-  }
-
   update_call_num++;
-  RTC_LOG(LS_INFO) << "fse_ng_update_call_num: " << update_call_num << " flow id: " << flow->Id();
 
-  at_time = Timestamp::Millis(std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count());
+  flow->SetCurrMaxRate(max_rate);
 
-  FseNg::OnSrtpFlowUpdate(flow, prev_rate, new_rate, max_rate, last_rtt, at_time);
+  //If rtt is 0, assume there is no real measurement yet and say it is infinity
+  //so that base_rtt is never set to 0
+  last_rtt = last_rtt == TimeDelta::Zero() ? TimeDelta::PlusInfinity() : last_rtt;
+
+  FseNg::OnSrtpFlowUpdate(flow, relative_rate_change, new_rate, last_rtt, at_time);
 
   fse_mutex_.unlock();
 }
 
 // Must be called while owning the mutex
 void FseNg::OnSrtpFlowUpdate(std::shared_ptr<FseNgRateFlow> flow,
-                             DataRate prev_rate,
+                             int64_t relative_rate_change,
                              DataRate new_rate,
-                             DataRate max_rate,
                              TimeDelta last_rtt,
                              Timestamp at_time) {
+  RTC_LOG(LS_INFO) << "PLOT_THISFSENG relative_rate_change=" << relative_rate_change / 1000;
+  RTC_LOG(LS_INFO) << "PLOT_THISFSENG before summing sum_calculated_rates_=" << sum_calculated_rates_.kbps();
 
-  UpdateSumCalculatedRates(flow->FseRate(), new_rate, prev_rate);
+  //Shortened version of update, since the paper pseudocode was unclear
+  //TODO: might not need relative rate change as input anymore
+  sum_calculated_rates_ = (sum_calculated_rates_ + new_rate) - flow->FseRate();
 
-  RTC_LOG(LS_INFO) << "PLOT_THIS(sum_calculated_rates) " << "total_rate" << "-FSE_RATE "
-    << at_time.ms() 
-    << " " << sum_calculated_rates_.kbps();
+  // We are only gonna allocate to SCTP flows if there is a valid base_rtt_
+  bool rtt_is_valid = !last_rtt.IsPlusInfinity() || !base_rtt_.IsPlusInfinity();
 
-  RTC_LOG(LS_INFO) << "max_rate: " << max_rate.bps();
+  //Extension, if we we don't have valid base_rtt yet we are not going to allocate 
+  //bandwidth to any SCTP flows and should only use rate based flow priorities
+  int sum_priorities = rtt_is_valid ? SumPriorities() : SumRatePriorities();
+
   DataRate sum_rtp_rates = DataRate::Zero();
   for (const auto& rate_flow : rate_flows_) {
-    // TODO: now using max rate of update caller, 
-    // might want to store the current max rate of each flow instead
-    DataRate flow_fse_rate = std::min((rate_flow->Priority() * sum_calculated_rates_) 
-            / SumPriorities(), max_rate);
-    rate_flow->UpdateFlow(flow_fse_rate, at_time);
-
-    sum_rtp_rates += flow_fse_rate;
+    // We use the max_rate of the corresponding stream, because they might have different
+    // limitations based on quality of the stream, config, etc.
+    rate_flow->SetFseRate(std::min((rate_flow->Priority() * sum_calculated_rates_) 
+            / sum_priorities, rate_flow->CurrMaxRate()));
+  
+    RTC_LOG(LS_INFO) << "PLOT_THIS_SRTP_FSE_RATE_KBPS" << rate_flow->Id() 
+        << " rate=" << rate_flow->FseRate().kbps();
+  
+    rate_flow->UpdateFlow(rate_flow->FseRate(), at_time);
+  
+    sum_rtp_rates += rate_flow->FseRate();
   }
 
-  DataRate sum_sctp_rates = sum_calculated_rates_ - sum_rtp_rates;
+  // Extension, we can not allocate to SCTP if there is no valid base_rtt 
+  if (rtt_is_valid) {
+    base_rtt_ = std::min(base_rtt_, last_rtt);
+    
+    DataRate sum_cwnd_rates = sum_calculated_rates_ - sum_rtp_rates;
+    int sum_cwnd_priorities = SumCwndPriorities();
 
-  base_rtt_ = std::min(base_rtt_, last_rtt);
-  for(const auto& cwnd_flow : cwnd_flows_) {
-    uint32_t flow_max_cwnd = 
-        (cwnd_flow->Priority() * FseFlow::RateToCwnd(base_rtt_, sum_sctp_rates)) / SumCwndPriorities();
-    //For plotting
-    RTC_LOG(LS_INFO) << "PLOT_THIS(fse_r_update) " << cwnd_flow->Id() << "-MAX_FSE_RATE "
-                   << at_time.ms() << " " << (FseFlow::CwndToRate(flow_max_cwnd, base_rtt_.us())).kbps();
+    for(const auto& cwnd_flow : cwnd_flows_) {
+      DataRate cwnd_flow_max_rate = (cwnd_flow->Priority() * sum_cwnd_rates) / sum_cwnd_priorities;
+      uint32_t flow_max_cwnd = FseFlow::RateToCwnd(base_rtt_, cwnd_flow_max_rate);
+    
+      RTC_LOG(LS_INFO) << "PLOT_THIS_SCTP_FSE_RATE_KBPS" << cwnd_flow->Id() 
+                       << " rate=" << cwnd_flow_max_rate.kbps()
+                       << " base_rtt_=" << base_rtt_.ms()
+                       << " converted_cwnd_to_rate=" << (base_rtt_ * cwnd_flow_max_rate).bytes();
+    
+      cwnd_flow->UpdateCc(flow_max_cwnd);
+    }
+  }
 
-    cwnd_flow->UpdateCc(flow_max_cwnd);
+  if (cwnd_flows_.empty() || !rtt_is_valid) {
+    //Extension, to make sure there is no extra unallocated bandwidth accumulating
+    //when there are no SCTP flows to spend it
+    sum_calculated_rates_ = sum_rtp_rates;
   }
 }
 
-// Must be called while owning the mutex
-void FseNg::UpdateSumCalculatedRates(DataRate curr_fse_rate,
-                                  DataRate new_cc_rate, 
-                                  DataRate prev_cc_rate) {
-  RTC_LOG(LS_INFO) << " curr_fse_rate:"<< 
-      curr_fse_rate.bps() << " new_cc_rate:" << 
-      new_cc_rate.bps() << " prev_cc_rate:" << 
-      prev_cc_rate.bps();
-  RTC_LOG(LS_INFO) << "sum_calculated_rates_ before adding: " << sum_calculated_rates_.bps();
 
-  if (cwnd_flows_.empty()) {
-    sum_calculated_rates_ = (sum_calculated_rates_ + new_cc_rate) - curr_fse_rate;
-  } else {
-    int64_t rate_change = new_cc_rate.bps() - prev_cc_rate.bps();
-    sum_calculated_rates_ = DataRate::BitsPerSec(((sum_calculated_rates_ + new_cc_rate) 
-        - curr_fse_rate).bps() + rate_change);
+bool FseNg::AllSrtpFlowsApplicationLimited() {
+  for (const auto& flow : rate_flows_) {
+    if (!flow->IsApplicationLimited()) {
+      return false;
+    }
   }
-    RTC_LOG(LS_INFO) << "sum_calculated_rates_ after adding: " << sum_calculated_rates_.bps();
+  return true;
 }
-
 
 std::shared_ptr<FseNgRateFlow> FseNg::RegisterRateFlow(
     DataRate initial_rate,
-    int priority,
+    DataRate max_rate,
     SendSideBandwidthEstimation& cc) {
   fse_mutex_.lock();
 
   RTC_LOG(LS_INFO) << "registering rate flow in FseNg with init_rate: " << initial_rate.bps();
+
+  int id = rate_flow_id_counter_++;
   std::shared_ptr<FseNgRateFlow> new_flow = std::make_shared<FseNgRateFlow>(
-      flow_id_counter_++, priority, initial_rate, cc);
+      id, FseConfig::ResolveSrtpPriority(id), initial_rate, max_rate, cc);
   rate_flows_.insert(new_flow);
   sum_calculated_rates_ += initial_rate;
   
@@ -147,23 +162,31 @@ std::shared_ptr<FseNgRateFlow> FseNg::RegisterRateFlow(
 
 void FseNg::DeRegisterWindowBasedFlow(std::shared_ptr<FseNgWindowBasedFlow> flow) {
   fse_mutex_.lock();
+
   RTC_LOG(LS_INFO) << "DeRegisterWindowBasedFlow was called";
-  //TODO: do we need to set max_cwnd here or not???????
   cwnd_flows_.erase(flow);
+
   fse_mutex_.unlock();
 }
 
 void FseNg::DeRegisterRateFlow(std::shared_ptr<FseNgRateFlow> flow) {
   fse_mutex_.lock();
   RTC_LOG(LS_INFO) 
-      << "DeRegisterRateFlow was called, removing rate: " 
-      << flow->InitialRate().bps();
+      << "DeRegisterRateFlow was called, removing rate kbps: " 
+      << flow->InitialRate().bps()
+      << " from sum_calculated_rates_ kbps: "
+      << sum_calculated_rates_.kbps();
   //According to paper, RTP flows should remove their initial sending rate
-  sum_calculated_rates_ -= flow->InitialRate();
+  //TODO: a better solution is probably that the other flows should get access to that extra bw
+
+  sum_calculated_rates_ = sum_calculated_rates_ >= flow->InitialRate() 
+      ? sum_calculated_rates_ - flow->InitialRate() 
+      : DataRate::Zero();
+
 
   rate_flows_.erase(flow);
 
-  // If last RTP flow leaves, the window limits f all window based flows are removed
+  // If last RTP flow leaves, the window limits of all window based flows are removed
   // Since no congestion control info is available
   if (rate_flows_.empty()){
     for (const auto& cwnd_flow : cwnd_flows_) {
@@ -180,6 +203,14 @@ int FseNg::SumPriorities() const {
     sum_priorities += i->Priority();
   }
   for (const auto& i : cwnd_flows_) {
+    sum_priorities += i->Priority();
+  }
+  return sum_priorities;
+}
+
+int FseNg::SumRatePriorities() const {
+  int sum_priorities = 0;
+  for (const auto& i : rate_flows_) {
     sum_priorities += i->Priority();
   }
   return sum_priorities;

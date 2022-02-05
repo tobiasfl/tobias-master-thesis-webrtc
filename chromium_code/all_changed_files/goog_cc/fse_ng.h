@@ -29,20 +29,12 @@ class FseNgRateFlow;
 #define CR_DEFINE_STATIC_LOCAL(type, name, arguments) \
   static type& name = *new type arguments
 
-#define MOVING_AVG_N 5
-#define SCTP_MSS 536
-// TODO: this could probably be in config file instead
-#define MIN_RTT 10
-
 class FseNg {
  public:
   static FseNg& Instance();
-  void RosieeeSrtpUpdate(DataRate prev_rate,
-                         DataRate new_rate,
-                         TimeDelta last_rtt);
 
   void SrtpUpdate(std::shared_ptr<FseNgRateFlow> flow,
-                       DataRate prev_rate,
+                       int64_t relative_rate_change,
                        DataRate new_rate,
                        DataRate max_rate,
                        TimeDelta last_rtt,
@@ -53,7 +45,7 @@ class FseNg {
       cricket::UsrsctpTransport& transport);
   std::shared_ptr<FseNgRateFlow> RegisterRateFlow(
       DataRate min_rate,
-      int priority,
+      DataRate max_rate,
       SendSideBandwidthEstimation& cc);
   void DeRegisterWindowBasedFlow(std::shared_ptr<FseNgWindowBasedFlow> flow);
   void DeRegisterRateFlow(std::shared_ptr<FseNgRateFlow> flow);
@@ -70,23 +62,22 @@ class FseNg {
   DataRate sum_calculated_rates_;
 
   uint64_t update_call_num;
-  int flow_id_counter_;
+  int rate_flow_id_counter_;
+  int cwnd_flow_id_counter_;
 
   std::unordered_set<std::shared_ptr<FseNgWindowBasedFlow>> cwnd_flows_;
   std::unordered_set<std::shared_ptr<FseNgRateFlow>> rate_flows_;
 
   std::mutex fse_mutex_;
   void OnSrtpFlowUpdate(std::shared_ptr<FseNgRateFlow> flow,
-                        DataRate prev_rate,
+                        int64_t relative_rate_change,
                         DataRate new_rate,
-                        DataRate max_rate,
                         TimeDelta last_rtt,
                         Timestamp at_time);
 
-  void UpdateSumCalculatedRates(DataRate prev_flow_rate,
-                                    DataRate new_cc_rate, 
-                                    DataRate prev_cc_rate);
+  bool AllSrtpFlowsApplicationLimited();
   int SumPriorities() const;
+  int SumRatePriorities() const;
   int SumCwndPriorities() const;
   void LogPreviousMaxRates();
 };

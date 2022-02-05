@@ -63,6 +63,7 @@ sctp_enforce_cwnd_limit(struct sctp_association *assoc, struct sctp_nets *net, s
 {
       //Added by TOBIAS
       if (assoc->cwnd_changed) {
+        //TODO: we could the window based flow here instead of at SCTP association creation
         void *ulp_info;
         int retrieved = retrieve_ulp_info(stcb->sctp_socket, &ulp_info);
         //TODO: check return value???

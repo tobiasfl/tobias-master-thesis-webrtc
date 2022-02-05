@@ -31,8 +31,8 @@
 #include "media/base/media_channel.h"
 #include "media/sctp/sctp_transport_internal.h"
 // added by TOBIAS
-#include "modules/congestion_controller/goog_cc/flow_state_exchange.h"
 #include "modules/congestion_controller/goog_cc/fse_ng.h"
+#include "modules/congestion_controller/goog_cc/fse_flow.h"
 // added by TOBIAS
 
 // Defined by "usrsctplib/usrsctp.h"
@@ -300,10 +300,7 @@ class UsrsctpTransport : public SctpTransportInternal,
   RTC_DISALLOW_COPY_AND_ASSIGN(UsrsctpTransport);
 
   // added by TOBIAS
-  std::shared_ptr<webrtc::WindowBasedFlow> flow_;
   std::shared_ptr<webrtc::FseNgWindowBasedFlow> fse_ng_flow_;
-  bool fse_is_enabled_;
-  bool fse_ng_is_enabled_;
   // added by TOBIAS
 };
 

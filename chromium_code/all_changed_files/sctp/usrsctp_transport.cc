@@ -54,8 +54,8 @@ constexpr int kSctpErrorReturn = 0;
 #include "rtc_base/trace_event.h"
 
 // Added by TOBIAS
-#include "modules/congestion_controller/goog_cc/flow_state_exchange.h"
 #include "modules/congestion_controller/goog_cc/fse_ng.h"
+#include "modules/congestion_controller/goog_cc/fse_config.h"
 // Added by TOBIAS
 
 namespace cricket {
@@ -194,7 +194,8 @@ bool IsEmptyPPID(uint32_t ppid) {
 // getting a normal packet capture won't help you, unless you have the DTLS
 // keying material.
 void VerboseLogPacket(const void* data, size_t length, int direction) {
-  if (RTC_LOG_CHECK_LEVEL(LS_VERBOSE) && length > 0) {
+  //Commented by TOBIAS
+  /*if (RTC_LOG_CHECK_LEVEL(LS_VERBOSE) && length > 0) {
     char* dump_buf;
     // Some downstream project uses an older version of usrsctp that expects
     // a non-const "void*" as first parameter when dumping the packet, so we
@@ -204,7 +205,8 @@ void VerboseLogPacket(const void* data, size_t length, int direction) {
       RTC_LOG(LS_VERBOSE) << dump_buf;
       usrsctp_freedumpbuffer(dump_buf);
     }
-  }
+  }*/
+  //Commented by TOBIAS
 }
 
 // Creates the sctp_sendv_spa struct used for setting flags in the
@@ -364,7 +366,7 @@ class UsrsctpTransport::UsrSctpWrapper {
 
     // To turn on/off detailed SCTP debugging. You will also need to have the
     // SCTP_DEBUG cpp defines flag, which can be turned on in media/BUILD.gn.
-    // usrsctp_sysctl_set_sctp_debug_on(SCTP_DEBUG_ALL);
+    //usrsctp_sysctl_set_sctp_debug_on(1);
 
     // TODO(ldixon): Consider turning this on/off.
     usrsctp_sysctl_set_sctp_ecn_enable(0);
@@ -382,6 +384,10 @@ class UsrsctpTransport::UsrSctpWrapper {
                         << send_size;
     }
 
+    //Added by TOBIAS
+    usrsctp_sysctl_set_sctp_logging_level(0x00000001 | 0x00000002 | 0x00000004);
+    //Added by TOBIAS
+    
     // TODO(ldixon): Consider turning this on/off.
     // This is not needed right now (we don't do dynamic address changes):
     // If SCTP Auto-ASCONF is enabled, the peer is informed automatically
@@ -570,7 +576,6 @@ class UsrsctpTransport::UsrSctpWrapper {
     }
     return 0;
   }
-  // Call fse update here by posting to transport thread??
   // Added by TOBIAS
 };
 
@@ -585,9 +590,6 @@ UsrsctpTransport::UsrsctpTransport(rtc::Thread* network_thread,
   ConnectTransportSignals();
 
   // Added by TOBIAS
-  fse_is_enabled_ = false;
-  fse_ng_is_enabled_ = false;
-  flow_ = nullptr;
   fse_ng_flow_ = nullptr; 
   // Added by TOBIAS
 }
@@ -930,26 +932,21 @@ bool UsrsctpTransport::Connect() {
                                "Failed to set SCTP_PEER_ADDR_PARAMS.";
   }
   // Added by TOBIAS
-  if (fse_is_enabled_) {
-    // even though registered here there is no guarantee any SCTP streams are
-    // running
-    RTC_LOG(LS_INFO) << "registering SCTP flow with fse";
-    flow_ = webrtc::FlowStateExchange::Instance().RegisterWindowBasedFlow(
-        0, 0, 1, *this);
-
-    int ret = usrsctp_register_cwnd_callback(sock_, &UsrSctpWrapper::OnCwndChanged);
-    RTC_LOG(LS_INFO) << "registereed cwnd callback, ret value:" << ret;
-  }
-  if (fse_ng_is_enabled_) {
-    RTC_LOG(LS_INFO) << "registering SCTP flow with fse-ng";
-    // even though registered here there is no guarantee any SCTP streams are
-    // running
-    // TODO: the initial max cwnd will only be 0 here which is gonna fuck 
-    // stuff up when all SRTP streams have left the fse and we reset to inital max cwnd!
-    uint32_t initial_max_cwnd_to_register;
-    GetMaxCwnd(&initial_max_cwnd_to_register);
-    fse_ng_flow_ = webrtc::FseNg::Instance().RegisterWindowBasedFlow(
-            initial_max_cwnd_to_register, *this);
+  RTC_LOG(LS_INFO) << "Checking which FSE to register with";
+  RTC_LOG(LS_VERBOSE) << "Checking which FSE to register with";
+  switch (webrtc::FseConfig::CurrentFse()) {
+    case webrtc::fse_ng: {
+      RTC_LOG(LS_INFO) << "registering SCTP flow with fse-ng";
+      // even though registered here there is no guarantee any SCTP streams are
+      // running
+      // TODO: could also get rtt here, in case SCTP starts before RTP
+      uint32_t initial_max_cwnd_to_register;
+      GetMaxCwnd(&initial_max_cwnd_to_register);
+      fse_ng_flow_ = webrtc::FseNg::Instance().RegisterWindowBasedFlow(
+              initial_max_cwnd_to_register, *this);
+      break;
+    }
+    default: {}
   }
   // Added by TOBIAS
 
@@ -1099,14 +1096,11 @@ void UsrsctpTransport::CloseSctpSocket() {
   }
   
   //Added by TOBIAS
-  if (fse_is_enabled_ && fse_ng_flow_) {
+  //if (webrtc::CURRENT_FSE == webrtc::fse_ng && fse_ng_flow_) {
     //TODO: I think call this causes a segV 
     //webrtc::FseNg::Instance().DeRegisterWindowBasedFlow(fse_ng_flow_);
     //fse_ng_flow_ = nullptr;
-  }
-  if (fse_is_enabled_ && flow_) {
-    //TODO: deregister it here 
-  }
+  //}
   //Added by TOBIAS
 }
 
@@ -1647,18 +1641,16 @@ void UsrsctpTransport::OnStreamResetEvent(
 }
 
 // Added by TOBIAS
-// This stuff will be called by the FSE
+// This stuff might be called by the new FSE
 void UsrsctpTransport::SetCwnd(uint32_t cwnd) {
   RTC_LOG(LS_INFO) << "SetCwnd was called with cwnd:" << cwnd;
-  if(fse_is_enabled_ && started_) {
-    RTC_LOG(LS_INFO) << "usrsctp_set_cwnd being called";
-    usrsctp_set_cwnd(sock_, cwnd);
-  }
+  usrsctp_set_cwnd(sock_, cwnd);
 }
 
+//this one might be replaced by set_opt actually
 void UsrsctpTransport::SetMaxCwnd(uint32_t max_cwnd) {
   RTC_LOG(LS_INFO) << "SetMaxCwnd was called with max_cwnd:" << max_cwnd;
-  if(fse_ng_is_enabled_ && started_) {
+  if(webrtc::FseConfig::CurrentFse() == webrtc::fse_ng && started_) {
     RTC_LOG(LS_INFO) << "usrsctp_set_max_cwnd being called";
     usrsctp_set_max_cwnd(sock_, max_cwnd);
   }
@@ -1668,15 +1660,6 @@ void UsrsctpTransport::GetMaxCwnd(uint32_t *max_cwnd_value) {
   //TODO: check if started first?????
   usrsctp_get_max_cwnd(sock_, max_cwnd_value);
   RTC_LOG(LS_INFO) << "GetMaxCwnd called, max_cwnd: " << *max_cwnd_value;
-}
-
-void UsrsctpTransport::UpdateFse(uint32_t cwnd, uint64_t last_rtt) {
-  RTC_LOG(LS_INFO) << "UpdateFse was called from an sctp flow, cwnd:" << cwnd
-                   << " last_rtt:" << last_rtt;
-  if (fse_is_enabled_ && flow_ != nullptr) {
-    webrtc::FlowStateExchange::Instance().UpdateWindowBasedFlow(flow_, cwnd,
-                                                                last_rtt);
-  }
 }
 // Added by TOBIAS
 
