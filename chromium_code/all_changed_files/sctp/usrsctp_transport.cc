@@ -1093,15 +1093,15 @@ void UsrsctpTransport::CloseSctpSocket() {
     RTC_CHECK(g_transport_map_->Deregister(id_));
     UsrSctpWrapper::DecrementUsrSctpUsageCount();
     ready_to_send_data_ = false;
+
+    //Added by TOBIAS
+    if (webrtc::FseConfig::CurrentFse() == webrtc::fse_ng 
+            && fse_ng_flow_) {
+      webrtc::FseNg::Instance().DeRegisterWindowBasedFlow(fse_ng_flow_);
+      fse_ng_flow_ = nullptr;
+    }
+    //Added by TOBIAS
   }
-  
-  //Added by TOBIAS
-  //if (webrtc::CURRENT_FSE == webrtc::fse_ng && fse_ng_flow_) {
-    //TODO: I think call this causes a segV 
-    //webrtc::FseNg::Instance().DeRegisterWindowBasedFlow(fse_ng_flow_);
-    //fse_ng_flow_ = nullptr;
-  //}
-  //Added by TOBIAS
 }
 
 bool UsrsctpTransport::SendQueuedStreamResets() {

@@ -49,7 +49,6 @@ std::shared_ptr<FseNgWindowBasedFlow> FseNg::RegisterWindowBasedFlow(
 }
 
 void FseNg::SrtpUpdate(std::shared_ptr<FseNgRateFlow> flow,
-                            int64_t relative_rate_change,
                             DataRate new_rate,
                             DataRate max_rate,
                             TimeDelta last_rtt,
@@ -64,23 +63,24 @@ void FseNg::SrtpUpdate(std::shared_ptr<FseNgRateFlow> flow,
   //so that base_rtt is never set to 0
   last_rtt = last_rtt == TimeDelta::Zero() ? TimeDelta::PlusInfinity() : last_rtt;
 
-  FseNg::OnSrtpFlowUpdate(flow, relative_rate_change, new_rate, last_rtt, at_time);
+  FseNg::OnSrtpFlowUpdate(flow, new_rate, last_rtt, at_time);
 
   fse_mutex_.unlock();
 }
 
 // Must be called while owning the mutex
 void FseNg::OnSrtpFlowUpdate(std::shared_ptr<FseNgRateFlow> flow,
-                             int64_t relative_rate_change,
                              DataRate new_rate,
                              TimeDelta last_rtt,
                              Timestamp at_time) {
-  RTC_LOG(LS_INFO) << "PLOT_THISFSENG relative_rate_change=" << relative_rate_change / 1000;
-  RTC_LOG(LS_INFO) << "PLOT_THISFSENG before summing sum_calculated_rates_=" << sum_calculated_rates_.kbps();
+  RTC_LOG(LS_INFO) << "PLOT_THISFSENG relative_rate_change=" << new_rate.kbps()-flow->FseRate().kbps();
+  RTC_LOG(LS_INFO) << "PLOT_THISFSENG new_rate=" << new_rate.kbps();
+  RTC_LOG(LS_INFO) << "PLOT_THISFSENG last_rtt=" << (last_rtt.IsPlusInfinity() ? 66666666 : last_rtt.ms());
 
   //Shortened version of update, since the paper pseudocode was unclear
   //TODO: might not need relative rate change as input anymore
   sum_calculated_rates_ = (sum_calculated_rates_ + new_rate) - flow->FseRate();
+  RTC_LOG(LS_INFO) << "PLOT_THISFSENG new sum_calculated_rates_=" << sum_calculated_rates_.kbps();
 
   // We are only gonna allocate to SCTP flows if there is a valid base_rtt_
   bool rtt_is_valid = !last_rtt.IsPlusInfinity() || !base_rtt_.IsPlusInfinity();

@@ -34,7 +34,6 @@ class FseNg {
   static FseNg& Instance();
 
   void SrtpUpdate(std::shared_ptr<FseNgRateFlow> flow,
-                       int64_t relative_rate_change,
                        DataRate new_rate,
                        DataRate max_rate,
                        TimeDelta last_rtt,
@@ -70,7 +69,6 @@ class FseNg {
 
   std::mutex fse_mutex_;
   void OnSrtpFlowUpdate(std::shared_ptr<FseNgRateFlow> flow,
-                        int64_t relative_rate_change,
                         DataRate new_rate,
                         TimeDelta last_rtt,
                         Timestamp at_time);
