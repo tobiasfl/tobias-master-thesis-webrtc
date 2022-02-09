@@ -202,7 +202,6 @@ NetworkControlUpdate GoogCcNetworkController::OnProcessInterval(
     congestion_window_pushback_controller_->UpdatePacingQueue(
         msg.pacer_queue->bytes());
   }
-  RTC_LOG(LS_INFO) << "tobias debug, OnProcessInterval calling UpdateEstimate";
   bandwidth_estimation_->UpdateEstimate(msg.at_time);
   absl::optional<int64_t> start_time_ms =
       alr_detector_->GetApplicationLimitedRegionStartTime();
@@ -545,13 +544,11 @@ NetworkControlUpdate GoogCcNetworkController::OnTransportPacketsFeedback(
 
   if (result.updated) {
     if (result.probe) {
-      RTC_LOG(LS_INFO) << "OnTransportPacketsFeedback calling SetSendBitrate";
       bandwidth_estimation_->SetSendBitrate(result.target_bitrate,
                                             report.feedback_time);
     }
     // Since SetSendBitrate now resets the delay-based estimate, we have to
     // call UpdateDelayBasedEstimate after SetSendBitrate.
-    RTC_LOG(LS_INFO) << "OnTransportPacketsFeedback calling UpdateDelayBasedEstimate";
     bandwidth_estimation_->UpdateDelayBasedEstimate(report.feedback_time,
                                                     result.target_bitrate);
     // Update the estimate in the ProbeController, in case we want to probe.

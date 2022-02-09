@@ -306,7 +306,6 @@ void SendSideBandwidthEstimation::SetSendBitrate(DataRate bitrate,
   RTC_DCHECK_GT(bitrate, DataRate::Zero());
   // Reset to avoid being capped by the estimate.
   delay_based_limit_ = DataRate::PlusInfinity();
-  RTC_LOG(LS_INFO) << "SetSendBitrate calling UpdateTargetBitrate, bitrate:" << bitrate.kbps();
   UpdateTargetBitrate(bitrate, at_time);
   // Clear last sent bitrate history so the new value can be used directly
   // and not capped.
@@ -344,7 +343,6 @@ void SendSideBandwidthEstimation::UpdateReceiverEstimate(Timestamp at_time,
   // TODO(srte): Ensure caller passes PlusInfinity, not zero, to represent no
   // limitation.
   receiver_limit_ = bandwidth.IsZero() ? DataRate::PlusInfinity() : bandwidth;
-  RTC_LOG(LS_INFO) << "tobias debug UpdateReceiverEstimate calling ApplyTargetLimits, new receiver_limit_=" << (receiver_limit_.IsFinite() ? receiver_limit_.kbps() : 66666666);
   ApplyTargetLimits(at_time);
 }
 
@@ -354,7 +352,11 @@ void SendSideBandwidthEstimation::UpdateDelayBasedEstimate(Timestamp at_time,
   // TODO(srte): Ensure caller passes PlusInfinity, not zero, to represent no
   // limitation.
   delay_based_limit_ = bitrate.IsZero() ? DataRate::PlusInfinity() : bitrate;
-  RTC_LOG(LS_INFO) << "tobias debug UpdateDelayBasedEstimate calling ApplyTargetLimits";
+  //ADDED BY TOBIAS
+  if (!delay_based_limit_.IsPlusInfinity() && !delay_based_limit_.IsZero()) {
+    RTC_LOG(LS_INFO) << "PLOT_THIS_BWE_UPDATE delay_based_limit_=" << delay_based_limit_.kbps();
+  }
+  //ADDED BY TOBIAS
   ApplyTargetLimits(at_time);
 }
 
@@ -416,7 +418,6 @@ void SendSideBandwidthEstimation::UpdatePacketsLost(int64_t packets_lost,
     lost_packets_since_last_loss_update_ = 0;
     expected_packets_since_last_loss_update_ = 0;
     last_loss_packet_report_ = at_time;
-    RTC_LOG(LS_INFO) << "tobias debug, UpdatePacketsLost calling UpdateEstimate packets_lost:" << packets_lost << " number_of_packets: " << number_of_packets;
     UpdateEstimate(at_time);
   }
   UpdateUmaStatsPacketsLost(at_time, packets_lost);
@@ -474,12 +475,10 @@ void SendSideBandwidthEstimation::UpdateEstimate(Timestamp at_time) {
           std::max(current_target_ * rtt_backoff_.drop_fraction_,
                    rtt_backoff_.bandwidth_floor_.Get());
       link_capacity_.OnRttBackoff(new_bitrate, at_time);
-      RTC_LOG(LS_INFO) << "UpdateEstimate calling UpdateTargetBitrate, bitrate:" << new_bitrate.kbps();
       UpdateTargetBitrate(new_bitrate, at_time);
       return;
     }
     // TODO(srte): This is likely redundant in most cases.
-    RTC_LOG(LS_INFO) << "UpdateEstimate calling ApplyTargetLimits";
     ApplyTargetLimits(at_time);
     return;
   }
@@ -509,7 +508,6 @@ void SendSideBandwidthEstimation::UpdateEstimate(Timestamp at_time) {
         min_bitrate_history_.push_back(
             std::make_pair(at_time, current_target_));
       }
-      RTC_LOG(LS_INFO) << "UpdateEstimate calling UpdateTargetBitrate, bitrate:" << new_bitrate.kbps();
       UpdateTargetBitrate(new_bitrate, at_time);
       return;
     }
@@ -518,7 +516,6 @@ void SendSideBandwidthEstimation::UpdateEstimate(Timestamp at_time) {
   if (last_loss_packet_report_.IsInfinite()) {
     // No feedback received.
     // TODO(srte): This is likely redundant in most cases.
-    RTC_LOG(LS_INFO) << "UpdateEstimate calling ApplyTargetLimits";
     ApplyTargetLimits(at_time);
     return;
   }
@@ -527,7 +524,6 @@ void SendSideBandwidthEstimation::UpdateEstimate(Timestamp at_time) {
     DataRate new_bitrate = loss_based_bandwidth_estimator_v1_.Update(
         at_time, min_bitrate_history_.front().second, delay_based_limit_,
         last_round_trip_time_);
-    RTC_LOG(LS_INFO) << "UpdateEstimate calling UpdateTargetBitrate, bitrate:" << new_bitrate.kbps();
     UpdateTargetBitrate(new_bitrate, at_time);
     return;
   }
@@ -536,16 +532,13 @@ void SendSideBandwidthEstimation::UpdateEstimate(Timestamp at_time) {
     DataRate new_bitrate =
         loss_based_bandwidth_estimator_v2_.GetBandwidthEstimate();
     new_bitrate = std::min(new_bitrate, delay_based_limit_);
-    RTC_LOG(LS_INFO) << "UpdateEstimate calling UpdateTargetBitrate, bitrate:" << new_bitrate.kbps();
     UpdateTargetBitrate(new_bitrate, at_time);
     return;
   }
 
   TimeDelta time_since_loss_packet_report = at_time - last_loss_packet_report_;
-  RTC_LOG(LS_INFO) << "TOBIAS debug time_since_loss_packet_report=" << time_since_loss_packet_report.ms() << " kMaxRtcpFeedbackInterval=" << kMaxRtcpFeedbackInterval.ms();
   if (time_since_loss_packet_report < 1.2 * kMaxRtcpFeedbackInterval) {
     // We only care about loss above a given bitrate threshold.
-    RTC_LOG(LS_INFO) << "TOBIAS debug last_fraction_loss_=" << (uint32_t)last_fraction_loss_;
     float loss = last_fraction_loss_ / 256.0f;
     // We only make decisions based on loss when the bitrate is above a
     // threshold. This is a crude way of handling loss which is uncorrelated
@@ -568,7 +561,6 @@ void SendSideBandwidthEstimation::UpdateEstimate(Timestamp at_time) {
       // (gives a little extra increase at low rates, negligible at higher
       // rates).
       new_bitrate += DataRate::BitsPerSec(1000);
-      RTC_LOG(LS_INFO) << "UpdateEstimate calling UpdateTargetBitrate, bitrate:" << new_bitrate.kbps();
       UpdateTargetBitrate(new_bitrate, at_time);
       return;
     } else if (current_target_ > bitrate_threshold_) {
@@ -590,7 +582,6 @@ void SendSideBandwidthEstimation::UpdateEstimate(Timestamp at_time) {
                static_cast<double>(512 - last_fraction_loss_)) /
               512.0);
           has_decreased_since_last_fraction_loss_ = true;
-          RTC_LOG(LS_INFO) << "UpdateEstimate calling UpdateTargetBitrate, bitrate:" << new_bitrate.kbps();
           UpdateTargetBitrate(new_bitrate, at_time);
           return;
         }
@@ -598,7 +589,6 @@ void SendSideBandwidthEstimation::UpdateEstimate(Timestamp at_time) {
     }
   }
   // TODO(srte): This is likely redundant in most cases.
-  RTC_LOG(LS_INFO) << "UpdateEstimate calling ApplyTargetLimits";
   ApplyTargetLimits(at_time);
 }
 
@@ -670,7 +660,11 @@ void SendSideBandwidthEstimation::MaybeLogLossBasedEvent(Timestamp at_time) {
 
 void SendSideBandwidthEstimation::UpdateTargetBitrate(DataRate new_bitrate,
                                                       Timestamp at_time) {
-
+  //DEBUG
+  if (new_bitrate.IsFinite() && current_target_.IsFinite()) {
+      RTC_LOG(LS_INFO) << "PLOT_THIS_SSBWE update_target_bitrate=" << new_bitrate.kbps() - current_target_.kbps();
+  }
+  //DEBUG
   switch (FseConfig::CurrentFse()) {
     case fse: {
       if(!fseFlow_) {
@@ -678,7 +672,6 @@ void SendSideBandwidthEstimation::UpdateTargetBitrate(DataRate new_bitrate,
             .Register(new_bitrate, DataRate::KilobitsPerSec(1000000), 1, *this);
       }
       new_bitrate = std::min(new_bitrate, GetUpperLimit());
-      //TODO: Might want to use Upperlimit as desired rate here as well, like in FSE-NG
       FlowStateExchange::Instance()
           .Update(fseFlow_, new_bitrate, DataRate::KilobitsPerSec(1000000), at_time);
       break;
@@ -687,23 +680,10 @@ void SendSideBandwidthEstimation::UpdateTargetBitrate(DataRate new_bitrate,
       if(!fseNgFlow_) {
         fseNgFlow_ = FseNg::Instance().RegisterRateFlow(new_bitrate, GetUpperLimit(), *this);
       }
-      RTC_LOG(LS_INFO) << "in UpdateTargetBitrate receiver_limit_=" 
-          << (receiver_limit_.IsFinite() ? receiver_limit_.kbps() : 0 )
-          << " delay_based_limit_=" 
-          << (delay_based_limit_.IsFinite() ? delay_based_limit_.kbps() : 0)
-          << " max_bitrate_configured_=" 
-          << (max_bitrate_configured_.IsFinite() ? max_bitrate_configured_.kbps() : 0);
-
-      //TODO: GetUpperLimit also is calculated 
-      //based on delay based estimate, we are only interested 
-      //probably interested in the desired rate only being 
-      //based on the limit of the stream or receiver limit
       new_bitrate = std::min(new_bitrate, GetUpperLimit());
       FseNg::Instance().SrtpUpdate(
               fseNgFlow_, 
               new_bitrate, 
-              //std::min(DataRate::KilobitsPerSec(2000), GetUpperLimit()),
-              //GetUpperLimit(),
               DataRate::KilobitsPerSec(1500),
               last_round_trip_time_, 
               at_time);
@@ -732,7 +712,14 @@ void SendSideBandwidthEstimation::FseUpdateTargetBitrate(DataRate new_bitrate,
   }
 
   current_target_ = new_bitrate;
-
+  //DEBUG
+  if (GetUpperLimit() < DataRate::KilobitsPerSec(90000)) {
+      RTC_LOG(LS_INFO) << "PLOT_THIS_SSBWE_UPPERL rate=" << GetUpperLimit().kbps();
+  }
+  //DEBUG
+  
+  //TODO: this one will not properly understand if a loss based event
+  //changed the target now, since the FSE has manipulated the rate
   MaybeLogLossBasedEvent(at_time);
   link_capacity_.OnRateUpdate(acknowledged_rate_, current_target_, at_time);
 }
@@ -740,7 +727,6 @@ void SendSideBandwidthEstimation::FseUpdateTargetBitrate(DataRate new_bitrate,
 
 void SendSideBandwidthEstimation::ApplyTargetLimits(Timestamp at_time) {
 
-  RTC_LOG(LS_INFO) << "ApplyTargetLimits calling UpdateTargetBitrate, bitrate:" << current_target_.kbps();
   UpdateTargetBitrate(current_target_, at_time);
 }
 
