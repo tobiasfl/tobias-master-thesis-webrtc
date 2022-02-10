@@ -87,25 +87,30 @@ class FseNgRateFlow : public FseFlow {
   FseNgRateFlow(int id,
                 int priority,
                 DataRate initial_bit_rate,
+                DataRate initial_min_rate,
                 DataRate initial_max_rate,
-                SendSideBandwidthEstimation& flow_cc);
+                std::function<void(DataRate)> update_callback);
   ~FseNgRateFlow() override;
-  void UpdateFlow(DataRate new_fse_rate, Timestamp at_time);
+  void UpdateFlow(DataRate new_fse_rate);
   DataRate FseRate() const;
   void SetFseRate(DataRate new_rate);
   DataRate InitialRate() const;
   bool IsApplicationLimited();
   void SetCurrMaxRate(DataRate max_rate);
   DataRate CurrMaxRate() const;
+  void SetCurrMinRate(DataRate min_rate);
+  DataRate CurrMinRate() const;
  private:
   //Initial rate of the flow, will be removed when deregistering the flow
   DataRate initial_rate_;
   //The rate calculated by the FseNg in the previous update
   DataRate fse_rate_;
+  //The min rate set in the flows last update calll
+  DataRate curr_min_rate_;
   //The max rate set in the flows last update calll
   DataRate curr_max_rate_;
-  //Reference to the corresponding congestion controller instance
-  SendSideBandwidthEstimation& flow_cc_;
+  //Callback function registered by the congestion controller to apply updates with
+  std::function<void(DataRate)> update_callback_;
 };
 
 }  // namespace webrtc

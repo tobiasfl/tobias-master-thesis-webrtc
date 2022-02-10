@@ -35,17 +35,18 @@ class FseNg {
 
   void SrtpUpdate(std::shared_ptr<FseNgRateFlow> flow,
                        DataRate new_rate,
+                       DataRate min_rate,
                        DataRate max_rate,
-                       TimeDelta last_rtt,
-                       Timestamp at_time);
+                       TimeDelta last_rtt);
 
   std::shared_ptr<FseNgWindowBasedFlow> RegisterWindowBasedFlow(
       uint32_t initial_max_cwnd, 
       cricket::UsrsctpTransport& transport);
   std::shared_ptr<FseNgRateFlow> RegisterRateFlow(
+      DataRate initial_rate,
       DataRate min_rate,
       DataRate max_rate,
-      SendSideBandwidthEstimation& cc);
+      std::function<void(DataRate)> update_callback);
   void DeRegisterWindowBasedFlow(std::shared_ptr<FseNgWindowBasedFlow> flow);
   void DeRegisterRateFlow(std::shared_ptr<FseNgRateFlow> flow);
 
@@ -69,9 +70,12 @@ class FseNg {
 
   std::mutex fse_mutex_;
   void OnSrtpFlowUpdate(std::shared_ptr<FseNgRateFlow> flow,
-                        DataRate new_rate,
-                        TimeDelta last_rtt,
-                        Timestamp at_time);
+                        int64_t relative_rate_change_bps,
+                        TimeDelta last_rtt);
+  void OnSrtpFlowUpdateOriginal(std::shared_ptr<FseNgRateFlow> flow,
+                        int64_t relative_rate_change_bps,
+                        DataRate cc_rate,
+                        TimeDelta last_rtt);
 
   bool AllSrtpFlowsApplicationLimited();
   int SumPriorities() const;

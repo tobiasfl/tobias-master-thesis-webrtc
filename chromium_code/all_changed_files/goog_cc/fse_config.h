@@ -7,12 +7,19 @@ namespace webrtc {
 
 enum FseOpts { none, fse, fse_ng};
 
+
 enum PriorityCases {fse_ng_case1, fse_ng_case2, normal};
+
+enum FseNgVersions { original, reasonable };
 
 class FseConfig {
   public:
     static FseOpts CurrentFse() {
       return webrtc::fse_ng;
+    }
+
+    static FseNgVersions CurrentFseNgVersion() {
+      return webrtc::reasonable;
     }
 
     static int ResolveSrtpPriority(const int flow_id) {
