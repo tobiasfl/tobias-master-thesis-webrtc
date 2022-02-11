@@ -383,31 +383,40 @@ void AimdRateControl::ChangeBitrate(const RateControlInput& input,
 
   switch (FseConfig::CurrentFse()) {
     case fse_ng: {
-      DataRate desired_rate = DataRate::KilobitsPerSec(1500);
-      if (estimate_bounded_increase_ && network_estimate_) {
-        DataRate upper_bound = network_estimate_->link_capacity_upper;
-        desired_rate = std::min(desired_rate, upper_bound);
-      }
-
-      if (!fseNgFlow_) {
-        fseNgFlow_ = FseNg::Instance().RegisterRateFlow(
-                new_bitrate.value_or(current_bitrate_), 
-                min_configured_bitrate_,
-                desired_rate, 
-                [this](DataRate fse_rate) { this->current_bitrate_ = fse_rate; } );
-      }
-
-      FseNg::Instance().SrtpUpdate(
-              fseNgFlow_,
-              new_bitrate.value_or(current_bitrate_),
-              min_configured_bitrate_,
-              desired_rate,
-              rtt_);
+      FseNgChangeBitrate(new_bitrate);
       break;
     }
     default: {
       current_bitrate_ = ClampBitrate(new_bitrate.value_or(current_bitrate_));
      }
+  }
+}
+
+void AimdRateControl::FseNgChangeBitrate(absl::optional<DataRate> new_bitrate) {
+  if (FseConfig::CurrentFseNgUpdateValue() == delay_only) {
+    DataRate desired_rate = DataRate::KilobitsPerSec(1500);
+    if (estimate_bounded_increase_ && network_estimate_) {
+      DataRate upper_bound = network_estimate_->link_capacity_upper;
+      desired_rate = std::min(desired_rate, upper_bound);
+    }
+
+    if (!fseNgFlow_) {
+      fseNgFlow_ = FseNg::Instance().RegisterRateFlow(
+              new_bitrate.value_or(current_bitrate_), 
+              min_configured_bitrate_,
+              desired_rate, 
+              [this](DataRate fse_rate) { this->current_bitrate_ = fse_rate; } );
+    }
+
+    FseNg::Instance().RateUpdate(
+            fseNgFlow_,
+            new_bitrate.value_or(current_bitrate_),
+            min_configured_bitrate_,
+            desired_rate,
+            rtt_);
+  }
+  else {
+    current_bitrate_ = ClampBitrate(new_bitrate.value_or(current_bitrate_));
   }
 }
 

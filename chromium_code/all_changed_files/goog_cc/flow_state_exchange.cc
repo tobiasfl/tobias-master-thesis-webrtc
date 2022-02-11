@@ -3,6 +3,7 @@
 //
 
 #include "modules/congestion_controller/goog_cc/flow_state_exchange.h"
+#include "modules/congestion_controller/goog_cc/fse_config.h"
 
 #include <stdint.h>
 
@@ -26,7 +27,6 @@ void FlowStateExchange::OnFlowUpdated(std::shared_ptr<RateFlow> flow,
                                       DataRate desired_rate,
                                       Timestamp at_time) {
   if (flows_.size() > 1) {
-    // TODO: is it correct to set desired rate here????
     flow->SetDesiredRate(desired_rate);
 
     // a. update S_CR
@@ -84,12 +84,7 @@ void FlowStateExchange::OnFlowUpdated(std::shared_ptr<RateFlow> flow,
 }
 
 void FlowStateExchange::PrintFseGroupState() {
-  std::cout << "sum_calculated_rates: " << sum_calculated_rates_.bps() << "\n";
-  for (const auto& i : flows_) {
-    std::cout << "flow_id: " << i->Id() << "\n";
-    std::cout << "flow fse_rate: " << i->FseRate().bps() << "\n";
-    std::cout << "flow desired_rate: " << i->DesiredRate().bps() << "\n";
-  }
+    //TODO: implement with RTC_LOG
 }
 
 FlowStateExchange::FlowStateExchange()
@@ -99,27 +94,24 @@ FlowStateExchange::~FlowStateExchange() = default;
 
 std::shared_ptr<RateFlow> FlowStateExchange::Register(
     DataRate initial_bit_rate,
+    //TODO: don't need desired rate when registering
     DataRate desired_rate,
+    //TODO: don't need priority when registering
     int priority,
     // TODO: maybe pass a callback update-method instead of the object
     SendSideBandwidthEstimation& cc) {
   fse_mutex_.lock();
-  RTC_LOG(LS_INFO) << "FSE Registering new flow with addr: " << &cc << "\n";
-  switch (CURRENT_TEST_CASE) {
-    case case1:
-      break;
-    case case2:
-      desired_rate =
-          flow_id_counter_ == 0 ? DataRate::KilobitsPerSec(1024) : desired_rate;
-      break;
-    case case3:
-      if (flows_.size() == 1) {
-        priority = 2;
-      }
-  }
-
+  
+  int flow_id = flow_id_counter_++;
   std::shared_ptr<RateFlow> newFlow = std::make_shared<RateFlow>(
-      flow_id_counter_++, priority, initial_bit_rate, desired_rate, cc);
+      flow_id, 
+      FseConfig::ResolveRateFlowPriority(flow_id), 
+      initial_bit_rate, 
+      FseConfig::ResolveRateFlowDesiredRate(flow_id), 
+      cc);
+
+  RTC_LOG(LS_INFO) << "FSE Registering new flow with id: " << flow_id;
+
   flows_.insert(newFlow);
   sum_calculated_rates_ += newFlow->FseRate();
 
@@ -144,17 +136,6 @@ void FlowStateExchange::Update(std::shared_ptr<RateFlow> flow,
   if (flows_.find(flow) == flows_.end()) {
     RTC_LOG(LS_INFO) << "flow in FSE Update call is not registereded!\n";
     return;
-  }
-
-  switch (CURRENT_TEST_CASE) {
-    case case1:
-      break;
-    case case2:
-      desired_rate =
-          flow->Id() == 0 ? DataRate::KilobitsPerSec(1024) : desired_rate;
-      break;
-    case case3:
-      break;
   }
 
   OnFlowUpdated(flow, cc_rate, desired_rate, at_time);

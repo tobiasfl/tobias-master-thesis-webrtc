@@ -29,10 +29,6 @@ class RateFlow;
 #define CR_DEFINE_STATIC_LOCAL(type, name, arguments) \
   static type& name = *new type arguments
 
-#define CURRENT_TEST_CASE case1
-
-enum TestCases { case1, case2, case3 };
-
 class FlowStateExchange {
  public:
   static FlowStateExchange& Instance();

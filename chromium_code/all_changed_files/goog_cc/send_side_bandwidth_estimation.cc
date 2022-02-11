@@ -657,62 +657,78 @@ void SendSideBandwidthEstimation::MaybeLogLossBasedEvent(Timestamp at_time) {
 
 void SendSideBandwidthEstimation::UpdateTargetBitrate(DataRate new_bitrate,
                                                       Timestamp at_time) {
-  switch (FseConfig::CurrentFse()) {
-    case fse: {
-      if(!fseFlow_) {
-        fseFlow_ = FlowStateExchange::Instance()
-            .Register(new_bitrate, DataRate::KilobitsPerSec(1000000), 1, *this);
-      }
-      new_bitrate = std::min(new_bitrate, GetUpperLimit());
-      FlowStateExchange::Instance()
-          .Update(fseFlow_, new_bitrate, DataRate::KilobitsPerSec(1000000), at_time);
-      break;
+  FseOpts fse_opt = FseConfig::CurrentFse();
+  if (fse_opt == fse) {
+    FseUpdateTargetBitrate(new_bitrate, at_time);
+  }
+  else if (fse_opt == fse_ng 
+          && FseConfig::CurrentFseNgUpdateValue() == final_rate_only) {
+    FseNgUpdateTargetBitrate(new_bitrate, at_time);
+  }
+  else {
+    new_bitrate = std::min(new_bitrate, GetUpperLimit());
+    if (new_bitrate < min_bitrate_configured_) {
+      MaybeLogLowBitrateWarning(new_bitrate, at_time);
+      new_bitrate = min_bitrate_configured_;
     }
-    /*case fse_ng: {
-      //TODO: which of these things should happen after FSE algorithm should
-      //be revisited
-      break; 
-      new_bitrate = std::min(new_bitrate, GetUpperLimit());
-      if (new_bitrate < min_bitrate_configured_) {
-          MaybeLogLowBitrateWarning(new_bitrate, at_time);
-          new_bitrate = min_bitrate_configured_;
-        }
-      MaybeLogLossBasedEvent(at_time);
-      current_target_ = new_bitrate;
-      link_capacity_.OnRateUpdate(acknowledged_rate_, current_target_, at_time);
-      
-      DataRate desired_rate = DataRate::KilobitsPerSec(1500);
-      if(!fseNgFlow_) {
-        fseNgFlow_ = FseNg::Instance().RegisterRateFlow(
-                new_bitrate, 
-                desired_rate, 
-                [this](DataRate fse_rate) { this->current_target_ = fse_rate; } );
-      }
-
-      FseNg::Instance().SrtpUpdate(
-              fseNgFlow_, 
-              new_bitrate, 
-              desired_rate,
-              last_round_trip_time_);
-      break;
-      
-    }*/
-    default: {
-      new_bitrate = std::min(new_bitrate, GetUpperLimit());
-      if (new_bitrate < min_bitrate_configured_) {
-        MaybeLogLowBitrateWarning(new_bitrate, at_time);
-        new_bitrate = min_bitrate_configured_;
-      }
-      current_target_ = new_bitrate;
-      RTC_LOG(LS_INFO) << "PLOT_THIS_SRTP_CC_RATE_KBPS" << this << " rate=" << current_target_.kbps();
-      
-      MaybeLogLossBasedEvent(at_time);
-      link_capacity_.OnRateUpdate(acknowledged_rate_, current_target_, at_time);
-    }
+    current_target_ = new_bitrate;
+    RTC_LOG(LS_INFO) << "PLOT_THIS_SRTP_CC_RATE_KBPS" 
+        << this << " rate=" 
+        << current_target_.kbps();
+    
+    MaybeLogLossBasedEvent(at_time);
+    link_capacity_.OnRateUpdate(acknowledged_rate_, current_target_, at_time);
   }
 }
+
+void SendSideBandwidthEstimation::FseUpdateTargetBitrate(DataRate new_bitrate, Timestamp at_time) {
+  if(!fseFlow_) {
+      fseFlow_ = FlowStateExchange::Instance()
+          .Register(new_bitrate, DataRate::Infinity(), 1, *this);
+  }
+  new_bitrate = std::min(new_bitrate, GetUpperLimit());
+
+  FlowStateExchange::Instance()
+      .Update(fseFlow_, 
+              new_bitrate, 
+              FseConfig::ResolveRateFlowDesiredRate(fseFlow_->Id()), 
+              at_time);
+}
+
+void SendSideBandwidthEstimation::FseNgUpdateTargetBitrate(
+        DataRate new_bitrate, 
+        Timestamp at_time) {
+  new_bitrate = std::min(new_bitrate, GetUpperLimit());
+  if (new_bitrate < min_bitrate_configured_) {
+      MaybeLogLowBitrateWarning(new_bitrate, at_time);
+  }
+  //So MaybeLogLossBasedEvent has correct rate to check
+  current_target_ = new_bitrate; 
+  MaybeLogLossBasedEvent(at_time);
+  
+  DataRate desired_rate = std::min(
+          FseConfig::CurrentRateFlowDesiredRate(), max_bitrate_configured_);
+
+  if(!fseNgFlow_) {
+    fseNgFlow_ = FseNg::Instance().RegisterRateFlow(
+            new_bitrate, 
+            min_bitrate_configured_,
+            desired_rate, 
+            [this](DataRate fse_rate) { this->current_target_ = fse_rate; } );
+  }
+
+  FseNg::Instance().RateUpdate(
+          fseNgFlow_, 
+          new_bitrate, 
+          min_bitrate_configured_,
+          desired_rate,
+          last_round_trip_time_);
+
+  link_capacity_.OnRateUpdate(acknowledged_rate_, current_target_, at_time);
+}
+
 //TODO: remove this and use callback instead
-void SendSideBandwidthEstimation::FseUpdateTargetBitrate(DataRate new_bitrate,
+void SendSideBandwidthEstimation::FseUpdateTargetBitrateOld(DataRate new_bitrate,
                                                          Timestamp at_time) {
   current_target_ = new_bitrate;
 }

@@ -93,7 +93,6 @@ class FseNgRateFlow : public FseFlow {
   ~FseNgRateFlow() override;
   void UpdateFlow(DataRate new_fse_rate);
   DataRate FseRate() const;
-  void SetFseRate(DataRate new_rate);
   DataRate InitialRate() const;
   bool IsApplicationLimited();
   void SetCurrMaxRate(DataRate max_rate);

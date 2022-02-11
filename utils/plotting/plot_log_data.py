@@ -24,7 +24,7 @@ def extract_info(list_of_lines, cc_attribute, id_string):
     #get the identity of the thing
     id_regex = rf".+ ({id_string}\w*)\b"
     #gets cc_attribute value
-    cc_attr_regex = rf"\b{cc_attribute}=(\d+)"
+    cc_attr_regex = rf"\b{cc_attribute}=(\-?\d+)"
     regex = rf"{timestamp_regex}{id_regex}.+{cc_attr_regex}"
 
     date_time_format = "%H%M%S.%f"

@@ -33,7 +33,7 @@ class FseNg {
  public:
   static FseNg& Instance();
 
-  void SrtpUpdate(std::shared_ptr<FseNgRateFlow> flow,
+  void RateUpdate(std::shared_ptr<FseNgRateFlow> flow,
                        DataRate new_rate,
                        DataRate min_rate,
                        DataRate max_rate,
@@ -69,19 +69,24 @@ class FseNg {
   std::unordered_set<std::shared_ptr<FseNgRateFlow>> rate_flows_;
 
   std::mutex fse_mutex_;
-  void OnSrtpFlowUpdate(std::shared_ptr<FseNgRateFlow> flow,
-                        int64_t relative_rate_change_bps,
-                        TimeDelta last_rtt);
-  void OnSrtpFlowUpdateOriginal(std::shared_ptr<FseNgRateFlow> flow,
-                        int64_t relative_rate_change_bps,
-                        DataRate cc_rate,
-                        TimeDelta last_rtt);
 
-  bool AllSrtpFlowsApplicationLimited();
+  void OnRateFlowUpdate(
+         std::shared_ptr<FseNgRateFlow> flow,
+         int64_t relative_rate_change_bps,
+         DataRate cc_rate,
+         TimeDelta last_rtt);
+  void UpdateSumCalculatedRates(
+          int64_t relative_rate_change_bps, 
+          DataRate cc_rate, 
+          DataRate prev_fse_rate);
+  //Allocates rate to all the rtp flows, returns the sum og allocated rate
+  DataRate UpdateRateFlows(int sum_priorities);
+  void UpdateCwndFlows(DataRate sum_cwnd_rates);
+
+  bool AllRateFlowsApplicationLimited() const;
   int SumPriorities() const;
   int SumRatePriorities() const;
   int SumCwndPriorities() const;
-  void LogPreviousMaxRates();
 };
 
 }  // namespace webrtc

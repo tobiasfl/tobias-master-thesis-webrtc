@@ -53,7 +53,7 @@ RateFlow::~RateFlow() = default;
 void RateFlow::UpdateCc(Timestamp at_time) {
 
   RTC_LOG(LS_INFO) << "PLOT_THIS_SRTP_FSE_RATE_KBPS" << id_ << " rate=" << FseRate().kbps();
-  flow_cc_.FseUpdateTargetBitrate(fse_rate_, at_time);
+  flow_cc_.FseUpdateTargetBitrateOld(fse_rate_, at_time);
 }
 
 DataRate RateFlow::FseRate() const {
@@ -131,11 +131,11 @@ FseNgRateFlow::FseNgRateFlow(
 FseNgRateFlow::~FseNgRateFlow() = default;
 
 void FseNgRateFlow::UpdateFlow(DataRate new_fse_rate) {
-  update_callback_(new_fse_rate);
-}
+  RTC_LOG(LS_INFO) << "PLOT_THIS_SRTP_FSE_RATE_KBPS" << id_ 
+      << " rate=" << new_fse_rate.kbps();
 
-void FseNgRateFlow::SetFseRate(DataRate fse_rate) {
-    fse_rate_ = fse_rate; 
+  fse_rate_ = new_fse_rate;
+  update_callback_(new_fse_rate);
 }
 
 DataRate FseNgRateFlow::FseRate() const {
