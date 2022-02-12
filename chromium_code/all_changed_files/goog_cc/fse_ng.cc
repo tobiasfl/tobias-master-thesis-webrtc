@@ -68,7 +68,9 @@ std::shared_ptr<FseNgRateFlow> FseNg::RegisterRateFlow(
       min_rate,
       max_rate, 
       update_callback);
+
   rate_flows_.insert(new_flow);
+
   sum_calculated_rates_ += initial_rate;
   
   fse_mutex_.unlock();
@@ -77,10 +79,10 @@ std::shared_ptr<FseNgRateFlow> FseNg::RegisterRateFlow(
 }
 
 void FseNg::RateUpdate(std::shared_ptr<FseNgRateFlow> flow,
-                            DataRate new_rate,
-                            DataRate min_rate,
-                            DataRate max_rate,
-                            TimeDelta last_rtt) {
+                       DataRate new_rate,
+                       DataRate min_rate,
+                       DataRate max_rate,
+                       TimeDelta last_rtt) {
   fse_mutex_.lock();
 
   update_call_num++;
@@ -147,7 +149,7 @@ void FseNg::UpdateSumCalculatedRates(
         int64_t relative_rate_change_bps, 
         DataRate cc_rate,
         DataRate prev_fse_rate) {
-  if (FseConfig::CurrentFseNgVersion() == reasonable) {
+  if (FseConfig::CurrentFseNgVersion() == extended) {
      //Fixed version of update, since the paper pseudocode was unclear
     sum_calculated_rates_ = 
         DataRate::BitsPerSec(sum_calculated_rates_.bps() + relative_rate_change_bps);

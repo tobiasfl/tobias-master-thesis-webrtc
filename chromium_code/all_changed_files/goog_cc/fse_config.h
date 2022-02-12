@@ -13,19 +13,19 @@ enum PriorityCases {fse_ng_case1, fse_ng_case2, normal, fse_case3 };
 
 enum DesiredRateCases { infinity, fse_ng_default, fse_case2 };
 
-enum FseNgVersions { original, reasonable };
+enum FseNgVersions { original, extended };
 
 enum FseNgUpdateValue { final_rate_only, delay_only };
 
-
+//TODO: Use separate resolvers and option enums for each FSE- type
 class FseConfig {
   public:
     static FseOpts CurrentFse() {
-      return webrtc::fse;
+      return webrtc::fse_ng;
     }
 
     static FseNgVersions CurrentFseNgVersion() {
-      return webrtc::reasonable;
+      return webrtc::extended;
     }
 
     static FseNgUpdateValue CurrentFseNgUpdateValue() {
