@@ -35,7 +35,6 @@ class FseNg {
 
   void RateUpdate(std::shared_ptr<FseNgRateFlow> flow,
                        DataRate new_rate,
-                       DataRate min_rate,
                        DataRate max_rate,
                        TimeDelta last_rtt);
 
@@ -44,7 +43,6 @@ class FseNg {
       cricket::UsrsctpTransport& transport);
   std::shared_ptr<FseNgRateFlow> RegisterRateFlow(
       DataRate initial_rate,
-      DataRate min_rate,
       DataRate max_rate,
       std::function<void(DataRate)> update_callback);
   void DeRegisterWindowBasedFlow(std::shared_ptr<FseNgWindowBasedFlow> flow);

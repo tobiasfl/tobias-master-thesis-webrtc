@@ -9,7 +9,7 @@ namespace webrtc {
 
 enum FseOpts { none, fse, fse_ng};
 
-enum PriorityCases {fse_ng_case1, fse_ng_case2, normal, fse_case3 };
+enum PriorityCases {fse_ng_case1, fse_ng_case2, equal, fse_case3, all_diff };
 
 enum DesiredRateCases { infinity, fse_ng_default, fse_case2 };
 
@@ -21,7 +21,7 @@ enum FseNgUpdateValue { final_rate_only, delay_only };
 class FseConfig {
   public:
     static FseOpts CurrentFse() {
-      return webrtc::fse_ng;
+      return webrtc::none;
     }
 
     static FseNgVersions CurrentFseNgVersion() {
@@ -29,11 +29,7 @@ class FseConfig {
     }
 
     static FseNgUpdateValue CurrentFseNgUpdateValue() {
-      return webrtc::final_rate_only;
-    }
-
-    static DataRate CurrentRateFlowDesiredRate() {
-      return DataRate::KilobitsPerSec(1500);
+      return webrtc::delay_only;
     }
 
     static DataRate ResolveRateFlowDesiredRate(const int flow_id) {
@@ -56,15 +52,7 @@ class FseConfig {
       int priority;
       switch (CurrentPriorityCase()) {
         case fse_ng_case1:
-          if (flow_id == 0) {
-            priority = 2; 
-          }
-          else {
-            priority = 1;
-          }
-          break;
-        case fse_ng_case2: 
-          priority = 1;
+          priority = 2; 
           break;
         case fse_case3:
           if (flow_id == 0) {
@@ -74,7 +62,15 @@ class FseConfig {
             priority = 2;
           }
           break;
-        case normal:
+        case all_diff:
+          if (flow_id == 0) {
+            priority = 1;
+          }
+          else {
+            priority = 3;
+          }
+          break;
+        case equal:
         default:
           priority = 1;
       }
@@ -83,21 +79,21 @@ class FseConfig {
 
     static int ResolveCwndFlowPriority(const int flow_id) {
       switch (CurrentPriorityCase()) {
-        case fse_ng_case1:
-          return 1;
+        case all_diff:
+          return 2;
         case fse_ng_case2:
           return 2;
-        case normal:
+        case equal:
         default:
           return 1;   
       }
     }
   private:
     static PriorityCases CurrentPriorityCase() {
-      return webrtc::fse_case3;
+      return webrtc::equal;
     }
     static DesiredRateCases CurrentDesiredRateCase() {
-      return webrtc::infinity;
+      return webrtc::fse_ng_default;
     }
 };
 

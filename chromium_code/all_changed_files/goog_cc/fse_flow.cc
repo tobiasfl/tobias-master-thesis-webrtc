@@ -116,13 +116,11 @@ FseNgRateFlow::FseNgRateFlow(
                 int id,
                 int priority,
                 DataRate initial_bit_rate,
-                DataRate initial_min_rate,
                 DataRate initial_max_rate,
                 std::function<void(DataRate)> update_callback)
     : FseFlow(id, priority),
       initial_rate_(initial_bit_rate),
       fse_rate_(initial_bit_rate),
-      curr_min_rate_(initial_min_rate),
       curr_max_rate_(initial_max_rate),
       update_callback_(update_callback) {
   RTC_LOG(LS_INFO) << "creating a FseNgRateFlow";
@@ -156,14 +154,6 @@ void FseNgRateFlow::SetCurrMaxRate(DataRate max_rate) {
 
 DataRate FseNgRateFlow::CurrMaxRate() const {
     return curr_max_rate_;
-}
-
-void FseNgRateFlow::SetCurrMinRate(DataRate min_rate) {
-    curr_min_rate_ = min_rate;
-}
-
-DataRate FseNgRateFlow::CurrMinRate() const {
-    return curr_min_rate_;
 }
 
 }  // namespace webrtc

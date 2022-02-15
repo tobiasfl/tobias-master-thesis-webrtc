@@ -87,7 +87,6 @@ class FseNgRateFlow : public FseFlow {
   FseNgRateFlow(int id,
                 int priority,
                 DataRate initial_bit_rate,
-                DataRate initial_min_rate,
                 DataRate initial_max_rate,
                 std::function<void(DataRate)> update_callback);
   ~FseNgRateFlow() override;
@@ -104,8 +103,6 @@ class FseNgRateFlow : public FseFlow {
   DataRate initial_rate_;
   //The rate calculated by the FseNg in the previous update
   DataRate fse_rate_;
-  //The min rate set in the flows last update calll
-  DataRate curr_min_rate_;
   //The max rate set in the flows last update calll
   DataRate curr_max_rate_;
   //Callback function registered by the congestion controller to apply updates with

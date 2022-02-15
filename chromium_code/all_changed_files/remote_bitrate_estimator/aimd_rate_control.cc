@@ -399,11 +399,12 @@ void AimdRateControl::FseNgChangeBitrate(absl::optional<DataRate> new_bitrate) {
       DataRate upper_bound = network_estimate_->link_capacity_upper;
       desired_rate = std::min(desired_rate, upper_bound);
     }
+    new_bitrate = std::max(new_bitrate.value_or(current_bitrate_), min_configured_bitrate_);
 
+    //TODO: desired rate will be changed inside fse_NG
     if (!fseNgFlow_) {
       fseNgFlow_ = FseNg::Instance().RegisterRateFlow(
               new_bitrate.value_or(current_bitrate_), 
-              min_configured_bitrate_,
               desired_rate, 
               [this](DataRate fse_rate) { this->current_bitrate_ = fse_rate; } );
     }
@@ -411,7 +412,6 @@ void AimdRateControl::FseNgChangeBitrate(absl::optional<DataRate> new_bitrate) {
     FseNg::Instance().RateUpdate(
             fseNgFlow_,
             new_bitrate.value_or(current_bitrate_),
-            min_configured_bitrate_,
             desired_rate,
             rtt_);
   }

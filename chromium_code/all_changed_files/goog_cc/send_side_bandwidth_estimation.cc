@@ -248,6 +248,7 @@ SendSideBandwidthEstimation::SendSideBandwidthEstimation(
   }
   ParseFieldTrial({&disable_receiver_limit_caps_only_},
                   key_value_config->Lookup("WebRTC-Bwe-ReceiverLimitCapsOnly"));
+
 }
 
 SendSideBandwidthEstimation::~SendSideBandwidthEstimation() {
@@ -673,7 +674,7 @@ void SendSideBandwidthEstimation::UpdateTargetBitrate(DataRate new_bitrate,
     }
     current_target_ = new_bitrate;
     RTC_LOG(LS_INFO) << "PLOT_THIS_SRTP_CC_RATE_KBPS" 
-        << this << " rate=" 
+        << this << " cc_rate=" 
         << current_target_.kbps();
     
     MaybeLogLossBasedEvent(at_time);
@@ -701,18 +702,20 @@ void SendSideBandwidthEstimation::FseNgUpdateTargetBitrate(
   new_bitrate = std::min(new_bitrate, GetUpperLimit());
   if (new_bitrate < min_bitrate_configured_) {
       MaybeLogLowBitrateWarning(new_bitrate, at_time);
+      new_bitrate = min_bitrate_configured_;
   }
   //So MaybeLogLossBasedEvent has correct rate to check
   current_target_ = new_bitrate; 
   MaybeLogLossBasedEvent(at_time);
-  
+
+  //TODO: desired_rate will be overwritten by resolver inside fse_ng, fix inconsistency
   DataRate desired_rate = std::min(
-          FseConfig::CurrentRateFlowDesiredRate(), max_bitrate_configured_);
+          DataRate::KilobitsPerSec(1500), max_bitrate_configured_); 
+
 
   if(!fseNgFlow_) {
     fseNgFlow_ = FseNg::Instance().RegisterRateFlow(
             new_bitrate, 
-            min_bitrate_configured_,
             desired_rate, 
             [this](DataRate fse_rate) { this->current_target_ = fse_rate; } );
   }
@@ -720,7 +723,6 @@ void SendSideBandwidthEstimation::FseNgUpdateTargetBitrate(
   FseNg::Instance().RateUpdate(
           fseNgFlow_, 
           new_bitrate, 
-          min_bitrate_configured_,
           desired_rate,
           last_round_trip_time_);
 

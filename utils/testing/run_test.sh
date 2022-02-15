@@ -4,13 +4,15 @@ ROUTER=10.0.0.1
 RECEIVER=192.168.0.2
 SENDER=10.0.0.2
 
+#TODO: add optional arg to enabel rtp packet dumping
+
 if [ $# -lt 6 ]; then
     echo "USAGE: $0 <bandwidth mbit/s> <delay ms> <queue length pkts> <test run length sec.> <output directory> <web page query config> [optional experiment label]"
     exit 1
 fi
 
 out_dir=$5/$1mbit_$2ms_$3pkts_$4sec_$6
-if [ $# -eq 7 ]; then
+if [ $# -ge 7 ]; then
     out_dir=$5/$7_$1mbit_$2ms_$3pkts_$4sec_$6  #if optional label is included
 fi
 
@@ -34,6 +36,6 @@ sudo tcpdump -i enp0s31f6 -w $out_dir/if_dump.pcap &
 sleep 5
 
 #run chromium and tcpdump for some time before exiting
-timeout $4 bash ~/Code/tobias-master-thesis-webrtc/utils/testing/run_chromium.sh $out_dir https://$SENDER:8888?$6
+timeout $4 bash ~/Code/tobias-master-thesis-webrtc/utils/testing/run_chromium.sh $out_dir https://$SENDER:8888?$6 -d
 sudo killall tcpdump
 

@@ -51,7 +51,6 @@ std::shared_ptr<FseNgWindowBasedFlow> FseNg::RegisterWindowBasedFlow(
 
 std::shared_ptr<FseNgRateFlow> FseNg::RegisterRateFlow(
     DataRate initial_rate,
-    DataRate min_rate,
     DataRate max_rate,
     std::function<void(DataRate)> update_callback) {
   fse_mutex_.lock();
@@ -61,12 +60,15 @@ std::shared_ptr<FseNgRateFlow> FseNg::RegisterRateFlow(
       << initial_rate.bps();
 
   int id = rate_flow_id_counter_++;
+
+  //TODO: hacky, should remove this as an argument or get the real value somehow
+  max_rate = FseConfig::ResolveRateFlowDesiredRate(id);
+
   std::shared_ptr<FseNgRateFlow> new_flow = std::make_shared<FseNgRateFlow>(
       id, 
       FseConfig::ResolveRateFlowPriority(id), 
       initial_rate, 
-      min_rate,
-      max_rate, 
+      max_rate,
       update_callback);
 
   rate_flows_.insert(new_flow);
@@ -80,15 +82,16 @@ std::shared_ptr<FseNgRateFlow> FseNg::RegisterRateFlow(
 
 void FseNg::RateUpdate(std::shared_ptr<FseNgRateFlow> flow,
                        DataRate new_rate,
-                       DataRate min_rate,
                        DataRate max_rate,
                        TimeDelta last_rtt) {
   fse_mutex_.lock();
 
   update_call_num++;
 
+  //TODO: hacky, should remove this as an argument or get the real value somehow
+  max_rate = FseConfig::ResolveRateFlowDesiredRate(flow->Id());
+
   flow->SetCurrMaxRate(max_rate);
-  flow->SetCurrMinRate(min_rate);
 
   //If rtt is 0, assume there is no real measurement yet and say it is infinity
   //so that base_rtt is never set to 0
@@ -96,9 +99,12 @@ void FseNg::RateUpdate(std::shared_ptr<FseNgRateFlow> flow,
 
   int64_t relative_rate_change_bps = new_rate.bps() - flow->FseRate().bps();
   RTC_LOG(LS_INFO) 
-      << "PLOT_THISFSENG_KBPS relative_rate_change=" 
+      << "PLOT_THISFSE_NG" << flow->Id()
+      << " relative_rate_change=" 
       << relative_rate_change_bps/1000
-      << " new_rate=" << new_rate.kbps();
+      << " new_rate=" << new_rate.kbps()
+      << " max_rate=" << flow->CurrMaxRate().kbps()
+      << " last_rtt=" << last_rtt.ms();
 
   OnRateFlowUpdate(
           flow, 
@@ -108,7 +114,8 @@ void FseNg::RateUpdate(std::shared_ptr<FseNgRateFlow> flow,
 
   RTC_LOG(LS_INFO) 
       << "PLOT_THISFSENG new sum_calculated_rates_=" 
-      << sum_calculated_rates_.kbps();
+      << sum_calculated_rates_.kbps()
+      << " base_rtt_=" << base_rtt_.ms();
 
   fse_mutex_.unlock();
 }
@@ -125,7 +132,7 @@ void FseNg::OnRateFlowUpdate(std::shared_ptr<FseNgRateFlow> flow,
   bool rtt_is_valid = !last_rtt.IsPlusInfinity() || !base_rtt_.IsPlusInfinity();
 
   //Extension, if we we don't have valid base_rtt yet we are not going to allocate 
-  //bandwidth to any SCTP flows and should only use rate based flow priorities
+  //Bandwidth to any SCTP flows and should only use rate based flow priorities
   int sum_priorities = rtt_is_valid ? SumPriorities() : SumRatePriorities();
 
   DataRate sum_rtp_rates = UpdateRateFlows(sum_priorities);
@@ -169,16 +176,17 @@ void FseNg::UpdateSumCalculatedRates(
 
 DataRate FseNg::UpdateRateFlows(int sum_priorities) {
   DataRate sum_rtp_rates = DataRate::Zero();
+
   for (const auto& rate_flow : rate_flows_) {
     // We use the max_rate of the corresponding stream, 
     // because they might have different
     // limitations based on quality of the stream, config, etc.
     DataRate fse_rate = std::min((rate_flow->Priority() * sum_calculated_rates_) 
             / sum_priorities, rate_flow->CurrMaxRate());
- 
+    //TODO: also clamp with min rate?
     rate_flow->UpdateFlow(fse_rate);
   
-    sum_rtp_rates += rate_flow->FseRate();
+    sum_rtp_rates += fse_rate;
   }
   return sum_rtp_rates;
 }
@@ -189,6 +197,7 @@ void FseNg::UpdateCwndFlows(DataRate sum_cwnd_rates) {
   for(const auto& cwnd_flow : cwnd_flows_) {
     DataRate cwnd_flow_max_rate = (cwnd_flow->Priority() * sum_cwnd_rates) / sum_cwnd_priorities;
     uint32_t flow_max_cwnd = FseFlow::RateToCwnd(base_rtt_, cwnd_flow_max_rate);
+
     RTC_LOG(LS_INFO) << "PLOT_THIS_SCTP_FSE_RATE_KBPS" << cwnd_flow->Id() 
                      << " rate=" << cwnd_flow_max_rate.kbps();
   
