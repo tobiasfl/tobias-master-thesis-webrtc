@@ -12,7 +12,7 @@ def get_df(fn):
        
         col = df[flow_col]
         start = flow_start(col)
-        end = len(col) - flow_start(reversed(col))
+        #end = len(col) - flow_start(reversed(col))
 
         df[flow_col] = df.apply(lambda x: x[flow_col] / 1000000, axis=1)
 
@@ -35,7 +35,7 @@ args = sys.argv
 
 if len(args) == 2:
     df = get_df(args[1])
-    plot_throughput(df)
+    plot_line_plot(df, "Time (s)", "Throughput (Mbps)")
 elif len(args) == 5:
     df1 = get_df(args[1])
     df2 = get_df(args[2])

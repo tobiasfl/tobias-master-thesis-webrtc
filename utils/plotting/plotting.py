@@ -1,6 +1,6 @@
 import matplotlib.pyplot as plt
 import pandas as pd
-from math import sqrt
+from math import sqrt, ceil
 
 fig_width_pt = 360.0  # Get this from LaTeX using \the\columnwidth
 
@@ -12,8 +12,40 @@ fig_height = fig_width*golden_mean      # height in inches
 #latex figures
 fig_size = [fig_width,fig_height] 
 
-#Assumes time(s), flow1(mbit), flow2(mbit)...
-def plot_throughput(df):
+def plot_scatter_plot(df, xlabel, ylabel):
+    params = {'backend': 'ps',
+      'axes.labelsize': 15,
+      'font.weight' : 'bold',
+      'font.family': 'serif',
+      'font.serif': 'Computer Modern Roman',
+      'legend.fontsize': 14,
+      'xtick.labelsize': 12,#15
+      'ytick.labelsize': 12,#15
+      'savefig.dpi': 400,
+      'text.usetex': True,
+      'axes.labelweight' : 'bold',
+      'figure.figsize': fig_size,
+      }
+
+    plt.rcParams.update(params)
+
+    plt.xlabel(xlabel)
+    plt.ylabel(ylabel)
+ 
+    plt.grid(which="both")
+
+    time_col_name = df.columns[0]
+    for col in df.columns[1:]:
+        plt.scatter(df[time_col_name], df[col], s=1, label=col)
+
+    plt.legend(loc="upper left")
+    plt.tight_layout()
+
+    plt.savefig("scatter_plot.png")
+    plt.show()
+
+#Assumes time(s), vals1, vals2...
+def plot_line_plot(df, xlabel, ylabel):
     params = {'backend': 'ps',
       'axes.labelsize': 15,
       'font.weight' : 'bold',
@@ -32,11 +64,11 @@ def plot_throughput(df):
 
     plt.figure(figsize=fig_size) 
 
-    #plt.xlim(left=0, right=80)
-    plt.ylim(0, 5)
+    #plt.xlim(left=0)
+    #plt.ylim(0, 5)
 
-    plt.xlabel("Time (s)")
-    plt.ylabel("Throughput (Mbps)")
+    plt.xlabel(xlabel)
+    plt.ylabel(ylabel)
 
     plt.grid(which="both")
 
@@ -49,17 +81,18 @@ def plot_throughput(df):
     plt.legend(loc="upper left")
     plt.tight_layout()
 
-    plt.savefig("throughput.png")
+    plt.savefig("line_plot.png")
     plt.show()
 
 def plot_comparison_throughput(df_left, left_title, df_right, right_title):
-    #plt.rcParams.update(params)
+    fig_size = [fig_width,fig_height*0.75] 
+
     params = {
       'axes.labelsize': 14,
       'font.weight' : 'bold',
       'font.family': 'serif',
       'font.serif': 'Computer Modern Roman',
-      'legend.fontsize': 10,
+      'legend.fontsize': 8,
       'xtick.labelsize': 10,#15
       'ytick.labelsize': 10,#15
       'savefig.dpi': 400,
@@ -82,16 +115,35 @@ def plot_comparison_throughput(df_left, left_title, df_right, right_title):
     ax_l.set_title(left_title)
     ax_r.set_title(right_title)
 
+    handles = []
+    labels = []
     for (df, ax) in zip([df_left, df_right], [ax_l, ax_r]):
         ax.grid(which="both")
+
+        xlim = [0, 75]
+        ylim = [0, 3.5]
+
+        ax.set_xlim(xlim)
+        ax.set_ylim(ylim)
+        
+        ax.set_yticks(range(ylim[0], ceil(ylim[1])))
 
         styles = ['solid', 'dashed', 'dashdot', 'dotted']
             
         time_col_name = df.columns[0]
-        for (col, style) in zip(df.columns[1:], styles):
+        #go through sorted by name so that both plots are consistent in terms of line style and labels
+        for (col, style) in zip(sorted(df.columns[1:]), styles):
             ax.plot(df[time_col_name], df[col], linestyle=style, linewidth=1.5, label=col)
-       
-        ax.legend(loc="upper left")
+
+        handles, labels = ax.get_legend_handles_labels()
+
+    
+
+    if len(labels) <= 2:
+        fig.legend(handles, labels, loc='upper center', ncol=len(labels), bbox_to_anchor=(0.3,0.27)) 
+    else:
+        fig.legend(handles, labels, loc='upper center', ncol=2, bbox_to_anchor=(0.3,0.27)) 
+
 
     fig.tight_layout()
     
