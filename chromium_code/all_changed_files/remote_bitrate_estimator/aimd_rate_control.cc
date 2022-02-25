@@ -271,6 +271,7 @@ void AimdRateControl::ChangeBitrate(const RateControlInput& input,
   if (input.estimated_throughput)
     latest_estimated_throughput_ = *input.estimated_throughput;
 
+  RTC_LOG(LS_INFO) << "PLOT_THIS_AIMD estimated_throughput=" << estimated_throughput.kbps();
   // An over-use should always trigger us to reduce the bitrate, even though
   // we have not yet established our first estimate. By acting on the over-use,
   // we will end up with a valid estimate.
@@ -288,6 +289,9 @@ void AimdRateControl::ChangeBitrate(const RateControlInput& input,
 
   switch (rate_control_state_) {
     case RateControlState::kRcHold:
+      //Added by TOBIAS
+      RTC_LOG(LS_INFO) << "PLOT_THIS_HOLD change=" << 0;
+      //Added by TOBIAS
       break;
 
     case RateControlState::kRcIncrease:
@@ -323,6 +327,8 @@ void AimdRateControl::ChangeBitrate(const RateControlInput& input,
           RTC_LOG(LS_INFO) << "PLOT_THIS_MULTIPLICATIVE change=" << multiplicative_increase.kbps();
           //Added by TOBIAS
         }
+        RTC_LOG(LS_INFO) << "PLOT_THIS_AIMD increased_bitrate=" << increased_bitrate.kbps() 
+                         << " troughput_based_limit=" << troughput_based_limit.kbps();
         new_bitrate = std::min(increased_bitrate, troughput_based_limit);
       }
 
@@ -381,9 +387,9 @@ void AimdRateControl::ChangeBitrate(const RateControlInput& input,
       RTC_DCHECK_NOTREACHED();
   }
 
-  switch (FseConfig::CurrentFse()) {
+  switch (FseConfig::Instance().CurrentFse()) {
     case fse_ng: {
-      FseNgChangeBitrate(new_bitrate);
+      FseNgChangeBitrate(new_bitrate.value_or(current_bitrate_));
       break;
     }
     default: {
@@ -392,31 +398,27 @@ void AimdRateControl::ChangeBitrate(const RateControlInput& input,
   }
 }
 
-void AimdRateControl::FseNgChangeBitrate(absl::optional<DataRate> new_bitrate) {
-  if (FseConfig::CurrentFseNgUpdateValue() == delay_only) {
-    DataRate desired_rate = DataRate::KilobitsPerSec(1500);
+void AimdRateControl::FseNgChangeBitrate(DataRate new_bitrate) {
+  if (!FseNg::Instance().UpdateValFinalRate()) {
     if (estimate_bounded_increase_ && network_estimate_) {
       DataRate upper_bound = network_estimate_->link_capacity_upper;
-      desired_rate = std::min(desired_rate, upper_bound);
+      new_bitrate = std::min(new_bitrate, upper_bound);
     }
-    new_bitrate = std::max(new_bitrate.value_or(current_bitrate_), min_configured_bitrate_);
+    new_bitrate = std::max(new_bitrate, min_configured_bitrate_);
 
-    //TODO: desired rate will be changed inside fse_NG
     if (!fseNgFlow_) {
       fseNgFlow_ = FseNg::Instance().RegisterRateFlow(
-              new_bitrate.value_or(current_bitrate_), 
-              desired_rate, 
+              current_bitrate_, 
               [this](DataRate fse_rate) { this->current_bitrate_ = fse_rate; } );
     }
 
     FseNg::Instance().RateUpdate(
             fseNgFlow_,
-            new_bitrate.value_or(current_bitrate_),
-            desired_rate,
+            new_bitrate,
             rtt_);
   }
   else {
-    current_bitrate_ = ClampBitrate(new_bitrate.value_or(current_bitrate_));
+    current_bitrate_ = ClampBitrate(new_bitrate);
   }
 }
 

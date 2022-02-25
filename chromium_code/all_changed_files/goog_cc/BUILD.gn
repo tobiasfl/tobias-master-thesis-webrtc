@@ -197,6 +197,7 @@ rtc_library("send_side_bwe") {
     "fse_flow.h",
     "fse_ng.cc",
     "fse_ng.h",
+    "fse_config.cc",
     "fse_config.h"
   ]
   deps = [

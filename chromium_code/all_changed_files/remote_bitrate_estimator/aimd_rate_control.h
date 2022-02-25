@@ -119,7 +119,7 @@ class AimdRateControl {
 
   //ADDED BY TOBIAS
   std::shared_ptr<FseNgRateFlow> fseNgFlow_;
-  void FseNgChangeBitrate(absl::optional<DataRate> new_bitrate);
+  void FseNgChangeBitrate(DataRate new_bitrate);
   //ADDED BY TOBIAS
 
 };

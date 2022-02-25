@@ -67,13 +67,13 @@ class WindowBasedFlow : public FseFlow {
   cricket::UsrsctpTransport& sctp_transport_;
 };
 
-class FseNgWindowBasedFlow : public FseFlow {
+class FseNgCwndFlow : public FseFlow {
  public:
-  FseNgWindowBasedFlow(int id,
+  FseNgCwndFlow(int id,
                        int priority,
                        uint32_t initial_max_cwnd,
                        cricket::UsrsctpTransport& flow_cc);
-  ~FseNgWindowBasedFlow() override;
+  ~FseNgCwndFlow() override;
   void UpdateCc(uint32_t max_cwnd);
   uint32_t GetInitialMaxCwnd();
     
@@ -92,15 +92,12 @@ class FseNgRateFlow : public FseFlow {
   ~FseNgRateFlow() override;
   void UpdateFlow(DataRate new_fse_rate);
   DataRate FseRate() const;
-  DataRate InitialRate() const;
   bool IsApplicationLimited();
   void SetCurrMaxRate(DataRate max_rate);
   DataRate CurrMaxRate() const;
   void SetCurrMinRate(DataRate min_rate);
   DataRate CurrMinRate() const;
  private:
-  //Initial rate of the flow, will be removed when deregistering the flow
-  DataRate initial_rate_;
   //The rate calculated by the FseNg in the previous update
   DataRate fse_rate_;
   //The max rate set in the flows last update calll

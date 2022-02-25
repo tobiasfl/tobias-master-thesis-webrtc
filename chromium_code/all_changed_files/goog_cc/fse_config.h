@@ -4,97 +4,43 @@
 #include <map>
 
 #include "api/units/data_rate.h"
+#include "modules/congestion_controller/goog_cc/fse_flow.h"
 
 namespace webrtc {
 
-enum FseOpts { none, fse, fse_ng};
+/*
+struct FseNgExperimentConfig {
+      int rtp_flow1_prio;
+      int rtp_flow2_prio;
+      int sctp_flow1_prio;
+      int sctp_flow2_prio;
+      DataRate rtp_flow1_max_rate_kbps;
+      DataRate rtp_flow2_max_rate_kbps;
+};*/
 
-enum PriorityCases {fse_ng_case1, fse_ng_case2, equal, fse_case3, all_diff };
+#define CR_DEFINE_STATIC_LOCAL(type, name, arguments) \
+  static type& name = *new type arguments
 
-enum DesiredRateCases { infinity, fse_ng_default, fse_case2 };
+enum FseVersion { none, fse, fse_ng};
 
-enum FseNgVersions { original, extended };
+enum DesiredRateCase { infinity, fse_ng_paper_case };
 
-enum FseNgUpdateValue { final_rate_only, delay_only };
+enum PriorityCase { equal, rate_flow_double, cwnd_flow_double };
 
-//TODO: Use separate resolvers and option enums for each FSE- type
 class FseConfig {
   public:
-    static FseOpts CurrentFse() {
-      return webrtc::none;
-    }
-
-    static FseNgVersions CurrentFseNgVersion() {
-      return webrtc::extended;
-    }
-
-    static FseNgUpdateValue CurrentFseNgUpdateValue() {
-      return webrtc::delay_only;
-    }
-
-    static DataRate ResolveRateFlowDesiredRate(const int flow_id) {
-      switch (CurrentDesiredRateCase()) {
-        case fse_ng_default:
-          return DataRate::KilobitsPerSec(1500);
-        case infinity:
-          return DataRate::KilobitsPerSec(1000000);
-        case fse_case2:
-          if (flow_id == 0) {
-            return DataRate::KilobitsPerSec(1000);
-          }
-          else {
-            return DataRate::KilobitsPerSec(1000000);
-          }
-      }
-    }
-    
-    static int ResolveRateFlowPriority(const int flow_id) {
-      int priority;
-      switch (CurrentPriorityCase()) {
-        case fse_ng_case1:
-          priority = 2; 
-          break;
-        case fse_case3:
-          if (flow_id == 0) {
-            priority = 1;
-          }
-          else {
-            priority = 2;
-          }
-          break;
-        case all_diff:
-          if (flow_id == 0) {
-            priority = 1;
-          }
-          else {
-            priority = 3;
-          }
-          break;
-        case equal:
-        default:
-          priority = 1;
-      }
-      return priority;
-    }
-
-    static int ResolveCwndFlowPriority(const int flow_id) {
-      switch (CurrentPriorityCase()) {
-        case all_diff:
-          return 2;
-        case fse_ng_case2:
-          return 2;
-        case equal:
-        default:
-          return 1;   
-      }
-    }
+    static FseConfig& Instance();
+    FseVersion CurrentFse();
+    DataRate ResolveDesiredRate(int flow_id);
+    //TODO: the methods below should take in the flow type instead to avoid mistakes
+    int ResolveRateFlowPriority(int flow_id);
+    int ResolveCwndFlowPriority(int flow_id);
   private:
-    static PriorityCases CurrentPriorityCase() {
-      return webrtc::equal;
-    }
-    static DesiredRateCases CurrentDesiredRateCase() {
-      return webrtc::fse_ng_default;
-    }
+    FseConfig();
+    ~FseConfig();
+    FseVersion current_fse_;
+    DesiredRateCase current_desired_rate_case_;
+    PriorityCase current_priority_case_;
 };
 
 }

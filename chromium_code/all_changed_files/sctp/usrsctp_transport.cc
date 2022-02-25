@@ -933,8 +933,7 @@ bool UsrsctpTransport::Connect() {
   }
   // Added by TOBIAS
   RTC_LOG(LS_INFO) << "Checking which FSE to register with";
-  RTC_LOG(LS_VERBOSE) << "Checking which FSE to register with";
-  switch (webrtc::FseConfig::CurrentFse()) {
+  switch (webrtc::FseConfig::Instance().CurrentFse()) {
     case webrtc::fse_ng: {
       RTC_LOG(LS_INFO) << "registering SCTP flow with fse-ng";
       // even though registered here there is no guarantee any SCTP streams are
@@ -942,7 +941,7 @@ bool UsrsctpTransport::Connect() {
       // TODO: could also get rtt here, in case SCTP starts before RTP
       uint32_t initial_max_cwnd_to_register;
       GetMaxCwnd(&initial_max_cwnd_to_register);
-      fse_ng_flow_ = webrtc::FseNg::Instance().RegisterWindowBasedFlow(
+      fse_ng_flow_ = webrtc::FseNg::Instance().RegisterCwndFlow(
               initial_max_cwnd_to_register, *this);
       break;
     }
@@ -1095,7 +1094,7 @@ void UsrsctpTransport::CloseSctpSocket() {
     ready_to_send_data_ = false;
 
     //Added by TOBIAS
-    if (webrtc::FseConfig::CurrentFse() == webrtc::fse_ng 
+    if (webrtc::FseConfig::Instance().CurrentFse() == webrtc::fse_ng 
             && fse_ng_flow_) {
       webrtc::FseNg::Instance().DeRegisterWindowBasedFlow(fse_ng_flow_);
       fse_ng_flow_ = nullptr;
@@ -1650,7 +1649,7 @@ void UsrsctpTransport::SetCwnd(uint32_t cwnd) {
 //this one might be replaced by set_opt actually
 void UsrsctpTransport::SetMaxCwnd(uint32_t max_cwnd) {
   RTC_LOG(LS_INFO) << "SetMaxCwnd was called with max_cwnd:" << max_cwnd;
-  if(webrtc::FseConfig::CurrentFse() == webrtc::fse_ng && started_) {
+  if(webrtc::FseConfig::Instance().CurrentFse() == webrtc::fse_ng && started_) {
     RTC_LOG(LS_INFO) << "usrsctp_set_max_cwnd being called";
     usrsctp_set_max_cwnd(sock_, max_cwnd);
   }

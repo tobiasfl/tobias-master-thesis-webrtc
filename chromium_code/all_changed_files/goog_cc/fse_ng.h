@@ -15,6 +15,8 @@
 #include "api/units/time_delta.h"
 #include "api/units/timestamp.h"
 
+#include "rtc_base/experiments/field_trial_parser.h"
+
 namespace cricket {
 class UsrsctpTransport;
 }
@@ -23,7 +25,7 @@ namespace webrtc {
 
 class SendSideBandwidthEstimation;
 
-class FseNgWindowBasedFlow;
+class FseNgCwndFlow;
 class FseNgRateFlow;
 
 #define CR_DEFINE_STATIC_LOCAL(type, name, arguments) \
@@ -35,18 +37,18 @@ class FseNg {
 
   void RateUpdate(std::shared_ptr<FseNgRateFlow> flow,
                        DataRate new_rate,
-                       DataRate max_rate,
                        TimeDelta last_rtt);
 
-  std::shared_ptr<FseNgWindowBasedFlow> RegisterWindowBasedFlow(
+  std::shared_ptr<FseNgCwndFlow> RegisterCwndFlow(
       uint32_t initial_max_cwnd, 
       cricket::UsrsctpTransport& transport);
   std::shared_ptr<FseNgRateFlow> RegisterRateFlow(
       DataRate initial_rate,
-      DataRate max_rate,
       std::function<void(DataRate)> update_callback);
-  void DeRegisterWindowBasedFlow(std::shared_ptr<FseNgWindowBasedFlow> flow);
+  void DeRegisterWindowBasedFlow(std::shared_ptr<FseNgCwndFlow> flow);
   void DeRegisterRateFlow(std::shared_ptr<FseNgRateFlow> flow);
+
+  bool UpdateValFinalRate() const;
 
  private:
   FseNg();
@@ -63,10 +65,12 @@ class FseNg {
   int rate_flow_id_counter_;
   int cwnd_flow_id_counter_;
 
-  std::unordered_set<std::shared_ptr<FseNgWindowBasedFlow>> cwnd_flows_;
+  std::unordered_set<std::shared_ptr<FseNgCwndFlow>> cwnd_flows_;
   std::unordered_set<std::shared_ptr<FseNgRateFlow>> rate_flows_;
 
   std::mutex fse_mutex_;
+
+  bool update_val_final_rate_;
 
   void OnRateFlowUpdate(
          std::shared_ptr<FseNgRateFlow> flow,

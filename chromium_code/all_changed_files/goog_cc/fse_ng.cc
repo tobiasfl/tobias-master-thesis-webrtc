@@ -1,9 +1,9 @@
 //
 // Created by tobias on 03.10.2021.
 //
-
 #include "modules/congestion_controller/goog_cc/fse_ng.h"
-#include "modules/congestion_controller/goog_cc/fse_config.h"
+
+#include "base/feature_list.h"
 
 #include <algorithm>
 #include <cstdint>
@@ -15,6 +15,7 @@
 #include "api/units/time_delta.h"
 #include "api/units/timestamp.h"
 #include "modules/congestion_controller/goog_cc/fse_flow.h"
+#include "modules/congestion_controller/goog_cc/fse_config.h"
 #include "rtc_base/diagnostic_logging.h"
 #include "rtc_base/logging.h"
 
@@ -24,14 +25,24 @@ class UsrsctpTransport;
 
 namespace webrtc {
 
+const base::Feature kUpdateValFinalRate {
+  "UpdateValFinalRate", base::FEATURE_DISABLED_BY_DEFAULT
+};
+
 FseNg::FseNg()
     : base_rtt_(TimeDelta::PlusInfinity()),
       sum_calculated_rates_(DataRate::Zero()),
       update_call_num(0),
       rate_flow_id_counter_(0),
-      cwnd_flow_id_counter_(0){}
+      cwnd_flow_id_counter_(0),
+      update_val_final_rate_(false){
+  update_val_final_rate_ = base::FeatureList::IsEnabled(kUpdateValFinalRate);
 
-std::shared_ptr<FseNgWindowBasedFlow> FseNg::RegisterWindowBasedFlow(
+  RTC_LOG(LS_INFO) 
+      << "FseNg created with update_val_final_rate_=" << update_val_final_rate_;
+}
+
+std::shared_ptr<FseNgCwndFlow> FseNg::RegisterCwndFlow(
     uint32_t initial_max_cwnd,
     cricket::UsrsctpTransport& transport) {
   fse_mutex_.lock();
@@ -39,8 +50,9 @@ std::shared_ptr<FseNgWindowBasedFlow> FseNg::RegisterWindowBasedFlow(
   RTC_LOG(LS_INFO) << "FseNgRegisterWindowBasedFlow was called";
 
   int id = cwnd_flow_id_counter_++;
-  std::shared_ptr<FseNgWindowBasedFlow> new_flow =
-      std::make_shared<FseNgWindowBasedFlow>(id, FseConfig::ResolveCwndFlowPriority(id), 
+  std::shared_ptr<FseNgCwndFlow> new_flow =
+      std::make_shared<FseNgCwndFlow>(id, 
+              FseConfig::Instance().ResolveCwndFlowPriority(id), 
               initial_max_cwnd, transport);
   cwnd_flows_.insert(new_flow);
 
@@ -51,24 +63,20 @@ std::shared_ptr<FseNgWindowBasedFlow> FseNg::RegisterWindowBasedFlow(
 
 std::shared_ptr<FseNgRateFlow> FseNg::RegisterRateFlow(
     DataRate initial_rate,
-    DataRate max_rate,
     std::function<void(DataRate)> update_callback) {
   fse_mutex_.lock();
 
   RTC_LOG(LS_INFO) 
-      << "registering rate flow in FseNg with init_rate: " 
-      << initial_rate.bps();
+      << "RegisterRateFlow in FseNg with init_rate_kbps: " 
+      << initial_rate.kbps();
 
   int id = rate_flow_id_counter_++;
 
-  //TODO: hacky, should remove this as an argument or get the real value somehow
-  max_rate = FseConfig::ResolveRateFlowDesiredRate(id);
-
   std::shared_ptr<FseNgRateFlow> new_flow = std::make_shared<FseNgRateFlow>(
       id, 
-      FseConfig::ResolveRateFlowPriority(id), 
+      FseConfig::Instance().ResolveRateFlowPriority(id), 
       initial_rate, 
-      max_rate,
+      FseConfig::Instance().ResolveDesiredRate(id),
       update_callback);
 
   rate_flows_.insert(new_flow);
@@ -82,29 +90,28 @@ std::shared_ptr<FseNgRateFlow> FseNg::RegisterRateFlow(
 
 void FseNg::RateUpdate(std::shared_ptr<FseNgRateFlow> flow,
                        DataRate new_rate,
-                       DataRate max_rate,
                        TimeDelta last_rtt) {
   fse_mutex_.lock();
 
   update_call_num++;
 
-  //TODO: hacky, should remove this as an argument or get the real value somehow
-  max_rate = FseConfig::ResolveRateFlowDesiredRate(flow->Id());
-
-  flow->SetCurrMaxRate(max_rate);
+  flow->SetCurrMaxRate(FseConfig::Instance().ResolveDesiredRate(flow->Id()));
 
   //If rtt is 0, assume there is no real measurement yet and say it is infinity
   //so that base_rtt is never set to 0
+  //This line only relevant if UpdateValFinalRate is enabled
+  //since AimdRateControl has a default rtt of 200ms
   last_rtt = last_rtt == TimeDelta::Zero() ? TimeDelta::PlusInfinity() : last_rtt;
-
+ 
   int64_t relative_rate_change_bps = new_rate.bps() - flow->FseRate().bps();
+
   RTC_LOG(LS_INFO) 
       << "PLOT_THISFSE_NG" << flow->Id()
       << " relative_rate_change=" 
       << relative_rate_change_bps/1000
       << " new_rate=" << new_rate.kbps()
       << " max_rate=" << flow->CurrMaxRate().kbps()
-      << " last_rtt=" << last_rtt.ms();
+      << " last_rtt=" << (last_rtt.IsFinite() ? last_rtt.ms() : 0);
 
   OnRateFlowUpdate(
           flow, 
@@ -115,8 +122,8 @@ void FseNg::RateUpdate(std::shared_ptr<FseNgRateFlow> flow,
   RTC_LOG(LS_INFO) 
       << "PLOT_THISFSENG new sum_calculated_rates_=" 
       << sum_calculated_rates_.kbps()
-      << " base_rtt_=" << base_rtt_.ms();
-
+      << " base_rtt_=" << (base_rtt_.IsFinite() ? base_rtt_.ms() : 0);
+  
   fse_mutex_.unlock();
 }
 
@@ -144,7 +151,8 @@ void FseNg::OnRateFlowUpdate(std::shared_ptr<FseNgRateFlow> flow,
     DataRate sum_cwnd_rates = sum_calculated_rates_ - sum_rtp_rates;
     UpdateCwndFlows(sum_cwnd_rates);
   }
-
+  //TODO: Maybe check if all RTP flows are application limited as well
+  //TODO:This one might actually be removable if we make it so updating S_CR handles it
   if (cwnd_flows_.empty() || !rtt_is_valid) {
     //Extension, to make sure there is no extra unallocated bandwidth accumulating
     //when there are no SCTP flows to spend it
@@ -156,34 +164,25 @@ void FseNg::UpdateSumCalculatedRates(
         int64_t relative_rate_change_bps, 
         DataRate cc_rate,
         DataRate prev_fse_rate) {
-  if (FseConfig::CurrentFseNgVersion() == extended) {
-     //Fixed version of update, since the paper pseudocode was unclear
-    sum_calculated_rates_ = 
-        DataRate::BitsPerSec(sum_calculated_rates_.bps() + relative_rate_change_bps);
+  int64_t sum_of_difference = 
+      sum_calculated_rates_.bps() + cc_rate.bps() - prev_fse_rate.bps();
+  if (cwnd_flows_.empty() || AllRateFlowsApplicationLimited()) {
+    sum_calculated_rates_ = DataRate::BitsPerSec(sum_of_difference);
   }
   else {
-    int64_t sum_of_difference = 
-        sum_calculated_rates_.bps() + cc_rate.bps() - prev_fse_rate.bps();
-    if (cwnd_flows_.empty() || AllRateFlowsApplicationLimited()) {
-      sum_calculated_rates_ = DataRate::BitsPerSec(sum_of_difference);
-    }
-    else {
-      sum_calculated_rates_ = 
-          DataRate::BitsPerSec(sum_of_difference + relative_rate_change_bps);
-    }  
-  }
+    sum_calculated_rates_ = 
+        DataRate::BitsPerSec(sum_of_difference + relative_rate_change_bps);
+  }  
 }
 
 DataRate FseNg::UpdateRateFlows(int sum_priorities) {
   DataRate sum_rtp_rates = DataRate::Zero();
-
   for (const auto& rate_flow : rate_flows_) {
     // We use the max_rate of the corresponding stream, 
     // because they might have different
     // limitations based on quality of the stream, config, etc.
     DataRate fse_rate = std::min((rate_flow->Priority() * sum_calculated_rates_) 
             / sum_priorities, rate_flow->CurrMaxRate());
-    //TODO: also clamp with min rate?
     rate_flow->UpdateFlow(fse_rate);
   
     sum_rtp_rates += fse_rate;
@@ -214,7 +213,7 @@ bool FseNg::AllRateFlowsApplicationLimited() const {
   return true;
 }
 
-void FseNg::DeRegisterWindowBasedFlow(std::shared_ptr<FseNgWindowBasedFlow> flow) {
+void FseNg::DeRegisterWindowBasedFlow(std::shared_ptr<FseNgCwndFlow> flow) {
   fse_mutex_.lock();
 
   RTC_LOG(LS_INFO) << "DeRegisterWindowBasedFlow was called";
@@ -225,16 +224,8 @@ void FseNg::DeRegisterWindowBasedFlow(std::shared_ptr<FseNgWindowBasedFlow> flow
 
 void FseNg::DeRegisterRateFlow(std::shared_ptr<FseNgRateFlow> flow) {
   fse_mutex_.lock();
-  RTC_LOG(LS_INFO) 
-      << "DeRegisterRateFlow was called, removing rate kbps: " 
-      << flow->InitialRate().bps()
-      << " from sum_calculated_rates_ kbps: "
-      << sum_calculated_rates_.kbps();
-  //According to paper, RTP flows should remove their initial sending rate
 
-  sum_calculated_rates_ = sum_calculated_rates_ >= flow->InitialRate() 
-      ? sum_calculated_rates_ - flow->InitialRate() 
-      : DataRate::Zero();
+  RTC_LOG(LS_INFO) << "DeRegisterRateFlow removing rate flow with id:" << flow->Id();
 
   rate_flows_.erase(flow);
 
@@ -274,6 +265,10 @@ int FseNg::SumCwndPriorities() const {
       sum_priorities += i->Priority();
     }
     return sum_priorities;
+}
+
+bool FseNg::UpdateValFinalRate() const {
+  return update_val_final_rate_;
 }
 
 FseNg& FseNg::Instance() {

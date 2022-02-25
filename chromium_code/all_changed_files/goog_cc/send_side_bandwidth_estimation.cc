@@ -658,12 +658,12 @@ void SendSideBandwidthEstimation::MaybeLogLossBasedEvent(Timestamp at_time) {
 
 void SendSideBandwidthEstimation::UpdateTargetBitrate(DataRate new_bitrate,
                                                       Timestamp at_time) {
-  FseOpts fse_opt = FseConfig::CurrentFse();
+  FseVersion fse_opt = FseConfig::Instance().CurrentFse();
   if (fse_opt == fse) {
     FseUpdateTargetBitrate(new_bitrate, at_time);
   }
   else if (fse_opt == fse_ng 
-          && FseConfig::CurrentFseNgUpdateValue() == final_rate_only) {
+          && FseNg::Instance().UpdateValFinalRate()) {
     FseNgUpdateTargetBitrate(new_bitrate, at_time);
   }
   else {
@@ -692,7 +692,7 @@ void SendSideBandwidthEstimation::FseUpdateTargetBitrate(DataRate new_bitrate, T
   FlowStateExchange::Instance()
       .Update(fseFlow_, 
               new_bitrate, 
-              FseConfig::ResolveRateFlowDesiredRate(fseFlow_->Id()), 
+              DataRate::KilobitsPerSec(1000), 
               at_time);
 }
 
@@ -708,22 +708,15 @@ void SendSideBandwidthEstimation::FseNgUpdateTargetBitrate(
   current_target_ = new_bitrate; 
   MaybeLogLossBasedEvent(at_time);
 
-  //TODO: desired_rate will be overwritten by resolver inside fse_ng, fix inconsistency
-  DataRate desired_rate = std::min(
-          DataRate::KilobitsPerSec(1500), max_bitrate_configured_); 
-
-
   if(!fseNgFlow_) {
     fseNgFlow_ = FseNg::Instance().RegisterRateFlow(
-            new_bitrate, 
-            desired_rate, 
+            current_target_, 
             [this](DataRate fse_rate) { this->current_target_ = fse_rate; } );
   }
 
   FseNg::Instance().RateUpdate(
           fseNgFlow_, 
           new_bitrate, 
-          desired_rate,
           last_round_trip_time_);
 
   link_capacity_.OnRateUpdate(acknowledged_rate_, current_target_, at_time);

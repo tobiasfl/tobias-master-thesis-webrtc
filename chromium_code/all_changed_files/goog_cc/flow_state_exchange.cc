@@ -105,9 +105,9 @@ std::shared_ptr<RateFlow> FlowStateExchange::Register(
   int flow_id = flow_id_counter_++;
   std::shared_ptr<RateFlow> newFlow = std::make_shared<RateFlow>(
       flow_id, 
-      FseConfig::ResolveRateFlowPriority(flow_id), 
+      priority, 
       initial_bit_rate, 
-      FseConfig::ResolveRateFlowDesiredRate(flow_id), 
+      desired_rate, 
       cc);
 
   RTC_LOG(LS_INFO) << "FSE Registering new flow with id: " << flow_id;

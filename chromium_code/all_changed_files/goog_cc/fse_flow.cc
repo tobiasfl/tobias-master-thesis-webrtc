@@ -92,7 +92,7 @@ void WindowBasedFlow::UpdateCc(uint32_t cwnd) {
   sctp_transport_.SetCwnd(cwnd);
 }
 
-FseNgWindowBasedFlow::FseNgWindowBasedFlow(int id,
+FseNgCwndFlow::FseNgCwndFlow(int id,
                                            int priority,
                                            uint32_t initial_max_cwnd,
                                            cricket::UsrsctpTransport& transport)
@@ -102,13 +102,14 @@ FseNgWindowBasedFlow::FseNgWindowBasedFlow(int id,
   RTC_LOG(LS_INFO) << "creating a FseNgWindowBasedFlow";
 }
 
-FseNgWindowBasedFlow::~FseNgWindowBasedFlow() = default;
+FseNgCwndFlow::~FseNgCwndFlow() = default;
 
-void FseNgWindowBasedFlow::UpdateCc(uint32_t max_cwnd) {
+void FseNgCwndFlow::UpdateCc(uint32_t max_cwnd) {
+  //TODO: this should be a callback instead
   sctp_transport_.SetMaxCwnd(max_cwnd);
 }
 
-uint32_t FseNgWindowBasedFlow::GetInitialMaxCwnd() {
+uint32_t FseNgCwndFlow::GetInitialMaxCwnd() {
   return initial_max_cwnd_;
 }
 
@@ -119,7 +120,6 @@ FseNgRateFlow::FseNgRateFlow(
                 DataRate initial_max_rate,
                 std::function<void(DataRate)> update_callback)
     : FseFlow(id, priority),
-      initial_rate_(initial_bit_rate),
       fse_rate_(initial_bit_rate),
       curr_max_rate_(initial_max_rate),
       update_callback_(update_callback) {
@@ -138,10 +138,6 @@ void FseNgRateFlow::UpdateFlow(DataRate new_fse_rate) {
 
 DataRate FseNgRateFlow::FseRate() const {
     return fse_rate_;
-}
-
-DataRate FseNgRateFlow::InitialRate() const {
-    return initial_rate_;
 }
 
 bool FseNgRateFlow::IsApplicationLimited() {
