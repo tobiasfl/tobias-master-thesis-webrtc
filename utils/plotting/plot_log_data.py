@@ -93,5 +93,4 @@ with open("log.txt") as logfile:
     else:
         df = extract_info(lines, args[1], 'PLOT_THIS')
         plot_line_plot(df, "Time (s)", args[1])
-        plot_scatter_plot(df, "Time (s)", args[1])
     

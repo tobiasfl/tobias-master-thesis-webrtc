@@ -37,9 +37,9 @@ class RateFlow : public FseFlow {
            int priority,
            DataRate fse_rate,
            DataRate desired_rate,
-           SendSideBandwidthEstimation& flow_cc);
+           std::function<void(DataRate)> update_callback);
   ~RateFlow() override;
-  void UpdateCc(Timestamp at_time);
+  void UpdateCc();
   DataRate FseRate() const;
   void SetFseRate(DataRate new_rate);
   DataRate DesiredRate() const;
@@ -48,7 +48,9 @@ class RateFlow : public FseFlow {
  private:
   DataRate fse_rate_;
   DataRate desired_rate_;
-  SendSideBandwidthEstimation& flow_cc_;
+  //Callback function registered by the congestion controller to apply updates with
+  std::function<void(DataRate)> update_callback_;
+
 };
 
 class WindowBasedFlow : public FseFlow {

@@ -29,7 +29,6 @@
 #include "modules/congestion_controller/goog_cc/loss_based_bwe_v2.h"
 #include "rtc_base/experiments/field_trial_parser.h"
 
-#include "modules/congestion_controller/goog_cc/flow_state_exchange.h"
 #include "modules/congestion_controller/goog_cc/fse_flow.h"
 #include "modules/congestion_controller/goog_cc/fse_ng.h"
 
@@ -117,7 +116,6 @@ class SendSideBandwidthEstimation {
                    DataRate max_bitrate,
                    Timestamp at_time);
   void SetSendBitrate(DataRate bitrate, Timestamp at_time);
-  void FseUpdateTargetBitrateOld(DataRate new_bitrate, Timestamp at_time);
   void SetMinMaxBitrate(DataRate min_bitrate, DataRate max_bitrate);
   int GetMinBitrate() const;
   void SetAcknowledgedRate(absl::optional<DataRate> acknowledged_rate,
@@ -208,9 +206,7 @@ class SendSideBandwidthEstimation {
 
 
   // Added by TOBIAS
-  std::shared_ptr<RateFlow> fseFlow_;
   std::shared_ptr<FseNgRateFlow> fseNgFlow_;
-  void FseUpdateTargetBitrate(DataRate new_bitrate, Timestamp at_time);
   void FseNgUpdateTargetBitrate(DataRate new_bitrate, Timestamp at_time);
   // Added by TOBIAS
 };

@@ -118,6 +118,8 @@ class AimdRateControl {
   FieldTrialFlag link_capacity_fix_;
 
   //ADDED BY TOBIAS
+  std::shared_ptr<RateFlow> fseFlow_;
+  void FseChangeBitrate(DataRate new_bitrate);
   std::shared_ptr<FseNgRateFlow> fseNgFlow_;
   void FseNgChangeBitrate(DataRate new_bitrate);
   //ADDED BY TOBIAS

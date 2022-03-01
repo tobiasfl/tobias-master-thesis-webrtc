@@ -116,6 +116,9 @@ AimdRateControl::AimdRateControl(const WebRtcKeyValueConfig* key_value_config,
 
 AimdRateControl::~AimdRateControl() {
   // ADDED BY TOBIAS
+  if (fseFlow_) {
+    FlowStateExchange::Instance().DeRegister(fseFlow_);
+  }
   if (fseNgFlow_) {
     FseNg::Instance().DeRegisterRateFlow(fseNgFlow_);
   }
@@ -388,6 +391,10 @@ void AimdRateControl::ChangeBitrate(const RateControlInput& input,
   }
 
   switch (FseConfig::Instance().CurrentFse()) {
+    case fse: {
+      FseChangeBitrate(new_bitrate.value_or(current_bitrate_));
+      break;
+    }
     case fse_ng: {
       FseNgChangeBitrate(new_bitrate.value_or(current_bitrate_));
       break;
@@ -397,6 +404,27 @@ void AimdRateControl::ChangeBitrate(const RateControlInput& input,
      }
   }
 }
+
+
+void AimdRateControl::FseChangeBitrate(DataRate new_bitrate) {
+  if (estimate_bounded_increase_ && network_estimate_) {
+    DataRate upper_bound = network_estimate_->link_capacity_upper;
+    new_bitrate = std::min(new_bitrate, upper_bound);
+  }
+  new_bitrate = std::max(new_bitrate, min_configured_bitrate_);
+  
+  if (!fseFlow_) {
+    fseFlow_ = FlowStateExchange::Instance().Register(
+            current_bitrate_, 
+            [this](DataRate fse_rate) { this->current_bitrate_ = fse_rate; } );
+  }
+  
+  FlowStateExchange::Instance().Update(
+          fseFlow_,
+          new_bitrate);
+}
+
+
 
 void AimdRateControl::FseNgChangeBitrate(DataRate new_bitrate) {
   if (!FseNg::Instance().UpdateValFinalRate()) {

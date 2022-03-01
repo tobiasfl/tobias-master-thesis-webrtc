@@ -23,9 +23,9 @@ struct FseNgExperimentConfig {
 
 enum FseVersion { none, fse, fse_ng};
 
-enum DesiredRateCase { infinity, fse_ng_paper_case };
+enum DesiredRateCase { infinity, fse_ng_paper_case, fse_case_2 };
 
-enum PriorityCase { equal, rate_flow_double, cwnd_flow_double };
+enum PriorityCase { equal, rate_flow_double, cwnd_flow_double, varied, fse_case_3 };
 
 class FseConfig {
   public:

@@ -40,6 +40,18 @@ const base::Feature kPriorityCwndFlowDouble {
   "PriorityCwndFlowDouble", base::FEATURE_DISABLED_BY_DEFAULT
 };
 
+const base::Feature kPriorityVaried {
+  "PriorityVaried", base::FEATURE_DISABLED_BY_DEFAULT
+};
+
+const base::Feature kDesiredRateFseCase2 {
+  "DesiredRateFseCase2", base::FEATURE_DISABLED_BY_DEFAULT
+};
+
+const base::Feature kPriorityFseCase3 {
+  "PriorityFseCase3", base::FEATURE_DISABLED_BY_DEFAULT
+};
+
 FseConfig::FseConfig() {
   current_fse_ = none;
   if (base::FeatureList::IsEnabled(kFse)) {
@@ -56,14 +68,22 @@ FseConfig::FseConfig() {
   if (base::FeatureList::IsEnabled(kDesiredRateFseNgPaperCase)) {
     current_desired_rate_case_ = fse_ng_paper_case;
   }
+  if (base::FeatureList::IsEnabled(kDesiredRateFseCase2)) {
+    current_desired_rate_case_ = fse_case_2;
+  }
 
   current_priority_case_ = equal;
   if (base::FeatureList::IsEnabled(kPriorityRateFlowDouble)) {
     current_priority_case_ = rate_flow_double;
   }
-
   if (base::FeatureList::IsEnabled(kPriorityCwndFlowDouble)) {
     current_priority_case_ = cwnd_flow_double;
+  }
+  if (base::FeatureList::IsEnabled(kPriorityVaried)) {
+    current_priority_case_ = varied;
+  }
+  if (base::FeatureList::IsEnabled(kPriorityFseCase3)) {
+    current_priority_case_ = fse_case_3;
   }
 
   RTC_LOG(LS_INFO) 
@@ -78,6 +98,15 @@ DataRate FseConfig::ResolveDesiredRate(int flow_id) {
       return DataRate::KilobitsPerSec(1000000); //1gigabit
     case fse_ng_paper_case:
       return DataRate::KilobitsPerSec(1500);
+    case fse_case_2:
+      switch (flow_id) {
+        case 0:
+          return DataRate::KilobitsPerSec(1000);
+        case 1:
+          return DataRate::KilobitsPerSec(1000000); //1gigabit
+        default:
+          return DataRate::KilobitsPerSec(1000000); //1gigabit
+      }
   }
 }
 
@@ -87,6 +116,24 @@ int FseConfig::ResolveRateFlowPriority(int flow_id) {
       return 1;
     case rate_flow_double:
       return 2;
+    case varied:
+      switch (flow_id) {
+        case 0:
+          return 1;
+        case 1:
+          return 3;
+        default:
+          return 1;
+      }
+    case fse_case_3:
+      switch (flow_id) {
+        case 0:
+          return 1;
+        case 1:
+          return 2;
+        default:
+          return 1;
+      }
     default:
       return 1;
   }
@@ -97,6 +144,8 @@ int FseConfig::ResolveCwndFlowPriority(int flow_id) {
     case equal:
       return 1;
     case cwnd_flow_double:
+      return 2;
+    case varied:
       return 2;
     default:
       return 1;

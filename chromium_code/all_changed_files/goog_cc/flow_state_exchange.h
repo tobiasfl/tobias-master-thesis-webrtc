@@ -35,14 +35,10 @@ class FlowStateExchange {
 
   // creates a Flow object, assigns to FG and returns the flow
   std::shared_ptr<RateFlow> Register(DataRate initial_bit_rate,
-                                     DataRate desired_rate,
-                                     int priority,
-                                     SendSideBandwidthEstimation& cc);
+                                     std::function<void(DataRate)> update_callback);
   void DeRegister(std::shared_ptr<RateFlow> flow);
   void Update(std::shared_ptr<RateFlow> flow,
-              DataRate cc_rate,
-              DataRate desired_rate,
-              Timestamp at_time);
+              DataRate new_rate);
 
  private:
   FlowStateExchange();
@@ -54,9 +50,7 @@ class FlowStateExchange {
 
   void PrintFseGroupState();
   void OnFlowUpdated(std::shared_ptr<RateFlow> flow,
-                     DataRate cc_rate,
-                     DataRate desired_rate,
-                     Timestamp at_time);
+                     DataRate cc_rate);
 };
 
 }  // namespace webrtc

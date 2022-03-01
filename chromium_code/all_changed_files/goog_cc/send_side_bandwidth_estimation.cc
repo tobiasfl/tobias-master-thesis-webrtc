@@ -253,9 +253,6 @@ SendSideBandwidthEstimation::SendSideBandwidthEstimation(
 
 SendSideBandwidthEstimation::~SendSideBandwidthEstimation() {
   //Added By TOBIAS
-  if(fseFlow_) {
-    FlowStateExchange::Instance().DeRegister(fseFlow_);
-  }
   if(fseNgFlow_) {
     FseNg::Instance().DeRegisterRateFlow(fseNgFlow_);
   }
@@ -659,10 +656,7 @@ void SendSideBandwidthEstimation::MaybeLogLossBasedEvent(Timestamp at_time) {
 void SendSideBandwidthEstimation::UpdateTargetBitrate(DataRate new_bitrate,
                                                       Timestamp at_time) {
   FseVersion fse_opt = FseConfig::Instance().CurrentFse();
-  if (fse_opt == fse) {
-    FseUpdateTargetBitrate(new_bitrate, at_time);
-  }
-  else if (fse_opt == fse_ng 
+  if (fse_opt == fse_ng 
           && FseNg::Instance().UpdateValFinalRate()) {
     FseNgUpdateTargetBitrate(new_bitrate, at_time);
   }
@@ -680,20 +674,6 @@ void SendSideBandwidthEstimation::UpdateTargetBitrate(DataRate new_bitrate,
     MaybeLogLossBasedEvent(at_time);
     link_capacity_.OnRateUpdate(acknowledged_rate_, current_target_, at_time);
   }
-}
-
-void SendSideBandwidthEstimation::FseUpdateTargetBitrate(DataRate new_bitrate, Timestamp at_time) {
-  if(!fseFlow_) {
-      fseFlow_ = FlowStateExchange::Instance()
-          .Register(new_bitrate, DataRate::Infinity(), 1, *this);
-  }
-  new_bitrate = std::min(new_bitrate, GetUpperLimit());
-
-  FlowStateExchange::Instance()
-      .Update(fseFlow_, 
-              new_bitrate, 
-              DataRate::KilobitsPerSec(1000), 
-              at_time);
 }
 
 void SendSideBandwidthEstimation::FseNgUpdateTargetBitrate(
@@ -721,13 +701,6 @@ void SendSideBandwidthEstimation::FseNgUpdateTargetBitrate(
 
   link_capacity_.OnRateUpdate(acknowledged_rate_, current_target_, at_time);
 }
-
-//TODO: remove this and use callback instead
-void SendSideBandwidthEstimation::FseUpdateTargetBitrateOld(DataRate new_bitrate,
-                                                         Timestamp at_time) {
-  current_target_ = new_bitrate;
-}
-
 
 void SendSideBandwidthEstimation::ApplyTargetLimits(Timestamp at_time) {
 

@@ -42,18 +42,17 @@ RateFlow::RateFlow(int id,
                    int priority,
                    DataRate fse_rate,
                    DataRate desired_rate,
-                   SendSideBandwidthEstimation& flow_cc)
+                   std::function<void(DataRate)> update_callback)
     : FseFlow(id, priority),
       fse_rate_(fse_rate),
       desired_rate_(desired_rate),
-      flow_cc_(flow_cc) {}
+      update_callback_(update_callback) {}
 
 RateFlow::~RateFlow() = default;
 
-void RateFlow::UpdateCc(Timestamp at_time) {
-
-  RTC_LOG(LS_INFO) << "PLOT_THIS_SRTP_FSE_RATE_KBPS" << id_ << " rate=" << FseRate().kbps();
-  flow_cc_.FseUpdateTargetBitrateOld(fse_rate_, at_time);
+void RateFlow::UpdateCc() {
+  update_callback_(FseRate());
+  RTC_LOG(LS_INFO) << "PLOT_THIS_RTP_FSE_RATE_KBPS" << id_ << " rate=" << FseRate().kbps();
 }
 
 DataRate RateFlow::FseRate() const {
@@ -129,7 +128,8 @@ FseNgRateFlow::FseNgRateFlow(
 FseNgRateFlow::~FseNgRateFlow() = default;
 
 void FseNgRateFlow::UpdateFlow(DataRate new_fse_rate) {
-  RTC_LOG(LS_INFO) << "PLOT_THIS_SRTP_FSE_RATE_KBPS" << id_ 
+  RTC_LOG(LS_INFO) 
+      << "PLOT_THIS_SRTP_FSE_RATE_KBPS" << id_ 
       << " rate=" << new_fse_rate.kbps();
 
   fse_rate_ = new_fse_rate;
