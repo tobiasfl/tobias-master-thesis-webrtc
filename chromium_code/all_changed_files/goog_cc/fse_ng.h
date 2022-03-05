@@ -25,8 +25,8 @@ namespace webrtc {
 
 class SendSideBandwidthEstimation;
 
-class FseNgCwndFlow;
-class FseNgRateFlow;
+class CwndFlow;
+class RateFlow;
 
 #define CR_DEFINE_STATIC_LOCAL(type, name, arguments) \
   static type& name = *new type arguments
@@ -35,18 +35,18 @@ class FseNg {
  public:
   static FseNg& Instance();
 
-  void RateUpdate(std::shared_ptr<FseNgRateFlow> flow,
+  void RateUpdate(std::shared_ptr<RateFlow> flow,
                        DataRate new_rate,
                        TimeDelta last_rtt);
 
-  std::shared_ptr<FseNgCwndFlow> RegisterCwndFlow(
+  std::shared_ptr<CwndFlow> RegisterCwndFlow(
       uint32_t initial_max_cwnd, 
-      cricket::UsrsctpTransport& transport);
-  std::shared_ptr<FseNgRateFlow> RegisterRateFlow(
+      std::function<void(uint32_t)> update_callback);
+  std::shared_ptr<RateFlow> RegisterRateFlow(
       DataRate initial_rate,
       std::function<void(DataRate)> update_callback);
-  void DeRegisterWindowBasedFlow(std::shared_ptr<FseNgCwndFlow> flow);
-  void DeRegisterRateFlow(std::shared_ptr<FseNgRateFlow> flow);
+  void DeRegisterWindowBasedFlow(std::shared_ptr<CwndFlow> flow);
+  void DeRegisterRateFlow(std::shared_ptr<RateFlow> flow);
 
   bool UpdateValFinalRate() const;
 
@@ -65,15 +65,15 @@ class FseNg {
   int rate_flow_id_counter_;
   int cwnd_flow_id_counter_;
 
-  std::unordered_set<std::shared_ptr<FseNgCwndFlow>> cwnd_flows_;
-  std::unordered_set<std::shared_ptr<FseNgRateFlow>> rate_flows_;
+  std::unordered_set<std::shared_ptr<CwndFlow>> cwnd_flows_;
+  std::unordered_set<std::shared_ptr<RateFlow>> rate_flows_;
 
   std::mutex fse_mutex_;
 
   bool update_val_final_rate_;
 
   void OnRateFlowUpdate(
-         std::shared_ptr<FseNgRateFlow> flow,
+         std::shared_ptr<RateFlow> flow,
          int64_t relative_rate_change_bps,
          DataRate cc_rate,
          TimeDelta last_rtt);

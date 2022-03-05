@@ -117,10 +117,18 @@ AimdRateControl::AimdRateControl(const WebRtcKeyValueConfig* key_value_config,
 AimdRateControl::~AimdRateControl() {
   // ADDED BY TOBIAS
   if (fseFlow_) {
-    FlowStateExchange::Instance().DeRegister(fseFlow_);
-  }
-  if (fseNgFlow_) {
-    FseNg::Instance().DeRegisterRateFlow(fseNgFlow_);
+    switch (FseConfig::Instance().CurrentFse()) {
+      case fse: {
+        FlowStateExchange::Instance().DeRegister(fseFlow_);
+        break;
+      }
+      case fse_ng: {
+        FseNg::Instance().DeRegisterRateFlow(fseFlow_);
+        break;
+      }
+      default:
+        break;
+    }
   }
   // ADDED BY TOBIAS
 }
@@ -434,14 +442,14 @@ void AimdRateControl::FseNgChangeBitrate(DataRate new_bitrate) {
     }
     new_bitrate = std::max(new_bitrate, min_configured_bitrate_);
 
-    if (!fseNgFlow_) {
-      fseNgFlow_ = FseNg::Instance().RegisterRateFlow(
+    if (!fseFlow_) {
+      fseFlow_ = FseNg::Instance().RegisterRateFlow(
               current_bitrate_, 
               [this](DataRate fse_rate) { this->current_bitrate_ = fse_rate; } );
     }
 
     FseNg::Instance().RateUpdate(
-            fseNgFlow_,
+            fseFlow_,
             new_bitrate,
             rtt_);
   }

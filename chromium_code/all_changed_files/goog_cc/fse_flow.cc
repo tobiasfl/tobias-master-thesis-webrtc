@@ -46,13 +46,15 @@ RateFlow::RateFlow(int id,
     : FseFlow(id, priority),
       fse_rate_(fse_rate),
       desired_rate_(desired_rate),
-      update_callback_(update_callback) {}
+      update_callback_(update_callback) {
+  RTC_LOG(LS_INFO) << "Creating a RateFlow";
+}
 
 RateFlow::~RateFlow() = default;
 
 void RateFlow::UpdateCc() {
-  update_callback_(FseRate());
   RTC_LOG(LS_INFO) << "PLOT_THIS_RTP_FSE_RATE_KBPS" << id_ << " rate=" << FseRate().kbps();
+  update_callback_(FseRate());
 }
 
 DataRate RateFlow::FseRate() const {
@@ -71,85 +73,28 @@ void RateFlow::SetDesiredRate(DataRate new_rate) {
   desired_rate_ = new_rate;
 }
 
-WindowBasedFlow::WindowBasedFlow(int id,
-                                 int priority,
-                                 uint32_t initial_cwnd,
-                                 uint64_t last_rtt,
-                                 cricket::UsrsctpTransport& flow_cc)
-    : FseFlow(id, priority),
-      cwnd_(initial_cwnd),
-      last_rtt_(last_rtt),
-      sctp_transport_(flow_cc) {
-  RTC_LOG(LS_INFO) << "creating a WindowBasedFlow";
+bool RateFlow::IsApplicationLimited() {
+    return FseRate() >= desired_rate_;
 }
 
-WindowBasedFlow::~WindowBasedFlow() = default;
-
-void WindowBasedFlow::UpdateCc(uint32_t cwnd) {
-  RTC_LOG(LS_INFO) << "WindowBasedFlow gonna call FseUpdate" << cwnd_ << " "
-                   << last_rtt_;
-  sctp_transport_.SetCwnd(cwnd);
-}
-
-FseNgCwndFlow::FseNgCwndFlow(int id,
-                                           int priority,
-                                           uint32_t initial_max_cwnd,
-                                           cricket::UsrsctpTransport& transport)
+CwndFlow::CwndFlow(int id,
+                   int priority,
+                   uint32_t initial_max_cwnd,
+                   std::function<void(uint32_t)> update_callback)
     : FseFlow(id, priority), 
     initial_max_cwnd_(initial_max_cwnd), 
-    sctp_transport_(transport) {
+    update_callback_(update_callback) {
   RTC_LOG(LS_INFO) << "creating a FseNgWindowBasedFlow";
 }
 
-FseNgCwndFlow::~FseNgCwndFlow() = default;
+CwndFlow::~CwndFlow() = default;
 
-void FseNgCwndFlow::UpdateCc(uint32_t max_cwnd) {
-  //TODO: this should be a callback instead
-  sctp_transport_.SetMaxCwnd(max_cwnd);
+void CwndFlow::UpdateCc(uint32_t max_cwnd) {
+  update_callback_(max_cwnd);
 }
 
-uint32_t FseNgCwndFlow::GetInitialMaxCwnd() {
+uint32_t CwndFlow::GetInitialMaxCwnd() {
   return initial_max_cwnd_;
-}
-
-FseNgRateFlow::FseNgRateFlow(
-                int id,
-                int priority,
-                DataRate initial_bit_rate,
-                DataRate initial_max_rate,
-                std::function<void(DataRate)> update_callback)
-    : FseFlow(id, priority),
-      fse_rate_(initial_bit_rate),
-      curr_max_rate_(initial_max_rate),
-      update_callback_(update_callback) {
-  RTC_LOG(LS_INFO) << "creating a FseNgRateFlow";
-}
-
-FseNgRateFlow::~FseNgRateFlow() = default;
-
-void FseNgRateFlow::UpdateFlow(DataRate new_fse_rate) {
-  RTC_LOG(LS_INFO) 
-      << "PLOT_THIS_SRTP_FSE_RATE_KBPS" << id_ 
-      << " rate=" << new_fse_rate.kbps();
-
-  fse_rate_ = new_fse_rate;
-  update_callback_(new_fse_rate);
-}
-
-DataRate FseNgRateFlow::FseRate() const {
-    return fse_rate_;
-}
-
-bool FseNgRateFlow::IsApplicationLimited() {
-    return FseRate() >= curr_max_rate_;
-}
-
-void FseNgRateFlow::SetCurrMaxRate(DataRate max_rate) {
-    curr_max_rate_ = max_rate;
-}
-
-DataRate FseNgRateFlow::CurrMaxRate() const {
-    return curr_max_rate_;
 }
 
 }  // namespace webrtc

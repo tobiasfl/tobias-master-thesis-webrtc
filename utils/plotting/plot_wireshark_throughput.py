@@ -35,7 +35,7 @@ args = sys.argv
 
 if len(args) == 2:
     df = get_df(args[1])
-    plot_line_plot(df, "Time (s)", "Throughput (Mbps)")
+    plot_line_plot(df, "Time(s)", "Throughput(Mbps)")
 elif len(args) == 5:
     df1 = get_df(args[1])
     df2 = get_df(args[2])

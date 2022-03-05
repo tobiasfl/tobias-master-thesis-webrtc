@@ -7,12 +7,6 @@
 #include "api/units/time_delta.h"
 #include "api/units/timestamp.h"
 
-namespace cricket {
-
-class UsrsctpTransport;
-
-}
-
 namespace webrtc {
 
 class SendSideBandwidthEstimation;
@@ -44,7 +38,7 @@ class RateFlow : public FseFlow {
   void SetFseRate(DataRate new_rate);
   DataRate DesiredRate() const;
   void SetDesiredRate(DataRate new_rate);
-
+  bool IsApplicationLimited();
  private:
   DataRate fse_rate_;
   DataRate desired_rate_;
@@ -53,59 +47,19 @@ class RateFlow : public FseFlow {
 
 };
 
-class WindowBasedFlow : public FseFlow {
+class CwndFlow : public FseFlow {
  public:
-  WindowBasedFlow(int id,
-                  int priority,
-                  uint32_t initial_cwnd,
-                  uint64_t last_rtt,
-                  cricket::UsrsctpTransport& flow_cc);
-  ~WindowBasedFlow() override;
-  void UpdateCc(uint32_t cwnd);
-
- private:
-  uint32_t cwnd_;
-  uint64_t last_rtt_;
-  cricket::UsrsctpTransport& sctp_transport_;
-};
-
-class FseNgCwndFlow : public FseFlow {
- public:
-  FseNgCwndFlow(int id,
-                       int priority,
-                       uint32_t initial_max_cwnd,
-                       cricket::UsrsctpTransport& flow_cc);
-  ~FseNgCwndFlow() override;
+  CwndFlow(int id,
+           int priority,
+           uint32_t initial_max_cwnd,
+           std::function<void(uint32_t)> update_callback);
+  ~CwndFlow() override;
   void UpdateCc(uint32_t max_cwnd);
   uint32_t GetInitialMaxCwnd();
     
  private:
   uint32_t initial_max_cwnd_;
-  cricket::UsrsctpTransport& sctp_transport_;
-};
-
-class FseNgRateFlow : public FseFlow {
- public:
-  FseNgRateFlow(int id,
-                int priority,
-                DataRate initial_bit_rate,
-                DataRate initial_max_rate,
-                std::function<void(DataRate)> update_callback);
-  ~FseNgRateFlow() override;
-  void UpdateFlow(DataRate new_fse_rate);
-  DataRate FseRate() const;
-  bool IsApplicationLimited();
-  void SetCurrMaxRate(DataRate max_rate);
-  DataRate CurrMaxRate() const;
-  void SetCurrMinRate(DataRate min_rate);
-  DataRate CurrMinRate() const;
- private:
-  //The rate calculated by the FseNg in the previous update
-  DataRate fse_rate_;
-  //The max rate set in the flows last update calll
-  DataRate curr_max_rate_;
-  //Callback function registered by the congestion controller to apply updates with
-  std::function<void(DataRate)> update_callback_;
+  std::function<void(uint32_t)> update_callback_;
 };
 
 }  // namespace webrtc

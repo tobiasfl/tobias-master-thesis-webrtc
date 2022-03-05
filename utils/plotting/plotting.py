@@ -1,7 +1,10 @@
 import matplotlib.pyplot as plt
 import pandas as pd
+import numpy as np
 from math import sqrt, ceil
 
+
+#latex figures
 fig_width_pt = 360.0  # Get this from LaTeX using \the\columnwidth
 
 inches_per_pt = 1.0/72.27               # Convert pt to inch
@@ -9,8 +12,10 @@ golden_mean = (sqrt(5)-1.0)/2.0         # Aesthetic ratio
 fig_width = fig_width_pt*inches_per_pt  # width in inches
 fig_height = fig_width*golden_mean      # height in inches
 
-#latex figures
 fig_size = [fig_width,fig_height] 
+
+def tex_boldify(text):
+    return r"\textbf{" + text + "}"
 
 def plot_scatter_plot(df, xlabel, ylabel):
     params = {'backend': 'ps',
@@ -46,14 +51,15 @@ def plot_scatter_plot(df, xlabel, ylabel):
 
 #Assumes time(s), vals1, vals2...
 def plot_line_plot(df, xlabel, ylabel):
+    fig_size = [fig_width,fig_height] 
     params = {'backend': 'ps',
-      'axes.labelsize': 15,
+      'axes.labelsize': 19,
       'font.weight' : 'bold',
       'font.family': 'serif',
       'font.serif': 'Computer Modern Roman',
-      'legend.fontsize': 14,
-      'xtick.labelsize': 12,#15
-      'ytick.labelsize': 12,#15
+      'legend.fontsize': 12,
+      'xtick.labelsize': 18,
+      'ytick.labelsize': 18,
       'savefig.dpi': 400,
       'text.usetex': True,
       'axes.labelweight' : 'bold',
@@ -64,21 +70,43 @@ def plot_line_plot(df, xlabel, ylabel):
 
     plt.figure(figsize=fig_size) 
 
-    #plt.xlim(left=0)
-    #plt.ylim(0, 5)
+    time_col_name = df.columns[0]
 
-    plt.xlabel(xlabel)
-    plt.ylabel(ylabel)
+    minx = df[time_col_name].min()
+    maxx = df[time_col_name].max()
+    plt.xlim(minx, maxx)
+
+    miny = min([df[col].min() for col in df.columns[1:]])
+    maxy = max([df[col].max() for col in df.columns[1:]])
+    plt.ylim(miny, maxy)
+    
+    xticks = np.arange(minx, maxx+1, 10)
+    yticks = [int(x) for x in np.arange(miny, maxy+1, 1)]
+
+    #Hacky way to make sure ticks are also bold and correct font
+    plt.xticks(xticks, [tex_boldify(str(tick)) for tick in xticks])
+    plt.yticks(yticks, [tex_boldify(str(tick)) for tick in yticks])
+
+    plt.xlabel(tex_boldify(xlabel))
+    plt.ylabel(tex_boldify(ylabel))
 
     plt.grid(which="both")
 
+    markers = ['o', 's','^', 'x', 'v', 'D']
     styles = ['solid', 'dashed', 'dashdot', 'dotted']
 
-    time_col_name = df.columns[0]
-    for (col, style) in zip(df.columns[1:], styles):
-        plt.plot(df[time_col_name], df[col], linestyle=style, linewidth=2, label=col)
-    
-    plt.legend(loc="lower right")
+    for (col, mark, style) in zip(df.columns[1:], markers, styles):
+        if len(df.columns[1:]) > 3:
+            plt.plot(df[time_col_name], df[col], markevery=2, marker=mark, linewidth=2, label=col)
+        else:
+            plt.plot(df[time_col_name], df[col], linestyle=style, linewidth=2, label=tex_boldify(col))
+   
+    legend_loc = "upper left" 
+    if len(df.columns[1:]) > 2:
+        plt.legend(loc=legend_loc, ncol=2)
+    else:
+        plt.legend(loc=legend_loc, ncol=1)
+
     plt.tight_layout()
 
     plt.savefig("line_plot.png")

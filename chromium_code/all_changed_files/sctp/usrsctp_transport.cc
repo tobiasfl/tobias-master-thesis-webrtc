@@ -942,7 +942,8 @@ bool UsrsctpTransport::Connect() {
       uint32_t initial_max_cwnd_to_register;
       GetMaxCwnd(&initial_max_cwnd_to_register);
       fse_ng_flow_ = webrtc::FseNg::Instance().RegisterCwndFlow(
-              initial_max_cwnd_to_register, *this);
+              initial_max_cwnd_to_register, 
+              [this](uint32_t max_cwnd) { this->SetMaxCwnd(max_cwnd);});
       break;
     }
     default: {}

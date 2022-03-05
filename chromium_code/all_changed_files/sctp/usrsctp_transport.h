@@ -300,7 +300,7 @@ class UsrsctpTransport : public SctpTransportInternal,
   RTC_DISALLOW_COPY_AND_ASSIGN(UsrsctpTransport);
 
   // added by TOBIAS
-  std::shared_ptr<webrtc::FseNgCwndFlow> fse_ng_flow_;
+  std::shared_ptr<webrtc::CwndFlow> fse_ng_flow_;
   // added by TOBIAS
 };
 

@@ -206,7 +206,7 @@ class SendSideBandwidthEstimation {
 
 
   // Added by TOBIAS
-  std::shared_ptr<FseNgRateFlow> fseNgFlow_;
+  std::shared_ptr<RateFlow> fseNgFlow_;
   void FseNgUpdateTargetBitrate(DataRate new_bitrate, Timestamp at_time);
   // Added by TOBIAS
 };

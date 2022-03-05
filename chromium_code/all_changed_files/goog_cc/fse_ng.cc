@@ -42,18 +42,18 @@ FseNg::FseNg()
       << "FseNg created with update_val_final_rate_=" << update_val_final_rate_;
 }
 
-std::shared_ptr<FseNgCwndFlow> FseNg::RegisterCwndFlow(
+std::shared_ptr<CwndFlow> FseNg::RegisterCwndFlow(
     uint32_t initial_max_cwnd,
-    cricket::UsrsctpTransport& transport) {
+    std::function<void(uint32_t)> update_callback) {
   fse_mutex_.lock();
 
   RTC_LOG(LS_INFO) << "FseNgRegisterWindowBasedFlow was called";
 
   int id = cwnd_flow_id_counter_++;
-  std::shared_ptr<FseNgCwndFlow> new_flow =
-      std::make_shared<FseNgCwndFlow>(id, 
+  std::shared_ptr<CwndFlow> new_flow =
+      std::make_shared<CwndFlow>(id, 
               FseConfig::Instance().ResolveCwndFlowPriority(id), 
-              initial_max_cwnd, transport);
+              initial_max_cwnd, update_callback);
   cwnd_flows_.insert(new_flow);
 
   fse_mutex_.unlock();
@@ -61,7 +61,7 @@ std::shared_ptr<FseNgCwndFlow> FseNg::RegisterCwndFlow(
   return new_flow;
 }
 
-std::shared_ptr<FseNgRateFlow> FseNg::RegisterRateFlow(
+std::shared_ptr<RateFlow> FseNg::RegisterRateFlow(
     DataRate initial_rate,
     std::function<void(DataRate)> update_callback) {
   fse_mutex_.lock();
@@ -72,7 +72,7 @@ std::shared_ptr<FseNgRateFlow> FseNg::RegisterRateFlow(
 
   int id = rate_flow_id_counter_++;
 
-  std::shared_ptr<FseNgRateFlow> new_flow = std::make_shared<FseNgRateFlow>(
+  std::shared_ptr<RateFlow> new_flow = std::make_shared<RateFlow>(
       id, 
       FseConfig::Instance().ResolveRateFlowPriority(id), 
       initial_rate, 
@@ -88,14 +88,14 @@ std::shared_ptr<FseNgRateFlow> FseNg::RegisterRateFlow(
   return new_flow;
 }
 
-void FseNg::RateUpdate(std::shared_ptr<FseNgRateFlow> flow,
+void FseNg::RateUpdate(std::shared_ptr<RateFlow> flow,
                        DataRate new_rate,
                        TimeDelta last_rtt) {
   fse_mutex_.lock();
 
   update_call_num++;
 
-  flow->SetCurrMaxRate(FseConfig::Instance().ResolveDesiredRate(flow->Id()));
+  flow->SetDesiredRate(FseConfig::Instance().ResolveDesiredRate(flow->Id()));
 
   //If rtt is 0, assume there is no real measurement yet and say it is infinity
   //so that base_rtt is never set to 0
@@ -110,7 +110,7 @@ void FseNg::RateUpdate(std::shared_ptr<FseNgRateFlow> flow,
       << " relative_rate_change=" 
       << relative_rate_change_bps/1000
       << " new_rate=" << new_rate.kbps()
-      << " max_rate=" << flow->CurrMaxRate().kbps()
+      << " max_rate=" << flow->DesiredRate().kbps()
       << " last_rtt=" << (last_rtt.IsFinite() ? last_rtt.ms() : 0);
 
   OnRateFlowUpdate(
@@ -128,7 +128,7 @@ void FseNg::RateUpdate(std::shared_ptr<FseNgRateFlow> flow,
 }
 
 // Must be called while owning the mutex
-void FseNg::OnRateFlowUpdate(std::shared_ptr<FseNgRateFlow> flow,
+void FseNg::OnRateFlowUpdate(std::shared_ptr<RateFlow> flow,
                              int64_t relative_rate_change_bps,
                              DataRate cc_rate,
                              TimeDelta last_rtt ) {
@@ -136,6 +136,8 @@ void FseNg::OnRateFlowUpdate(std::shared_ptr<FseNgRateFlow> flow,
   UpdateSumCalculatedRates(relative_rate_change_bps, cc_rate, flow->FseRate());
 
   // We are only gonna allocate to SCTP flows if there is a valid base_rtt_
+  // Only really necessary for cases where we update with final rate, since
+  // aimd_rate_control uses a default RTT instead of infinity
   bool rtt_is_valid = !last_rtt.IsPlusInfinity() || !base_rtt_.IsPlusInfinity();
 
   //Extension, if we we don't have valid base_rtt yet we are not going to allocate 
@@ -152,7 +154,6 @@ void FseNg::OnRateFlowUpdate(std::shared_ptr<FseNgRateFlow> flow,
     UpdateCwndFlows(sum_cwnd_rates);
   }
   //TODO: Maybe check if all RTP flows are application limited as well
-  //TODO:This one might actually be removable if we make it so updating S_CR handles it
   if (cwnd_flows_.empty() || !rtt_is_valid) {
     //Extension, to make sure there is no extra unallocated bandwidth accumulating
     //when there are no SCTP flows to spend it
@@ -182,8 +183,9 @@ DataRate FseNg::UpdateRateFlows(int sum_priorities) {
     // because they might have different
     // limitations based on quality of the stream, config, etc.
     DataRate fse_rate = std::min((rate_flow->Priority() * sum_calculated_rates_) 
-            / sum_priorities, rate_flow->CurrMaxRate());
-    rate_flow->UpdateFlow(fse_rate);
+            / sum_priorities, rate_flow->DesiredRate());
+    rate_flow->SetFseRate(fse_rate);
+    rate_flow->UpdateCc();
   
     sum_rtp_rates += fse_rate;
   }
@@ -213,7 +215,7 @@ bool FseNg::AllRateFlowsApplicationLimited() const {
   return true;
 }
 
-void FseNg::DeRegisterWindowBasedFlow(std::shared_ptr<FseNgCwndFlow> flow) {
+void FseNg::DeRegisterWindowBasedFlow(std::shared_ptr<CwndFlow> flow) {
   fse_mutex_.lock();
 
   RTC_LOG(LS_INFO) << "DeRegisterWindowBasedFlow was called";
@@ -222,7 +224,7 @@ void FseNg::DeRegisterWindowBasedFlow(std::shared_ptr<FseNgCwndFlow> flow) {
   fse_mutex_.unlock();
 }
 
-void FseNg::DeRegisterRateFlow(std::shared_ptr<FseNgRateFlow> flow) {
+void FseNg::DeRegisterRateFlow(std::shared_ptr<RateFlow> flow) {
   fse_mutex_.lock();
 
   RTC_LOG(LS_INFO) << "DeRegisterRateFlow removing rate flow with id:" << flow->Id();
