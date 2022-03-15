@@ -80,7 +80,7 @@ with open("log.txt") as logfile:
         for flow_col in df.columns[1:]:
             df[flow_col] = cwnd2cwnd_segments(df[flow_col]) 
 
-        plot_line_plot(df, "Time (s)", args[1])
+        plot_scatter_plot(df, "Time (s)", args[1])
 
     elif args[1] == "max_cwnd_segments":
         df = extract_info(lines, 'max_cwnd', 'PLOT_THIS')
@@ -88,9 +88,9 @@ with open("log.txt") as logfile:
         for flow_col in df.columns[1:]:
             df[flow_col] = cwnd2cwnd_segments(df[flow_col])
 
-        plot_line_plot(df, "Time (s)", args[1])
+        plot_scatter_plot(df, "Time (s)", args[1])
 
     else:
         df = extract_info(lines, args[1], 'PLOT_THIS')
-        plot_line_plot(df, "Time (s)", args[1])
+        plot_scatter_plot(df, "Time (s)", args[1])
     

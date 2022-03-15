@@ -95,21 +95,22 @@ def plot_line_plot(df, xlabel, ylabel):
     markers = ['o', 's','^', 'x', 'v', 'D']
     styles = ['solid', 'dashed', 'dashdot', 'dotted']
 
-    for (col, mark, style) in zip(df.columns[1:], markers, styles):
+    for (col, mark, style) in zip(reversed(df.columns[1:]), markers, styles):
         if len(df.columns[1:]) > 3:
             plt.plot(df[time_col_name], df[col], markevery=2, marker=mark, linewidth=2, label=col)
         else:
             plt.plot(df[time_col_name], df[col], linestyle=style, linewidth=2, label=tex_boldify(col))
    
-    legend_loc = "upper left" 
+    legend_loc = "lower center" 
     if len(df.columns[1:]) > 2:
         plt.legend(loc=legend_loc, ncol=2)
     else:
         plt.legend(loc=legend_loc, ncol=1)
-
     plt.tight_layout()
 
+    print("before savefig")
     plt.savefig("line_plot.png")
+    print("before show")
     plt.show()
 
 def plot_comparison_throughput(df_left, left_title, df_right, right_title):
