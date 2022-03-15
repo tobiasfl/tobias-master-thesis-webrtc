@@ -2108,6 +2108,17 @@ usrsctp_set_cwnd(struct socket *so,
   return sctp_set_cwnd(so, cwnd);
 }
 
+
+int 
+sctp_get_cwnd(struct socket *so, uint32_t *cwnd_value);
+
+int
+usrsctp_get_cwnd(struct socket *so, 
+                uint32_t *cwnd_value)
+{
+  return sctp_get_cwnd(so, cwnd_value);
+}
+
 int
 sctp_set_max_cwnd(struct socket *so, uint32_t max_cwnd_b);
 

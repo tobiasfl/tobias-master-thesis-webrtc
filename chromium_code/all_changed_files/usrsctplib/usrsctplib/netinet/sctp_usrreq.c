@@ -7759,6 +7759,39 @@ int
 #else
 static int
 #endif
+sctp_get_cwnd(struct socket *so, uint32_t *cwnd_value)
+{
+  SCTP_PRINTF("Calling sctp_get_cwnd in sctp_usrreq\n");
+  int error;
+  struct sctp_tcb *stcb = NULL;
+  struct sctp_inpcb *inp = NULL;
+  struct sctp_nets *net;
+
+  inp = (struct sctp_inpcb *)so->so_pcb;
+  if (inp == NULL) {
+    SCTP_PRINTF("sctp_get_cwnd: inp is NULL\n");
+    return EINVAL;
+  }
+  for (int i = 0; i < 1; ++i)
+    SCTP_FIND_STCB(inp, stcb, SCTP_ALL_ASSOC);
+
+  if (stcb) {
+    SCTP_TCB_UNLOCK(stcb);
+    TAILQ_FOREACH(net, &stcb->asoc.nets, sctp_next) {
+      SCTP_PRINTF("sctp_get_cwnd returning cwnd\n");
+      *cwnd_value = net->cwnd;
+    }
+    SCTP_TCB_UNLOCK(stcb);
+    return 0;
+  }
+  return 1;
+}
+
+#if defined(__Userspace__)
+int
+#else
+static int
+#endif
 sctp_set_max_cwnd(struct socket *so, uint32_t max_cwnd_b)
 {
   SCTP_PRINTF("Calling sctp_set_max_cwnd in sctp_usrreq\n");

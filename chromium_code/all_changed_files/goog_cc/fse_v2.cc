@@ -1,8 +1,8 @@
 //
-// Created by tobias on 20.04.2021.
+// Created by tobias on 15.03.2022.
 //
 
-#include "modules/congestion_controller/goog_cc/flow_state_exchange.h"
+#include "modules/congestion_controller/goog_cc/fse_v2.h"
 #include "modules/congestion_controller/goog_cc/fse_config.h"
 
 #include <stdint.h>
@@ -23,20 +23,20 @@
 
 namespace webrtc {
 
-FlowStateExchange::FlowStateExchange()
-    : flow_id_counter_(0), 
+FseV2::FseV2()
+    : rate_flow_id_counter_(0), 
       sum_calculated_rates_(DataRate::Zero()) {
-  RTC_LOG(LS_INFO) << "FSE created";
+  RTC_LOG(LS_INFO) << "FSE_V2 created";
 }
 
-FlowStateExchange::~FlowStateExchange() = default;
+FseV2::~FseV2() = default;
 
-std::shared_ptr<RateFlow> FlowStateExchange::Register(
+std::shared_ptr<RateFlow> FseV2::RegisterRateFlow(
     DataRate initial_bit_rate,
     std::function<void(DataRate)> update_callback) {
-  fse_mutex_.lock();
+  mutex_.lock();
   
-  int flow_id = flow_id_counter_++;
+  int flow_id = rate_flow_id_counter_++;
   std::shared_ptr<RateFlow> newFlow = std::make_shared<RateFlow>(
       flow_id, 
       FseConfig::Instance().ResolveRateFlowPriority(flow_id), 
@@ -48,24 +48,50 @@ std::shared_ptr<RateFlow> FlowStateExchange::Register(
       << "FSE Registering new flow with id: " 
       << flow_id;
 
-  flows_.insert(newFlow);
+  rate_flows_.insert(newFlow);
   sum_calculated_rates_ += newFlow->FseRate();
   RTC_LOG(LS_INFO)
-      << "PLOT_THISFSE after registration sum_calculated_rates_="
+      << "PLOT_THISFSE_V2 after registration sum_calculated_rates_="
       << sum_calculated_rates_.kbps();
 
 
-  fse_mutex_.unlock();
+  mutex_.unlock();
 
   return newFlow;
 }
 
-void FlowStateExchange::Update(std::shared_ptr<RateFlow> flow,
+std::shared_ptr<ActiveCwndFlow> FseV2::RegisterCwndFlow(
+      uint32_t initial_cwnd,
+      uint64_t last_rtt,
+      std::function<void(uint32_t)> update_callback) {
+  mutex_.lock();
+
+  RTC_LOG(LS_INFO) 
+      << "RegisterCwndFlow was called with initial_cwnd=" 
+      << initial_cwnd 
+      << " last_rtt=" 
+      << last_rtt/1000;
+
+  int id = cwnd_flow_id_counter_++;
+  std::shared_ptr<ActiveCwndFlow> new_flow =
+      std::make_shared<ActiveCwndFlow>(id, 
+              FseConfig::Instance().ResolveCwndFlowPriority(id), 
+              initial_cwnd, 
+              last_rtt,
+              update_callback);
+  cwnd_flows_.insert(new_flow);
+
+  mutex_.unlock();
+
+  return new_flow;
+}
+
+void FseV2::UpdateRateFlow(std::shared_ptr<RateFlow> flow,
                                DataRate new_rate) {
-  fse_mutex_.lock();
-   RTC_LOG(LS_INFO) 
-       << "PLOT_THISFSE" << flow->Id()
-       << " new_rate=" << new_rate.kbps();
+  mutex_.lock();
+  RTC_LOG(LS_INFO) 
+      << "PLOT_THISFSE" << flow->Id()
+      << " new_rate=" << new_rate.kbps();
 
   OnFlowUpdated(flow, new_rate);
 
@@ -73,17 +99,17 @@ void FlowStateExchange::Update(std::shared_ptr<RateFlow> flow,
       << "PLOT_THISFSE sum_calculated_rates_=" 
       << sum_calculated_rates_.kbps();
 
-  fse_mutex_.unlock();
+  mutex_.unlock();
 }
 
-void FlowStateExchange::OnFlowUpdated(std::shared_ptr<RateFlow> flow,
+void FseV2::OnFlowUpdated(std::shared_ptr<RateFlow> flow,
                                       DataRate cc_rate) {
   // a. update S_CR
   sum_calculated_rates_ = sum_calculated_rates_ + cc_rate - flow->FseRate();
 
   // b. calculate the sum of all priorities and initialize FSE_R
   int sum_priorities = 0;
-  for (const auto& i : flows_) {
+  for (const auto& i : rate_flows_) {
     sum_priorities += i->Priority();
     i->SetFseRate(DataRate::Zero());
   }
@@ -95,7 +121,7 @@ void FlowStateExchange::OnFlowUpdated(std::shared_ptr<RateFlow> flow,
   // TODO: refactor to not use doubles
   while (total_leftover_rate - aggregate_rate > 1 && sum_priorities > 0) {
     aggregate_rate = 0.0;
-    for (const auto& i : flows_) {
+    for (const auto& i : rate_flows_) {
 
       DataRate desired_rate_i = i->DesiredRate();
       // if the current fse rate is less than desired
@@ -116,28 +142,28 @@ void FlowStateExchange::OnFlowUpdated(std::shared_ptr<RateFlow> flow,
     }
   }
   // d. distribute FSE_R to all the flows
-  for (const auto& i : flows_) {
+  for (const auto& i : rate_flows_) {
     i->UpdateCc();
   }
 
   //Extension to avoid S_CR leftover buildup, make sure S_CR==total allocated rate
   auto fold = [](DataRate acc, std::shared_ptr<RateFlow> x){ return acc + x->FseRate();};
-  sum_calculated_rates_ = std::accumulate(flows_.begin(), flows_.end(), DataRate::Zero(), fold);
+  sum_calculated_rates_ = std::accumulate(rate_flows_.begin(), rate_flows_.end(), DataRate::Zero(), fold);
 }
 
-void FlowStateExchange::DeRegister(std::shared_ptr<RateFlow> flow) {
-  fse_mutex_.lock();
+void FseV2::DeRegisterRateFlow(std::shared_ptr<RateFlow> flow) {
+  mutex_.lock();
   RTC_LOG(LS_INFO) << "deregistering flow with id" << flow->Id();
 
-  flows_.erase(flow);
+  rate_flows_.erase(flow);
 
-  fse_mutex_.unlock();
+  mutex_.unlock();
 }
 
 
 
-FlowStateExchange& FlowStateExchange::Instance() {
-  CR_DEFINE_STATIC_LOCAL(FlowStateExchange, s, ());
+FseV2& FseV2::Instance() {
+  CR_DEFINE_STATIC_LOCAL(FseV2, s, ());
   return s;
 }
 

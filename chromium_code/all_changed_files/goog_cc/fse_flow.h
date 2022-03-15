@@ -11,10 +11,10 @@ namespace webrtc {
 
 class SendSideBandwidthEstimation;
 
-class FseFlow {
+class Flow {
  public:
-  FseFlow(int id, int priority);
-  virtual ~FseFlow();
+  Flow(int id, int priority);
+  virtual ~Flow();
   int Id() const;
   int Priority() const;
   static DataRate CwndToRate(uint32_t cwnd, uint64_t rtt);
@@ -25,7 +25,7 @@ class FseFlow {
   int priority_;
 };
 
-class RateFlow : public FseFlow {
+class RateFlow : public Flow {
  public:
   RateFlow(int id,
            int priority,
@@ -44,21 +44,41 @@ class RateFlow : public FseFlow {
   DataRate desired_rate_;
   //Callback function registered by the congestion controller to apply updates with
   std::function<void(DataRate)> update_callback_;
-
 };
 
-class CwndFlow : public FseFlow {
+class PassiveCwndFlow : public Flow {
  public:
-  CwndFlow(int id,
+  PassiveCwndFlow(int id,
            int priority,
            uint32_t initial_max_cwnd,
            std::function<void(uint32_t)> update_callback);
-  ~CwndFlow() override;
+  ~PassiveCwndFlow() override;
   void UpdateCc(uint32_t max_cwnd);
   uint32_t GetInitialMaxCwnd();
     
  private:
   uint32_t initial_max_cwnd_;
+  std::function<void(uint32_t)> update_callback_;
+};
+
+class ActiveCwndFlow : public Flow {
+ public:
+  ActiveCwndFlow(int id,
+           int priority,
+           uint32_t initial_cwnd,
+           uint64_t last_rtt,
+           std::function<void(uint32_t)> update_callback);
+  ~ActiveCwndFlow() override;
+  void UpdateCc();
+  uint32_t FseCwnd() const;
+  void SetFseCwnd(uint32_t new_cwnd);
+  uint64_t LastRtt() const;
+  void SetLastRtt(uint64_t new_last_rtt);
+    
+ private:
+  uint32_t fse_cwnd_;
+  uint64_t last_rtt_;
+  //Callback function registered by the congestion controller to apply updates with
   std::function<void(uint32_t)> update_callback_;
 };
 

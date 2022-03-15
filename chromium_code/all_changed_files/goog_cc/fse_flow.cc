@@ -14,19 +14,19 @@
 
 namespace webrtc {
 
-FseFlow::FseFlow(int id, int priority) : id_(id), priority_(priority) {}
+Flow::Flow(int id, int priority) : id_(id), priority_(priority) {}
 
-FseFlow::~FseFlow() = default;
+Flow::~Flow() = default;
 
-int FseFlow::Id() const {
+int Flow::Id() const {
   return id_;
 }
 
-int FseFlow::Priority() const {
+int Flow::Priority() const {
   return priority_;
 }
 
-DataRate FseFlow::CwndToRate(uint32_t cwnd, uint64_t rtt_us) {
+DataRate Flow::CwndToRate(uint32_t cwnd, uint64_t rtt_us) {
   if (rtt_us == 0) {
     return DataRate::Zero();
   }
@@ -34,7 +34,7 @@ DataRate FseFlow::CwndToRate(uint32_t cwnd, uint64_t rtt_us) {
       (1000000 * (static_cast<uint64_t>(cwnd)) << 3) / rtt_us));
 }
 
-uint32_t FseFlow::RateToCwnd(TimeDelta rtt, DataRate rate) {
+uint32_t Flow::RateToCwnd(TimeDelta rtt, DataRate rate) {
   return (rtt * rate).bytes();
 }
 
@@ -43,7 +43,7 @@ RateFlow::RateFlow(int id,
                    DataRate fse_rate,
                    DataRate desired_rate,
                    std::function<void(DataRate)> update_callback)
-    : FseFlow(id, priority),
+    : Flow(id, priority),
       fse_rate_(fse_rate),
       desired_rate_(desired_rate),
       update_callback_(update_callback) {
@@ -77,24 +77,58 @@ bool RateFlow::IsApplicationLimited() {
     return FseRate() >= desired_rate_;
 }
 
-CwndFlow::CwndFlow(int id,
+PassiveCwndFlow::PassiveCwndFlow(int id,
                    int priority,
                    uint32_t initial_max_cwnd,
                    std::function<void(uint32_t)> update_callback)
-    : FseFlow(id, priority), 
+    : Flow(id, priority), 
     initial_max_cwnd_(initial_max_cwnd), 
     update_callback_(update_callback) {
-  RTC_LOG(LS_INFO) << "creating a FseNgWindowBasedFlow";
+  RTC_LOG(LS_INFO) << "creating a PassiveCwndFlow";
 }
 
-CwndFlow::~CwndFlow() = default;
+PassiveCwndFlow::~PassiveCwndFlow() = default;
 
-void CwndFlow::UpdateCc(uint32_t max_cwnd) {
+void PassiveCwndFlow::UpdateCc(uint32_t max_cwnd) {
   update_callback_(max_cwnd);
 }
 
-uint32_t CwndFlow::GetInitialMaxCwnd() {
+uint32_t PassiveCwndFlow::GetInitialMaxCwnd() {
   return initial_max_cwnd_;
+}
+
+ActiveCwndFlow::ActiveCwndFlow(int id,
+                    int priority, 
+                    uint32_t initial_cwnd,
+                    uint64_t last_rtt,
+                    std::function<void(uint32_t)> update_callback) 
+    : Flow(id, priority),
+    fse_cwnd_(initial_cwnd),
+    last_rtt_(last_rtt),
+    update_callback_(update_callback) {
+  RTC_LOG(LS_INFO) << "creating an ActiveCwndFlow";
+}
+
+ActiveCwndFlow::~ActiveCwndFlow() = default;
+
+void ActiveCwndFlow::UpdateCc() {
+  update_callback_(FseCwnd());
+}
+
+uint32_t ActiveCwndFlow::FseCwnd() const {
+  return fse_cwnd_;
+}
+
+void ActiveCwndFlow::SetFseCwnd(uint32_t new_cwnd) {
+  fse_cwnd_ = new_cwnd;
+}
+
+uint64_t ActiveCwndFlow::LastRtt() const {
+  return last_rtt_;
+}
+
+void ActiveCwndFlow::SetLastRtt(uint64_t new_last_rtt) {
+  last_rtt_ = new_last_rtt;
 }
 
 }  // namespace webrtc

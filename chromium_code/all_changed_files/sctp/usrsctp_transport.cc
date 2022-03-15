@@ -55,6 +55,7 @@ constexpr int kSctpErrorReturn = 0;
 
 // Added by TOBIAS
 #include "modules/congestion_controller/goog_cc/fse_ng.h"
+#include "modules/congestion_controller/goog_cc/fse_v2.h"
 #include "modules/congestion_controller/goog_cc/fse_config.h"
 // Added by TOBIAS
 
@@ -567,7 +568,7 @@ class UsrsctpTransport::UsrSctpWrapper {
 
     bool found = g_transport_map_->PostToTransportThread(
         id, [cwnd, last_rtt](UsrsctpTransport* transport) {
-          transport->UpdateFse(cwnd, last_rtt);
+            transport->CwndUpdate(cwnd, last_rtt);
         });
     if (!found) {
       RTC_LOG(LS_ERROR)
@@ -588,10 +589,6 @@ UsrsctpTransport::UsrsctpTransport(rtc::Thread* network_thread,
   RTC_DCHECK_RUN_ON(network_thread_);
 
   ConnectTransportSignals();
-
-  // Added by TOBIAS
-  fse_ng_flow_ = nullptr; 
-  // Added by TOBIAS
 }
 
 UsrsctpTransport::~UsrsctpTransport() {
@@ -938,12 +935,16 @@ bool UsrsctpTransport::Connect() {
       RTC_LOG(LS_INFO) << "registering SCTP flow with fse-ng";
       // even though registered here there is no guarantee any SCTP streams are
       // running
-      // TODO: could also get rtt here, in case SCTP starts before RTP
       uint32_t initial_max_cwnd_to_register;
       GetMaxCwnd(&initial_max_cwnd_to_register);
-      fse_ng_flow_ = webrtc::FseNg::Instance().RegisterCwndFlow(
+      fse_flow_ = webrtc::FseNg::Instance().RegisterCwndFlow(
               initial_max_cwnd_to_register, 
               [this](uint32_t max_cwnd) { this->SetMaxCwnd(max_cwnd);});
+      break;
+    }
+    case webrtc::fse_v2: {
+      RTC_LOG(LS_INFO) << "registering usrsctp update callback";
+      usrsctp_register_cwnd_callback(sock_, UsrSctpWrapper::OnCwndChanged);
       break;
     }
     default: {}
@@ -1096,9 +1097,9 @@ void UsrsctpTransport::CloseSctpSocket() {
 
     //Added by TOBIAS
     if (webrtc::FseConfig::Instance().CurrentFse() == webrtc::fse_ng 
-            && fse_ng_flow_) {
-      webrtc::FseNg::Instance().DeRegisterWindowBasedFlow(fse_ng_flow_);
-      fse_ng_flow_ = nullptr;
+            && fse_flow_) {
+      webrtc::FseNg::Instance().DeRegisterWindowBasedFlow(fse_flow_);
+      fse_flow_ = nullptr;
     }
     //Added by TOBIAS
   }
@@ -1641,10 +1642,27 @@ void UsrsctpTransport::OnStreamResetEvent(
 }
 
 // Added by TOBIAS
-// This stuff might be called by the new FSE
+//
+void UsrsctpTransport::CwndUpdate(uint32_t cwnd, uint64_t last_rtt) {
+  if (webrtc::FseConfig::Instance().CurrentFse() == webrtc::fse_v2) {
+    if (!fse_v2_flow_) {
+      fse_v2_flow_ = webrtc::FseV2::Instance().RegisterCwndFlow(
+              cwnd, 
+              last_rtt,
+              [this](uint32_t cwnd) {this->SetCwnd(cwnd);});
+    }
+    //TODO: Call update here when that is implemented
+  }
+}
+
 void UsrsctpTransport::SetCwnd(uint32_t cwnd) {
   RTC_LOG(LS_INFO) << "SetCwnd was called with cwnd:" << cwnd;
   usrsctp_set_cwnd(sock_, cwnd);
+}
+
+void UsrsctpTransport::GetCwnd(uint32_t *cwnd_value) {
+  usrsctp_get_cwnd(sock_, cwnd_value);
+  RTC_LOG(LS_INFO) << "GetCwnd called, cwnd: " << *cwnd_value;
 }
 
 //this one might be replaced by set_opt actually

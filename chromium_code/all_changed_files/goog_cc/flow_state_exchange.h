@@ -23,7 +23,6 @@ class UsrsctpTransport;
 namespace webrtc {
 
 class SendSideBandwidthEstimation;
-class FseFlow;
 class RateFlow;
 
 #define CR_DEFINE_STATIC_LOCAL(type, name, arguments) \

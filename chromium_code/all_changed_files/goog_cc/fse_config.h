@@ -21,7 +21,7 @@ struct FseNgExperimentConfig {
 #define CR_DEFINE_STATIC_LOCAL(type, name, arguments) \
   static type& name = *new type arguments
 
-enum FseVersion { none, fse, fse_ng};
+enum FseVersion { none, fse, fse_ng, fse_v2};
 
 enum DesiredRateCase { infinity, fse_ng_paper_case, fse_case_2 };
 

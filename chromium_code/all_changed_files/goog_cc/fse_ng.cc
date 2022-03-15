@@ -42,7 +42,7 @@ FseNg::FseNg()
       << "FseNg created with update_val_final_rate_=" << update_val_final_rate_;
 }
 
-std::shared_ptr<CwndFlow> FseNg::RegisterCwndFlow(
+std::shared_ptr<PassiveCwndFlow> FseNg::RegisterCwndFlow(
     uint32_t initial_max_cwnd,
     std::function<void(uint32_t)> update_callback) {
   fse_mutex_.lock();
@@ -50,8 +50,8 @@ std::shared_ptr<CwndFlow> FseNg::RegisterCwndFlow(
   RTC_LOG(LS_INFO) << "FseNgRegisterWindowBasedFlow was called";
 
   int id = cwnd_flow_id_counter_++;
-  std::shared_ptr<CwndFlow> new_flow =
-      std::make_shared<CwndFlow>(id, 
+  std::shared_ptr<PassiveCwndFlow> new_flow =
+      std::make_shared<PassiveCwndFlow>(id, 
               FseConfig::Instance().ResolveCwndFlowPriority(id), 
               initial_max_cwnd, update_callback);
   cwnd_flows_.insert(new_flow);
@@ -197,7 +197,7 @@ void FseNg::UpdateCwndFlows(DataRate sum_cwnd_rates) {
 
   for(const auto& cwnd_flow : cwnd_flows_) {
     DataRate cwnd_flow_max_rate = (cwnd_flow->Priority() * sum_cwnd_rates) / sum_cwnd_priorities;
-    uint32_t flow_max_cwnd = FseFlow::RateToCwnd(base_rtt_, cwnd_flow_max_rate);
+    uint32_t flow_max_cwnd = Flow::RateToCwnd(base_rtt_, cwnd_flow_max_rate);
 
     RTC_LOG(LS_INFO) << "PLOT_THIS_SCTP_FSE_RATE_KBPS" << cwnd_flow->Id() 
                      << " rate=" << cwnd_flow_max_rate.kbps();
@@ -215,7 +215,7 @@ bool FseNg::AllRateFlowsApplicationLimited() const {
   return true;
 }
 
-void FseNg::DeRegisterWindowBasedFlow(std::shared_ptr<CwndFlow> flow) {
+void FseNg::DeRegisterWindowBasedFlow(std::shared_ptr<PassiveCwndFlow> flow) {
   fse_mutex_.lock();
 
   RTC_LOG(LS_INFO) << "DeRegisterWindowBasedFlow was called";

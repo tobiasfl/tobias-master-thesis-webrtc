@@ -25,7 +25,7 @@ namespace webrtc {
 
 class SendSideBandwidthEstimation;
 
-class CwndFlow;
+class PassiveCwndFlow;
 class RateFlow;
 
 #define CR_DEFINE_STATIC_LOCAL(type, name, arguments) \
@@ -39,13 +39,13 @@ class FseNg {
                        DataRate new_rate,
                        TimeDelta last_rtt);
 
-  std::shared_ptr<CwndFlow> RegisterCwndFlow(
+  std::shared_ptr<PassiveCwndFlow> RegisterCwndFlow(
       uint32_t initial_max_cwnd, 
       std::function<void(uint32_t)> update_callback);
   std::shared_ptr<RateFlow> RegisterRateFlow(
       DataRate initial_rate,
       std::function<void(DataRate)> update_callback);
-  void DeRegisterWindowBasedFlow(std::shared_ptr<CwndFlow> flow);
+  void DeRegisterWindowBasedFlow(std::shared_ptr<PassiveCwndFlow> flow);
   void DeRegisterRateFlow(std::shared_ptr<RateFlow> flow);
 
   bool UpdateValFinalRate() const;
@@ -65,7 +65,7 @@ class FseNg {
   int rate_flow_id_counter_;
   int cwnd_flow_id_counter_;
 
-  std::unordered_set<std::shared_ptr<CwndFlow>> cwnd_flows_;
+  std::unordered_set<std::shared_ptr<PassiveCwndFlow>> cwnd_flows_;
   std::unordered_set<std::shared_ptr<RateFlow>> rate_flows_;
 
   std::mutex fse_mutex_;

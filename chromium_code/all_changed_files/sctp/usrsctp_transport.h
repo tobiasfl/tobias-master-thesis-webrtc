@@ -111,8 +111,9 @@ class UsrsctpTransport : public SctpTransportInternal,
 
   // Added by TOBIAS
   void SetCwnd(uint32_t cwnd);
+  void GetCwnd(uint32_t *cwnd_value);
   void SetMaxCwnd(uint32_t max_cwnd);
-  void UpdateFse(uint32_t cwnd, uint64_t last_rtt);
+  void CwndUpdate(uint32_t cwnd, uint64_t last_rtt);
   void GetMaxCwnd(uint32_t *max_cwnd_value);
   // Added by TOBIAS
 
@@ -300,7 +301,8 @@ class UsrsctpTransport : public SctpTransportInternal,
   RTC_DISALLOW_COPY_AND_ASSIGN(UsrsctpTransport);
 
   // added by TOBIAS
-  std::shared_ptr<webrtc::CwndFlow> fse_ng_flow_;
+  std::shared_ptr<webrtc::PassiveCwndFlow> fse_flow_;
+  std::shared_ptr<webrtc::ActiveCwndFlow> fse_v2_flow_;
   // added by TOBIAS
 };
 

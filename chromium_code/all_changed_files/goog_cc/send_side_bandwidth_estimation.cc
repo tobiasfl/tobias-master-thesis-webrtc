@@ -347,11 +347,6 @@ void SendSideBandwidthEstimation::UpdateDelayBasedEstimate(Timestamp at_time,
   // TODO(srte): Ensure caller passes PlusInfinity, not zero, to represent no
   // limitation.
   delay_based_limit_ = bitrate.IsZero() ? DataRate::PlusInfinity() : bitrate;
-  //ADDED BY TOBIAS
-  if (!delay_based_limit_.IsPlusInfinity() && !delay_based_limit_.IsZero()) {
-    RTC_LOG(LS_INFO) << "PLOT_THIS_BWE_UPDATE delay_based_limit_=" << delay_based_limit_.kbps();
-  }
-  //ADDED BY TOBIAS
   ApplyTargetLimits(at_time);
 }
 
