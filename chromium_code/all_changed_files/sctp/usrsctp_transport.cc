@@ -566,8 +566,10 @@ class UsrsctpTransport::UsrSctpWrapper {
     // I think this code helps us differentiate between flows for use
     uintptr_t id = reinterpret_cast<uintptr_t>(ulp_info);
 
+    // TODO: code below is probably smarter to use...
     bool found = g_transport_map_->PostToTransportThread(
         id, [cwnd, last_rtt](UsrsctpTransport* transport) {
+            RTC_LOG(LS_INFO) << "posting CwndUpdate call to TransportThread";
             transport->CwndUpdate(cwnd, last_rtt);
         });
     if (!found) {
@@ -575,6 +577,7 @@ class UsrsctpTransport::UsrSctpWrapper {
           << "OnCwndChanged: Failed to get transport for socket ID " << id
           << "; possibly was already destroyed.";
     }
+
     return 0;
   }
   // Added by TOBIAS
@@ -944,7 +947,15 @@ bool UsrsctpTransport::Connect() {
     }
     case webrtc::fse_v2: {
       RTC_LOG(LS_INFO) << "registering usrsctp update callback";
-      usrsctp_register_cwnd_callback(sock_, UsrSctpWrapper::OnCwndChanged);
+      //TODO: double check if it shoudl be pointer here or not(does not seem to make a difference)
+      usrsctp_register_cwnd_callback(sock_, &UsrSctpWrapper::OnCwndChanged);
+      /*if (!fse_v2_flow_) {
+        fse_v2_flow_ = webrtc::FseV2::Instance().RegisterCwndFlow(
+              2000, 
+              80000,
+              [this](uint32_t cwnd) {this->SetCwnd(cwnd);});
+      }*/
+
       break;
     }
     default: {}
@@ -1651,12 +1662,13 @@ void UsrsctpTransport::CwndUpdate(uint32_t cwnd, uint64_t last_rtt) {
               last_rtt,
               [this](uint32_t cwnd) {this->SetCwnd(cwnd);});
     }
-    //TODO: Call update here when that is implemented
+    webrtc::FseV2::Instance().CwndFlowUpdate(fse_v2_flow_, cwnd, last_rtt);
   }
 }
 
 void UsrsctpTransport::SetCwnd(uint32_t cwnd) {
   RTC_LOG(LS_INFO) << "SetCwnd was called with cwnd:" << cwnd;
+  //TODO: should actually set cwnd
   usrsctp_set_cwnd(sock_, cwnd);
 }
 

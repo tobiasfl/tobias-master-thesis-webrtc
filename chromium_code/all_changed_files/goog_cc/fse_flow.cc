@@ -53,7 +53,6 @@ RateFlow::RateFlow(int id,
 RateFlow::~RateFlow() = default;
 
 void RateFlow::UpdateCc() {
-  RTC_LOG(LS_INFO) << "PLOT_THIS_RTP_FSE_RATE_KBPS" << id_ << " rate=" << FseRate().kbps();
   update_callback_(FseRate());
 }
 
@@ -104,7 +103,6 @@ ActiveCwndFlow::ActiveCwndFlow(int id,
                     std::function<void(uint32_t)> update_callback) 
     : Flow(id, priority),
     fse_cwnd_(initial_cwnd),
-    last_rtt_(last_rtt),
     update_callback_(update_callback) {
   RTC_LOG(LS_INFO) << "creating an ActiveCwndFlow";
 }
@@ -121,14 +119,6 @@ uint32_t ActiveCwndFlow::FseCwnd() const {
 
 void ActiveCwndFlow::SetFseCwnd(uint32_t new_cwnd) {
   fse_cwnd_ = new_cwnd;
-}
-
-uint64_t ActiveCwndFlow::LastRtt() const {
-  return last_rtt_;
-}
-
-void ActiveCwndFlow::SetLastRtt(uint64_t new_last_rtt) {
-  last_rtt_ = new_last_rtt;
 }
 
 }  // namespace webrtc

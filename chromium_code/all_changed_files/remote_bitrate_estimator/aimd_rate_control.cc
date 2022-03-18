@@ -435,9 +435,10 @@ void AimdRateControl::FseV2ChangeBitrate(DataRate new_bitrate) {
             [this](DataRate fse_rate) { this->current_bitrate_ = fse_rate; } );
   }
   
-  FseV2::Instance().UpdateRateFlow(
+  FseV2::Instance().RateFlowUpdate(
           fseFlow_,
-          new_bitrate);
+          new_bitrate,
+          rtt_);
 }
 
 void AimdRateControl::FseChangeBitrate(DataRate new_bitrate) {

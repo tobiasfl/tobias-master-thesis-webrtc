@@ -2043,7 +2043,9 @@ sctp_do_connect_x(struct socket *so, struct sctp_inpcb *inp, void *optval,
 		SCTP_INP_RLOCK(inp); \
 		stcb = LIST_FIRST(&inp->sctp_asoc_list); \
 		if (stcb) { \
+                        SCTP_PRINTF("BEFORE SCTP_TCB_LOCK"); \
 			SCTP_TCB_LOCK(stcb); \
+                        SCTP_PRINTF("AFTER SCTP_TCB_LOCK"); \
 		} \
 		SCTP_INP_RUNLOCK(inp); \
 	} else if (assoc_id > SCTP_ALL_ASSOC) { \
@@ -7726,29 +7728,54 @@ static int
 #endif
 sctp_set_cwnd(struct socket *so, uint32_t cwnd_b)
 {
-  SCTP_PRINTF("Calling sctp_set_cwnd in sctp_usrreq\n");
+  SCTP_PRINTF("Calling sctp_set_cwnd in sctp_usrreq");
   int error;
   struct sctp_tcb *stcb = NULL;
   struct sctp_inpcb *inp = NULL;
   struct sctp_nets *net;
 
   inp = (struct sctp_inpcb *)so->so_pcb;
+
   if (inp == NULL) {
-    SCTP_PRINTF("sctp_set_cwnd: inp is NULL\n");
+    SCTP_PRINTF("sctp_set_cwnd: inp is NULL");
     return EINVAL;
   }
-  for (int i = 0; i < 1; ++i)
-    SCTP_FIND_STCB(inp, stcb, SCTP_ALL_ASSOC);
+  for (int i = 0; i < 1; ++i) 
+    //SCTP_FIND_STCB(inp, stcb, SCTP_ALL_ASSOC);
+
+  //TODO: This block is only for debugging, it can lead to race condtion!
+  if ((inp->sctp_flags & SCTP_PCB_FLAGS_TCPTYPE) ||
+      (inp->sctp_flags & SCTP_PCB_FLAGS_IN_TCPPOOL)) { 
+  	SCTP_INP_RLOCK(inp); 
+  	stcb = LIST_FIRST(&inp->sctp_asoc_list); 
+  	if (stcb) { 
+  		//SCTP_TCB_LOCK(stcb); 
+  	} 
+  	SCTP_INP_RUNLOCK(inp); 
+  } else if (SCTP_ALL_ASSOC > SCTP_ALL_ASSOC) { 
+  	stcb = sctp_findassociation_ep_asocid(inp, SCTP_ALL_ASSOC, 1); 
+  	if (stcb == NULL) { 
+  		SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_USRREQ, ENOENT); 
+  		error = ENOENT; 
+  		break; 
+  	} 
+  } else { 
+  	stcb = NULL; 
+  }
+  //TODO: This block is only for debugging, it can lead to race condtion!
+
 
   if (stcb) {
-    SCTP_TCB_UNLOCK(stcb);
+    //SCTP_TCB_UNLOCK(stcb);
     TAILQ_FOREACH(net, &stcb->asoc.nets, sctp_next) {
-      SCTP_PRINTF("sctp_set_cwnd changed cwnd\n");
+      SCTP_PRINTF("sctp_set_cwnd changed cwnd");
       net->cwnd = cwnd_b;
-
-      //TODO: Joakim changed ssthresh here as well but I don't think I should do that????
+      //net->ssthresh = cwnd_b;
     }
-    SCTP_TCB_UNLOCK(stcb);
+
+    SCTP_PRINTF("BEFORE SCTP_TCB_UNLOCK"); \
+    //SCTP_TCB_UNLOCK(stcb);
+    SCTP_PRINTF("AFTER SCTP_TCB_UNLOCK"); \
     return 0;
   }
   return 1;

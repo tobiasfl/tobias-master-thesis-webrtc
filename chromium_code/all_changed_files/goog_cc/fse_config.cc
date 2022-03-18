@@ -36,6 +36,10 @@ const base::Feature kDesiredRateFseNgPaperCase {
   "DesiredRateFseNgPaper", base::FEATURE_DISABLED_BY_DEFAULT
 };
 
+const base::Feature kDesiredRateAllLimited {
+  "DesiredRateAllLimited", base::FEATURE_DISABLED_BY_DEFAULT
+};
+
 const base::Feature kPriorityRateFlowDouble {
   "PriorityRateFlowDouble", base::FEATURE_DISABLED_BY_DEFAULT
 };
@@ -80,6 +84,9 @@ FseConfig::FseConfig() {
   if (base::FeatureList::IsEnabled(kDesiredRateFseCase2)) {
     current_desired_rate_case_ = fse_case_2;
   }
+  if (base::FeatureList::IsEnabled(kDesiredRateAllLimited)) {
+    current_desired_rate_case_ = all_limited;
+  }
 
   current_priority_case_ = equal;
   if (base::FeatureList::IsEnabled(kPriorityRateFlowDouble)) {
@@ -107,6 +114,8 @@ DataRate FseConfig::ResolveDesiredRate(int flow_id) {
       return DataRate::KilobitsPerSec(1000000); //1gigabit
     case fse_ng_paper_case:
       return DataRate::KilobitsPerSec(1500);
+    case all_limited:
+      return DataRate::KilobitsPerSec(1000);
     case fse_case_2:
       switch (flow_id) {
         case 0:

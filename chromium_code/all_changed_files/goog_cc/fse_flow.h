@@ -72,12 +72,9 @@ class ActiveCwndFlow : public Flow {
   void UpdateCc();
   uint32_t FseCwnd() const;
   void SetFseCwnd(uint32_t new_cwnd);
-  uint64_t LastRtt() const;
-  void SetLastRtt(uint64_t new_last_rtt);
     
  private:
   uint32_t fse_cwnd_;
-  uint64_t last_rtt_;
   //Callback function registered by the congestion controller to apply updates with
   std::function<void(uint32_t)> update_callback_;
 };

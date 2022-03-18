@@ -662,9 +662,6 @@ void SendSideBandwidthEstimation::UpdateTargetBitrate(DataRate new_bitrate,
       new_bitrate = min_bitrate_configured_;
     }
     current_target_ = new_bitrate;
-    RTC_LOG(LS_INFO) << "PLOT_THIS_SRTP_CC_RATE_KBPS" 
-        << this << " cc_rate=" 
-        << current_target_.kbps();
     
     MaybeLogLossBasedEvent(at_time);
     link_capacity_.OnRateUpdate(acknowledged_rate_, current_target_, at_time);

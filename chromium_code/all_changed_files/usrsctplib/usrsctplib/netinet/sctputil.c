@@ -335,9 +335,9 @@ void
 sctp_log_cwnd(struct sctp_tcb *stcb, struct sctp_nets *net, int augment, uint8_t from)
 {
     // Added by TOBIAS
-    if(net) {
+    /*if(net) {
         SCTP_PRINTF("PLOT_THIS_SCTP_CC%lu cwnd=%lu, rtt=%lu, mtu=%lu, max_cwnd=%lu", net, net->cwnd, net->rtt/1000, net->mtu, (&stcb->asoc)->max_cwnd);
-    }
+    }*/
     // Added by TOBIAS
 #if defined(SCTP_LOCAL_TRACE_BUF)
 	struct sctp_cwnd_log sctp_clog;

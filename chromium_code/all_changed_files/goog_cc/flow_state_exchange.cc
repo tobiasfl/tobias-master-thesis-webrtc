@@ -89,27 +89,27 @@ void FlowStateExchange::OnFlowUpdated(std::shared_ptr<RateFlow> flow,
   }
 
   // c.Distribute S_CR among all flows, ensuring desired rate is not exceeded
-  double total_leftover_rate = sum_calculated_rates_.bps();
-  double aggregate_rate = 0.0;
+  DataRate leftover_rate = sum_calculated_rates_;
+  DataRate aggregate_rate = DataRate::Zero();
   // while there is more rate to distribute
-  // TODO: refactor to not use doubles
-  while (total_leftover_rate - aggregate_rate > 1 && sum_priorities > 0) {
-    aggregate_rate = 0.0;
+  // (we check against 1 because the divison might lead to uneven number)
+  while (leftover_rate - aggregate_rate > DataRate::BitsPerSec(1) && sum_priorities > 0) {
+    aggregate_rate = DataRate::Zero();
     for (const auto& i : flows_) {
 
       DataRate desired_rate_i = i->DesiredRate();
       // if the current fse rate is less than desired
       if (i->FseRate() < desired_rate_i) {
-        double flow_rate =
-            total_leftover_rate * i->Priority() / sum_priorities;
+        DataRate flow_rate = leftover_rate * i->Priority() / sum_priorities;
 
         // if the flow can get more than it desires
-        if (flow_rate >= desired_rate_i.bps()) {
-          total_leftover_rate -= desired_rate_i.bps();
+        if (flow_rate >= desired_rate_i) {
+          leftover_rate -= desired_rate_i;
           i->SetFseRate(desired_rate_i);
           sum_priorities -= i->Priority();
-        } else {
-          i->SetFseRate(DataRate::BitsPerSec(flow_rate));
+        } 
+        else {
+          i->SetFseRate(flow_rate);
           aggregate_rate += flow_rate;
         }
       }

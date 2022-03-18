@@ -32,29 +32,43 @@ class FseV2 {
  public:
   static FseV2& Instance();
 
-  std::shared_ptr<RateFlow> RegisterRateFlow(DataRate initial_bit_rate,
-                                     std::function<void(DataRate)> update_callback);
+  std::shared_ptr<RateFlow> RegisterRateFlow(
+      DataRate initial_bit_rate,
+      std::function<void(DataRate)> update_callback);
+
   std::shared_ptr<ActiveCwndFlow> RegisterCwndFlow(
       uint32_t initial_cwnd,
       uint64_t last_rtt,
       std::function<void(uint32_t)> update_callback);
 
   void DeRegisterRateFlow(std::shared_ptr<RateFlow> flow);
-  void UpdateRateFlow(std::shared_ptr<RateFlow> flow,
-              DataRate new_rate);
-
+  void RateFlowUpdate(std::shared_ptr<RateFlow> flow,
+              DataRate new_rate,
+              TimeDelta last_rtt);
+  void CwndFlowUpdate(std::shared_ptr<ActiveCwndFlow> flow,
+          uint32_t new_cwnd,
+          uint64_t last_rtt);
  private:
   FseV2();
   ~FseV2();
+
   std::mutex mutex_;
+
   int rate_flow_id_counter_;
   int cwnd_flow_id_counter_;
+
   DataRate sum_calculated_rates_;
+
   std::unordered_set<std::shared_ptr<RateFlow>> rate_flows_;
   std::unordered_set<std::shared_ptr<ActiveCwndFlow>> cwnd_flows_;
 
-  void OnFlowUpdated(std::shared_ptr<RateFlow> flow,
-                     DataRate cc_rate);
+  TimeDelta base_rtt_;
+
+  void OnFlowUpdated();
+  int SumPrioritiesAndInitializeRates();
+  int SumPrioritiesAndInitializeCwnds();
+  void AllocateToRateFlows(int sum_priorities, DataRate leftover_rate);
+  void AllocateToCwndFlows(int sum_priorities, DataRate sum_cwnd_rates);
 };
 
 }  // namespace webrtc
