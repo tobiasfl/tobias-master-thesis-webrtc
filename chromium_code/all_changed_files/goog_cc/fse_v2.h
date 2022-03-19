@@ -42,6 +42,7 @@ class FseV2 {
       std::function<void(uint32_t)> update_callback);
 
   void DeRegisterRateFlow(std::shared_ptr<RateFlow> flow);
+  void DeRegisterCwndFlow(std::shared_ptr<ActiveCwndFlow> flow);
   void RateFlowUpdate(std::shared_ptr<RateFlow> flow,
               DataRate new_rate,
               TimeDelta last_rtt);
@@ -65,8 +66,8 @@ class FseV2 {
   TimeDelta base_rtt_;
 
   void OnFlowUpdated();
-  int SumPrioritiesAndInitializeRates();
-  int SumPrioritiesAndInitializeCwnds();
+  int SumPrioritiesAndInitializeRateFlowRates();
+  int SumPrioritiesAndInitializeCwndFlowRates();
   void AllocateToRateFlows(int sum_priorities, DataRate leftover_rate);
   void AllocateToCwndFlows(int sum_priorities, DataRate sum_cwnd_rates);
 };

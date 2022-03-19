@@ -98,27 +98,26 @@ uint32_t PassiveCwndFlow::GetInitialMaxCwnd() {
 
 ActiveCwndFlow::ActiveCwndFlow(int id,
                     int priority, 
-                    uint32_t initial_cwnd,
-                    uint64_t last_rtt,
+                    DataRate initial_rate,
                     std::function<void(uint32_t)> update_callback) 
     : Flow(id, priority),
-    fse_cwnd_(initial_cwnd),
+    fse_rate_(initial_rate),
     update_callback_(update_callback) {
   RTC_LOG(LS_INFO) << "creating an ActiveCwndFlow";
 }
 
 ActiveCwndFlow::~ActiveCwndFlow() = default;
 
-void ActiveCwndFlow::UpdateCc() {
-  update_callback_(FseCwnd());
+void ActiveCwndFlow::UpdateCc(uint32_t new_cwnd) {
+  update_callback_(new_cwnd);
 }
 
-uint32_t ActiveCwndFlow::FseCwnd() const {
-  return fse_cwnd_;
+DataRate ActiveCwndFlow::FseRate() const {
+  return fse_rate_;
 }
 
-void ActiveCwndFlow::SetFseCwnd(uint32_t new_cwnd) {
-  fse_cwnd_ = new_cwnd;
+void ActiveCwndFlow::SetFseRate(DataRate new_rate) {
+  fse_rate_ = new_rate;
 }
 
 }  // namespace webrtc

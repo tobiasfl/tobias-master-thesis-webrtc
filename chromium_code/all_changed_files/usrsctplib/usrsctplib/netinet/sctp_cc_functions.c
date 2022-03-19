@@ -63,10 +63,8 @@ sctp_enforce_cwnd_limit(struct sctp_association *assoc, struct sctp_nets *net, s
 {
       //Added by TOBIAS
       if (assoc->cwnd_changed) {
-        void *ulp_info;
-        int retrieved = retrieve_ulp_info(stcb->sctp_socket, &ulp_info);
         //TODO: check return value???
-        assoc->cwnd_changed(net->cwnd, net->rtt, ulp_info);
+        assoc->cwnd_changed(net->cwnd, net->rtt, stcb->sctp_ep->ulp_info);
       }
       //Added by TOBIAS
 

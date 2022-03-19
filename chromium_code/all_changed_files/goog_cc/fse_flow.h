@@ -65,17 +65,15 @@ class ActiveCwndFlow : public Flow {
  public:
   ActiveCwndFlow(int id,
            int priority,
-           uint32_t initial_cwnd,
-           uint64_t last_rtt,
+           DataRate initial_rate,
            std::function<void(uint32_t)> update_callback);
   ~ActiveCwndFlow() override;
-  void UpdateCc();
-  uint32_t FseCwnd() const;
-  void SetFseCwnd(uint32_t new_cwnd);
+  void UpdateCc(uint32_t new_cwnd);
+  DataRate FseRate() const;
+  void SetFseRate(DataRate new_rate);
     
  private:
-  uint32_t fse_cwnd_;
-  //Callback function registered by the congestion controller to apply updates with
+  DataRate fse_rate_;
   std::function<void(uint32_t)> update_callback_;
 };
 
