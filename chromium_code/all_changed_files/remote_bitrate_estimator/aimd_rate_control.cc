@@ -286,7 +286,6 @@ void AimdRateControl::ChangeBitrate(const RateControlInput& input,
   if (input.estimated_throughput)
     latest_estimated_throughput_ = *input.estimated_throughput;
 
-  RTC_LOG(LS_INFO) << "PLOT_THIS_AIMD estimated_throughput=" << estimated_throughput.kbps();
   // An over-use should always trigger us to reduce the bitrate, even though
   // we have not yet established our first estimate. By acting on the over-use,
   // we will end up with a valid estimate.
@@ -304,9 +303,6 @@ void AimdRateControl::ChangeBitrate(const RateControlInput& input,
 
   switch (rate_control_state_) {
     case RateControlState::kRcHold:
-      //Added by TOBIAS
-      RTC_LOG(LS_INFO) << "PLOT_THIS_HOLD change=" << 0;
-      //Added by TOBIAS
       break;
 
     case RateControlState::kRcIncrease:
@@ -329,21 +325,13 @@ void AimdRateControl::ChangeBitrate(const RateControlInput& input,
           DataRate additive_increase =
               AdditiveRateIncrease(at_time, time_last_bitrate_change_);
           increased_bitrate = current_bitrate_ + additive_increase;
-          //Added by TOBIAS
-          RTC_LOG(LS_INFO) << "PLOT_THIS_ADDITIVE change=" << additive_increase.kbps();
-          //Added by TOBIAS
         } else {
           // If we don't have an estimate of the link capacity, use faster ramp
           // up to discover the capacity.
           DataRate multiplicative_increase = MultiplicativeRateIncrease(
               at_time, time_last_bitrate_change_, current_bitrate_);
           increased_bitrate = current_bitrate_ + multiplicative_increase;
-          //Added by TOBIAS
-          RTC_LOG(LS_INFO) << "PLOT_THIS_MULTIPLICATIVE change=" << multiplicative_increase.kbps();
-          //Added by TOBIAS
         }
-        RTC_LOG(LS_INFO) << "PLOT_THIS_AIMD increased_bitrate=" << increased_bitrate.kbps() 
-                         << " troughput_based_limit=" << troughput_based_limit.kbps();
         new_bitrate = std::min(increased_bitrate, troughput_based_limit);
       }
 
@@ -368,9 +356,6 @@ void AimdRateControl::ChangeBitrate(const RateControlInput& input,
         decreased_bitrate = std::max(
             decreased_bitrate, network_estimate_->link_capacity_lower * beta_);
       }
-      //Added by TOBIAS
-      RTC_LOG(LS_INFO) << "PLOT_THIS_DECREASE change=" << decreased_bitrate.kbps() - current_bitrate_.kbps();
-      //Added by TOBIAS
       
       // Avoid increasing the rate when over-using.
       if (decreased_bitrate < current_bitrate_) {
@@ -423,22 +408,27 @@ void AimdRateControl::ChangeBitrate(const RateControlInput& input,
 
 
 void AimdRateControl::FseV2ChangeBitrate(DataRate new_bitrate) {
-  if (estimate_bounded_increase_ && network_estimate_) {
-    DataRate upper_bound = network_estimate_->link_capacity_upper;
-    new_bitrate = std::min(new_bitrate, upper_bound);
+  if (!FseV2::Instance().UpdateLossBasedEstimateIsEnabled()) {
+    if (estimate_bounded_increase_ && network_estimate_) {
+      DataRate upper_bound = network_estimate_->link_capacity_upper;
+      new_bitrate = std::min(new_bitrate, upper_bound);
+    }
+    new_bitrate = std::max(new_bitrate, min_configured_bitrate_);
+    
+    if (!fseFlow_) {
+      fseFlow_ = FseV2::Instance().RegisterRateFlow(
+              current_bitrate_, 
+              [this](DataRate fse_rate) { this->current_bitrate_ = fse_rate; } );
+    }
+    
+    FseV2::Instance().RateFlowUpdate(
+            fseFlow_,
+            new_bitrate,
+            rtt_);
   }
-  new_bitrate = std::max(new_bitrate, min_configured_bitrate_);
-  
-  if (!fseFlow_) {
-    fseFlow_ = FseV2::Instance().RegisterRateFlow(
-            current_bitrate_, 
-            [this](DataRate fse_rate) { this->current_bitrate_ = fse_rate; } );
+  else {
+    current_bitrate_ = ClampBitrate(new_bitrate);
   }
-  
-  FseV2::Instance().RateFlowUpdate(
-          fseFlow_,
-          new_bitrate,
-          rtt_);
 }
 
 void AimdRateControl::FseChangeBitrate(DataRate new_bitrate) {

@@ -41,12 +41,44 @@ def plot_scatter_plot(df, xlabel, ylabel):
 
     time_col_name = df.columns[0]
     for col in df.columns[1:]:
-        plt.scatter(df[time_col_name], df[col], s=1, label=col)
+        plt.scatter(df[time_col_name], df[col], s=2, label=col)
 
     plt.legend(loc="upper left")
     plt.tight_layout()
 
     plt.savefig("scatter_plot.png")
+    plt.show()
+
+def plot_debug_line_plot(df, xlabel, ylabel):
+    params = {'backend': 'ps',
+      'axes.labelsize': 15,
+      'font.weight' : 'bold',
+      'font.family': 'serif',
+      'font.serif': 'Computer Modern Roman',
+      'legend.fontsize': 14,
+      'xtick.labelsize': 12,#15
+      'ytick.labelsize': 12,#15
+      'savefig.dpi': 400,
+      'text.usetex': True,
+      'axes.labelweight' : 'bold',
+      'figure.figsize': fig_size,
+      }
+
+    plt.rcParams.update(params)
+
+    plt.xlabel(xlabel)
+    plt.ylabel(ylabel)
+ 
+    plt.grid(which="both")
+
+    time_col_name = df.columns[0]
+    for col in df.columns[1:]:
+        plt.plot(df[time_col_name], df[col], label=col)
+
+    plt.legend(loc="upper left")
+    plt.tight_layout()
+
+    plt.savefig("debug_line_plot.png")
     plt.show()
 
 #Assumes time(s), vals1, vals2...

@@ -71,10 +71,19 @@ class GoogCcNetworkController : public NetworkControllerInterface {
   NetworkControlUpdate OnNetworkStateEstimate(
       NetworkStateEstimate msg) override;
 
+  //TOBIAS
+  NetworkControlUpdate OnCouplingUpdateInterval(ProcessInterval msg) override;
+  //TOBIAS
+
   NetworkControlUpdate GetNetworkState(Timestamp at_time) const;
 
  private:
   friend class GoogCcStatePrinter;
+  //TOBIAS
+  void UpdateSendSideDelayBasedEstimate(Timestamp at_time);
+  //TOBIAS
+  
+
   std::vector<ProbeClusterConfig> ResetConstraints(
       TargetRateConstraints new_constraints);
   void ClampConstraints();

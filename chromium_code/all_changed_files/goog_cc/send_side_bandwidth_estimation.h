@@ -31,7 +31,7 @@
 
 #include "modules/congestion_controller/goog_cc/fse_flow.h"
 #include "modules/congestion_controller/goog_cc/fse_ng.h"
-
+#include "modules/congestion_controller/goog_cc/fse_v2.h"
 
 namespace webrtc {
 
@@ -208,6 +208,8 @@ class SendSideBandwidthEstimation {
   // Added by TOBIAS
   std::shared_ptr<RateFlow> fseNgFlow_;
   void FseNgUpdateTargetBitrate(DataRate new_bitrate, Timestamp at_time);
+  std::shared_ptr<RateFlow> fseV2Flow_;
+  void FseV2UpdateTargetBitrate(DataRate new_bitrate, Timestamp at_time);
   // Added by TOBIAS
 };
 }  // namespace webrtc

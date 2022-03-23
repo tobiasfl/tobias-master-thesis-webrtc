@@ -49,6 +49,8 @@ class FseV2 {
   void CwndFlowUpdate(std::shared_ptr<ActiveCwndFlow> flow,
           uint32_t new_cwnd,
           uint64_t last_rtt);
+
+  bool UpdateLossBasedEstimateIsEnabled() const;
  private:
   FseV2();
   ~FseV2();
@@ -63,13 +65,16 @@ class FseV2 {
   std::unordered_set<std::shared_ptr<RateFlow>> rate_flows_;
   std::unordered_set<std::shared_ptr<ActiveCwndFlow>> cwnd_flows_;
 
-  TimeDelta base_rtt_;
+  TimeDelta last_rtt_;
 
+  void UpdateRttValues(TimeDelta last_rtt);
   void OnFlowUpdated();
   int SumPrioritiesAndInitializeRateFlowRates();
   int SumPrioritiesAndInitializeCwndFlowRates();
   void AllocateToRateFlows(int sum_priorities, DataRate leftover_rate);
   void AllocateToCwndFlows(int sum_priorities, DataRate sum_cwnd_rates);
+  DataRate SumAllocatedRates();
+
 };
 
 }  // namespace webrtc

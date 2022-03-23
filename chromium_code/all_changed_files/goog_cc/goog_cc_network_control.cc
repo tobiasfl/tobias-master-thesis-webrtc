@@ -202,6 +202,10 @@ NetworkControlUpdate GoogCcNetworkController::OnProcessInterval(
     congestion_window_pushback_controller_->UpdatePacingQueue(
         msg.pacer_queue->bytes());
   }
+  //TOBIAS
+  //UpdateSendSideDelayBasedEstimate(msg.at_time);
+  //TOBIAS
+
   bandwidth_estimation_->UpdateEstimate(msg.at_time);
   absl::optional<int64_t> start_time_ms =
       alr_detector_->GetApplicationLimitedRegionStartTime();
@@ -224,6 +228,15 @@ NetworkControlUpdate GoogCcNetworkController::OnProcessInterval(
   MaybeTriggerOnNetworkChanged(&update, msg.at_time);
   return update;
 }
+//TOBIAS
+NetworkControlUpdate GoogCcNetworkController::OnCouplingUpdateInterval(
+        ProcessInterval msg) {
+  NetworkControlUpdate update;
+  UpdateSendSideDelayBasedEstimate(msg.at_time);
+  MaybeTriggerOnNetworkChanged(&update, msg.at_time);
+  return update;
+}
+//TOBIAS
 
 NetworkControlUpdate GoogCcNetworkController::OnRemoteBitrateReport(
     RemoteBitrateReport msg) {
@@ -706,5 +719,23 @@ PacerConfig GoogCcNetworkController::GetPacingRates(Timestamp at_time) const {
   msg.pad_window = padding_rate * msg.time_window;
   return msg;
 }
+
+//TOBIAS
+void GoogCcNetworkController::UpdateSendSideDelayBasedEstimate(Timestamp at_time) {
+  std::vector<uint32_t> ssrcs;
+  DataRate bitrate = DataRate::Zero();
+  bool valid_estimate = false; 
+  if (delay_based_bwe_) {
+    valid_estimate = delay_based_bwe_->LatestEstimate(&ssrcs, &bitrate) ;
+  }
+  if (valid_estimate) {
+    bandwidth_estimation_->UpdateDelayBasedEstimate(at_time, bitrate);
+  }
+  else {
+    RTC_LOG(LS_INFO) << "LatestEstimate() was invalid";
+  }
+
+}
+//TOBIAS
 
 }  // namespace webrtc

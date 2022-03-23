@@ -7742,8 +7742,9 @@ sctp_set_cwnd(struct socket *so, uint32_t cwnd_b)
 
   if (stcb) {
     TAILQ_FOREACH(net, &stcb->asoc.nets, sctp_next) {
+      SCTP_PRINTF("PLOT_THIS cwnd=%u ssthresh=%u", net->cwnd, net->ssthresh);
       net->cwnd = cwnd_b;
-      //net->ssthresh = cwnd_b;
+      net->ssthresh = cwnd_b;
     }
 
     SCTP_TCB_UNLOCK(stcb);

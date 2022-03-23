@@ -329,6 +329,13 @@ class UsrsctpTransportMap {
     return true;
   }
 
+  //TOBIAS
+  UsrsctpTransport* GetUsrsctpTransport(uintptr_t id) const {
+    webrtc::MutexLock lock(&lock_);
+    return RetrieveWhileHoldingLock(id);
+  }
+  //TOBIAS
+
  private:
   UsrsctpTransport* RetrieveWhileHoldingLock(uintptr_t id) const
       RTC_EXCLUSIVE_LOCKS_REQUIRED(lock_) {
@@ -563,10 +570,17 @@ class UsrsctpTransport::UsrSctpWrapper {
       RTC_LOG(LS_ERROR) << "OnCwndChanged called after usrsctp uninitialized?";
       return 0;
     }
-    // I think this code helps us differentiate between flows for use
     uintptr_t id = reinterpret_cast<uintptr_t>(ulp_info);
-
-    // TODO: code below is probably smarter to use...
+/*TODO: this code necessary if you want to somehow update synchronously
+    UsrsctpTransport* transport = g_transport_map_->GetUsrsctpTransport(id);
+    if (!transport) {
+      RTC_LOG(LS_ERROR)
+          << "OnCwndChanged: Failed to get transport for socket ID " << id
+          << "; possibly was already destroyed.";
+    }
+    transport->CwndUpdate(cwnd, last_rtt);
+*/
+    
     bool found = g_transport_map_->PostToTransportThread(
         id, [cwnd, last_rtt](UsrsctpTransport* transport) {
             RTC_LOG(LS_INFO) << "posting CwndUpdate call to TransportThread";
@@ -577,7 +591,6 @@ class UsrsctpTransport::UsrSctpWrapper {
           << "OnCwndChanged: Failed to get transport for socket ID " << id
           << "; possibly was already destroyed.";
     }
-
     return 0;
   }
   // Added by TOBIAS
@@ -1110,6 +1123,11 @@ void UsrsctpTransport::CloseSctpSocket() {
     if (webrtc::FseConfig::Instance().CurrentFse() == webrtc::fse_ng 
             && fse_flow_) {
       webrtc::FseNg::Instance().DeRegisterWindowBasedFlow(fse_flow_);
+      fse_flow_ = nullptr;
+    }
+    if (webrtc::FseConfig::Instance().CurrentFse() == webrtc::fse_v2 
+            && fse_v2_flow_) {
+      webrtc::FseV2::Instance().DeRegisterCwndFlow(fse_v2_flow_);
       fse_flow_ = nullptr;
     }
     //Added by TOBIAS
@@ -1668,7 +1686,6 @@ void UsrsctpTransport::CwndUpdate(uint32_t cwnd, uint64_t last_rtt) {
 
 void UsrsctpTransport::SetCwnd(uint32_t cwnd) {
   RTC_LOG(LS_INFO) << "SetCwnd was called with cwnd:" << cwnd;
-  //TODO: should actually set cwnd
   usrsctp_set_cwnd(sock_, cwnd);
 }
 
