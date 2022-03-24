@@ -571,17 +571,15 @@ class UsrsctpTransport::UsrSctpWrapper {
       return 0;
     }
     uintptr_t id = reinterpret_cast<uintptr_t>(ulp_info);
-/*TODO: this code necessary if you want to somehow update synchronously
+//TODO: this code necessary if you want to somehow update synchronously
     UsrsctpTransport* transport = g_transport_map_->GetUsrsctpTransport(id);
     if (!transport) {
       RTC_LOG(LS_ERROR)
           << "OnCwndChanged: Failed to get transport for socket ID " << id
           << "; possibly was already destroyed.";
     }
-    transport->CwndUpdate(cwnd, last_rtt);
-*/
-    
-    bool found = g_transport_map_->PostToTransportThread(
+    return transport->CwndUpdate(cwnd, last_rtt);
+    /*bool found = g_transport_map_->PostToTransportThread(
         id, [cwnd, last_rtt](UsrsctpTransport* transport) {
             RTC_LOG(LS_INFO) << "posting CwndUpdate call to TransportThread";
             transport->CwndUpdate(cwnd, last_rtt);
@@ -590,8 +588,7 @@ class UsrsctpTransport::UsrSctpWrapper {
       RTC_LOG(LS_ERROR)
           << "OnCwndChanged: Failed to get transport for socket ID " << id
           << "; possibly was already destroyed.";
-    }
-    return 0;
+    }*/
   }
   // Added by TOBIAS
 };
@@ -962,13 +959,6 @@ bool UsrsctpTransport::Connect() {
       RTC_LOG(LS_INFO) << "registering usrsctp update callback";
       //TODO: double check if it shoudl be pointer here or not(does not seem to make a difference)
       usrsctp_register_cwnd_callback(sock_, &UsrSctpWrapper::OnCwndChanged);
-      /*if (!fse_v2_flow_) {
-        fse_v2_flow_ = webrtc::FseV2::Instance().RegisterCwndFlow(
-              2000, 
-              80000,
-              [this](uint32_t cwnd) {this->SetCwnd(cwnd);});
-      }*/
-
       break;
     }
     default: {}
@@ -1672,16 +1662,20 @@ void UsrsctpTransport::OnStreamResetEvent(
 
 // Added by TOBIAS
 //
-void UsrsctpTransport::CwndUpdate(uint32_t cwnd, uint64_t last_rtt) {
+uint32_t UsrsctpTransport::CwndUpdate(uint32_t cwnd, uint64_t last_rtt) {
   if (webrtc::FseConfig::Instance().CurrentFse() == webrtc::fse_v2) {
     if (!fse_v2_flow_) {
       fse_v2_flow_ = webrtc::FseV2::Instance().RegisterCwndFlow(
               cwnd, 
               last_rtt,
-              [this](uint32_t cwnd) {this->SetCwnd(cwnd);});
+              [this](uint32_t cwnd) {
+                  this->SetCwnd(cwnd);
+              });
     }
-    webrtc::FseV2::Instance().CwndFlowUpdate(fse_v2_flow_, cwnd, last_rtt);
+    return webrtc::FseV2::Instance().CwndFlowUpdate(fse_v2_flow_, cwnd, last_rtt);
   }
+  //TODO: perhaps assert that this is not reachable
+  return 0;
 }
 
 void UsrsctpTransport::SetCwnd(uint32_t cwnd) {

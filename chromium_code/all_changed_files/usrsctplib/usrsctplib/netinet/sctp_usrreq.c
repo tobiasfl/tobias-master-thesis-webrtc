@@ -7737,16 +7737,17 @@ sctp_set_cwnd(struct socket *so, uint32_t cwnd_b)
     SCTP_PRINTF("sctp_set_cwnd: inp is NULL");
     return EINVAL;
   }
+
   for (int i = 0; i < 1; ++i) 
     SCTP_FIND_STCB(inp, stcb, SCTP_ALL_ASSOC);
 
   if (stcb) {
     TAILQ_FOREACH(net, &stcb->asoc.nets, sctp_next) {
-      SCTP_PRINTF("PLOT_THIS cwnd=%u ssthresh=%u", net->cwnd, net->ssthresh);
+      //TODO: take state into account here(ie. check ssthresh value and stuff)
       net->cwnd = cwnd_b;
-      net->ssthresh = cwnd_b;
+      //net->ssthresh = cwnd_b;
+      SCTP_PRINTF("PLOT_THIS_set_cwnd cwnd=%u ssthresh=%u", net->cwnd, net->ssthresh);
     }
-
     SCTP_TCB_UNLOCK(stcb);
     return 0;
   }

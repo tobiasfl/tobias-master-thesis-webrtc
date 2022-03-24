@@ -46,7 +46,7 @@ class FseV2 {
   void RateFlowUpdate(std::shared_ptr<RateFlow> flow,
               DataRate new_rate,
               TimeDelta last_rtt);
-  void CwndFlowUpdate(std::shared_ptr<ActiveCwndFlow> flow,
+  uint32_t CwndFlowUpdate(std::shared_ptr<ActiveCwndFlow> flow,
           uint32_t new_cwnd,
           uint64_t last_rtt);
 
@@ -73,8 +73,10 @@ class FseV2 {
   int SumPrioritiesAndInitializeCwndFlowRates();
   void AllocateToRateFlows(int sum_priorities, DataRate leftover_rate);
   void AllocateToCwndFlows(int sum_priorities, DataRate sum_cwnd_rates);
+  void DistributeToRateFlows();
+  void DistributeToCwndFlows(std::shared_ptr<ActiveCwndFlow> update_caller);
   DataRate SumAllocatedRates();
-
+  
 };
 
 }  // namespace webrtc

@@ -74,7 +74,6 @@ std::shared_ptr<ActiveCwndFlow> FseV2::RegisterCwndFlow(
       << " last_rtt=" 
       << last_rtt/1000;
 
-
   UpdateRttValues(TimeDelta::Micros(last_rtt));
 
   int id = cwnd_flow_id_counter_++;
@@ -115,10 +114,15 @@ void FseV2::RateFlowUpdate(std::shared_ptr<RateFlow> flow, DataRate new_rate, Ti
       << "PLOT_THISFSE_RATE sum_calculated_rates_=" 
       << sum_calculated_rates_.kbps();
 
+  DistributeToRateFlows();
+
+  DistributeToCwndFlows(nullptr);
+
   mutex_.unlock();
+
 }
 
-void FseV2::CwndFlowUpdate(
+uint32_t FseV2::CwndFlowUpdate(
         std::shared_ptr<ActiveCwndFlow> flow,
         uint32_t new_cwnd,
         uint64_t last_rtt) {
@@ -141,7 +145,13 @@ void FseV2::CwndFlowUpdate(
       << "PLOT_THISFSE_CWND sum_calculated_rates_=" 
       << sum_calculated_rates_.kbps();
 
+  DistributeToRateFlows();
+
+  //TODO: make sure this does not make deadlock when there are several SCTP flows
+  DistributeToCwndFlows(flow);
+
   mutex_.unlock();
+  return Flow::RateToCwnd(last_rtt_, flow->FseRate());
 }
 
 
@@ -159,24 +169,6 @@ void FseV2::OnFlowUpdated() {
 
   DataRate cwnd_flows_share = sum_calculated_rates_ - rate_flows_share;
   AllocateToCwndFlows(sum_cwnd_priorities, cwnd_flows_share);
-
-  // d. Distribute FSE_R to all the flows
-  for (const auto& i : rate_flows_) {
-    RTC_LOG(LS_INFO) 
-        << "PLOT_THIS_RTP" << i->Id() 
-        << " rate=" << i->FseRate().kbps();
-
-    i->UpdateCc();
-  }
-
-  for (const auto& i : cwnd_flows_) {
-    RTC_LOG(LS_INFO) 
-        << "PLOT_THIS_SCTP" << i->Id()  
-        << " rate=" << i->FseRate().kbps();
-
-    uint32_t new_cwnd = Flow::RateToCwnd(last_rtt_, i->FseRate());
-    i->UpdateCc(new_cwnd);
-  }
 
   //Extension to avoid S_CR leftover buildup, make sure S_CR == total allocated rate
   sum_calculated_rates_ = SumAllocatedRates();
@@ -230,14 +222,12 @@ void FseV2::AllocateToRateFlows(int sum_priorities, DataRate leftover_rate) {
   }
 }
 
-
 void FseV2::AllocateToCwndFlows(int sum_priorities, DataRate sum_cwnd_rates) {
   for (const auto& i : cwnd_flows_) {
     DataRate cwnd_flow_rate = (i->Priority() * sum_cwnd_rates) / sum_priorities;
     i->SetFseRate(cwnd_flow_rate);
   }
 }
-
 
 DataRate FseV2::SumAllocatedRates() {
   DataRate total_alllocated_rate = DataRate::Zero();
@@ -249,6 +239,35 @@ DataRate FseV2::SumAllocatedRates() {
     total_alllocated_rate += i->FseRate();
   }
   return total_alllocated_rate;
+}
+
+
+void FseV2::DistributeToRateFlows() {
+  // d. Distribute FSE_R to all the flows 
+  for (const auto& i : rate_flows_) {
+    RTC_LOG(LS_INFO) 
+        << "PLOT_THIS_RTP" << i->Id() 
+        << " rate=" << i->FseRate().kbps();
+
+    i->UpdateCc();
+  }
+}
+
+
+void FseV2::DistributeToCwndFlows(std::shared_ptr<ActiveCwndFlow> update_caller) {
+  for (const auto& i : cwnd_flows_) {
+    RTC_LOG(LS_INFO) 
+        << "PLOT_THIS_SCTP" << i->Id()  
+        << " rate=" << i->FseRate().kbps();
+    if (i == update_caller) {
+      continue;
+    }
+
+    uint32_t new_cwnd = Flow::RateToCwnd(last_rtt_, i->FseRate());
+    mutex_.unlock();
+    i->UpdateCc(new_cwnd);
+    mutex_.lock();
+  }
 }
 
 void FseV2::DeRegisterRateFlow(std::shared_ptr<RateFlow> flow) {

@@ -113,7 +113,7 @@ class UsrsctpTransport : public SctpTransportInternal,
   void SetCwnd(uint32_t cwnd);
   void GetCwnd(uint32_t *cwnd_value);
   void SetMaxCwnd(uint32_t max_cwnd);
-  void CwndUpdate(uint32_t cwnd, uint64_t last_rtt);
+  uint32_t CwndUpdate(uint32_t cwnd, uint64_t last_rtt);
   void GetMaxCwnd(uint32_t *max_cwnd_value);
   // Added by TOBIAS
 
