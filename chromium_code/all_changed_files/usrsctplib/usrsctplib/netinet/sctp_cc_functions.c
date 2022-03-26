@@ -63,8 +63,12 @@ sctp_enforce_cwnd_limit(struct sctp_association *assoc, struct sctp_nets *net, s
 {
       //Added by TOBIAS
       if (assoc->cwnd_changed) {
-        net->cwnd = assoc->cwnd_changed(net->cwnd, net->rtt, stcb->sctp_ep->ulp_info);
-        //TODO: also change ssthresh
+        uint32_t fse_cwnd = assoc->cwnd_changed(net->cwnd, net->rtt, stcb->sctp_ep->ulp_info);
+        /* in CA */
+        if (net->cwnd > net->ssthresh) {
+          net->ssthresh = fse_cwnd-1;
+        }
+        net->cwnd = fse_cwnd;
       }
       //Added by TOBIAS
 
@@ -76,6 +80,7 @@ sctp_enforce_cwnd_limit(struct sctp_association *assoc, struct sctp_nets *net, s
 			net->cwnd = net->mtu - sizeof(struct sctphdr);
 		}
 	}
+      SCTP_PRINTF("PLOT_THIS_set_cwnd cwnd=%u ssthresh=%u", net->cwnd, net->ssthresh);
 }
 
 static void

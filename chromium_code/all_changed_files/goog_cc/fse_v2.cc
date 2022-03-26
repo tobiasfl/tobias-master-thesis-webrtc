@@ -101,7 +101,7 @@ void FseV2::RateFlowUpdate(std::shared_ptr<RateFlow> flow, DataRate new_rate, Ti
 
   RTC_LOG(LS_INFO) 
       << "PLOT_THIS_RTP" << flow->Id()
-      << " ccrate=" << new_rate.kbps()
+      << " ratecc=" << new_rate.kbps()
       << " last_rtt=" << last_rtt.ms();
 
   UpdateRttValues(last_rtt);
@@ -134,7 +134,7 @@ uint32_t FseV2::CwndFlowUpdate(
 
   RTC_LOG(LS_INFO) 
       << "PLOT_THIS_SCTP" << flow->Id()
-      << " ccrate=" << new_rate.kbps()
+      << " ratecc=" << new_rate.kbps()
       << " last_rtt=" << last_rtt/1000;
 
   sum_calculated_rates_ = sum_calculated_rates_ + new_rate - flow->FseRate();
@@ -297,7 +297,7 @@ void FseV2::UpdateRttValues(TimeDelta last_rtt) {
 }
 
 bool FseV2::UpdateLossBasedEstimateIsEnabled() const {
-  return false;
+  return true;
 }
 
 FseV2& FseV2::Instance() {
