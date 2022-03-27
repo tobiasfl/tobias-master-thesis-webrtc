@@ -76,6 +76,49 @@ bool RateFlow::IsApplicationLimited() {
     return FseRate() >= desired_rate_;
 }
 
+GccRateFlow::GccRateFlow(int id,
+                   int priority,
+                   DataRate fse_rate,
+                   DataRate desired_rate,
+                   std::function<void(DataRate, Timestamp)> delay_update_callback,
+                   std::function<void(DataRate, Timestamp)> loss_update_callback)
+    : Flow(id, priority),
+      fse_rate_(fse_rate),
+      desired_rate_(desired_rate),
+      delay_update_callback_(delay_update_callback),
+      loss_update_callback_(loss_update_callback) {
+  RTC_LOG(LS_INFO) << "Creating a GccRateFlow";
+}
+
+GccRateFlow::~GccRateFlow() = default;
+
+void GccRateFlow::UpdateLossBasedCc(Timestamp at_time) {
+  loss_update_callback_(FseRate(), at_time);
+}
+
+void GccRateFlow::UpdateDelayBasedCc(Timestamp at_time) {
+  delay_update_callback_(FseRate(), at_time);
+}
+
+DataRate GccRateFlow::FseRate() const {
+  return fse_rate_;
+}
+
+void GccRateFlow::SetFseRate(DataRate new_rate) {
+  fse_rate_ = new_rate;
+}
+
+DataRate GccRateFlow::DesiredRate() const {
+  return desired_rate_;
+}
+
+void GccRateFlow::SetDesiredRate(DataRate new_rate) {
+  desired_rate_ = new_rate;
+}
+
+
+
+
 PassiveCwndFlow::PassiveCwndFlow(int id,
                    int priority,
                    uint32_t initial_max_cwnd,

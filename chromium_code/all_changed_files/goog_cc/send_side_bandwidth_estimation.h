@@ -82,7 +82,8 @@ class SendSideBandwidthEstimation {
  public:
   SendSideBandwidthEstimation() = delete;
   SendSideBandwidthEstimation(const WebRtcKeyValueConfig* key_value_config,
-                              RtcEventLog* event_log);
+                              RtcEventLog* event_log,
+                              std::shared_ptr<GccRateFlow> fse_v2_flow);
   ~SendSideBandwidthEstimation();
 
   void OnRouteChange();
@@ -116,6 +117,11 @@ class SendSideBandwidthEstimation {
                    DataRate max_bitrate,
                    Timestamp at_time);
   void SetSendBitrate(DataRate bitrate, Timestamp at_time);
+  //TOBIAS
+  void FseV2UpdateDelayBasedEstimate(Timestamp at_time, DataRate bitrate);
+  void SetCurrentTargetDirectly(DataRate fse_rate);
+  //TOBIAS
+
   void SetMinMaxBitrate(DataRate min_bitrate, DataRate max_bitrate);
   int GetMinBitrate() const;
   void SetAcknowledgedRate(absl::optional<DataRate> acknowledged_rate,
@@ -208,8 +214,9 @@ class SendSideBandwidthEstimation {
   // Added by TOBIAS
   std::shared_ptr<RateFlow> fseNgFlow_;
   void FseNgUpdateTargetBitrate(DataRate new_bitrate, Timestamp at_time);
-  std::shared_ptr<RateFlow> fseV2Flow_;
+  std::shared_ptr<GccRateFlow> fseV2Flow_;
   void FseV2UpdateTargetBitrate(DataRate new_bitrate, Timestamp at_time);
+  void NormalUpdateTargetBitrate(DataRate new_bitrate, Timestamp at_time);
   // Added by TOBIAS
 };
 }  // namespace webrtc

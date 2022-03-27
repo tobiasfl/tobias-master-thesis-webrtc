@@ -9,6 +9,7 @@
  */
 
 #include "modules/congestion_controller/goog_cc/goog_cc_network_control.h"
+#include "modules/congestion_controller/goog_cc/fse_config.h"
 
 #include <inttypes.h>
 #include <stdio.h>
@@ -95,9 +96,11 @@ GoogCcNetworkController::GoogCcNetworkController(NetworkControllerConfig config,
               ? std::make_unique<CongestionWindowPushbackController>(
                     key_value_config_)
               : nullptr),
+      fse_v2_flow_(MaybeRegisterInFseV2(*config.constraints.starting_rate)),
       bandwidth_estimation_(
           std::make_unique<SendSideBandwidthEstimation>(key_value_config_,
-                                                        event_log_)),
+                                                        event_log_,
+                                                        fse_v2_flow_)),
       alr_detector_(
           std::make_unique<AlrDetector>(key_value_config_, config.event_log)),
       probe_bitrate_estimator_(new ProbeBitrateEstimator(config.event_log)),
@@ -129,7 +132,14 @@ GoogCcNetworkController::GoogCcNetworkController(NetworkControllerConfig config,
     delay_based_bwe_->SetMinBitrate(congestion_controller::GetMinBitrate());
 }
 
-GoogCcNetworkController::~GoogCcNetworkController() {}
+GoogCcNetworkController::~GoogCcNetworkController() {
+//TOBIAS
+  if (fse_v2_flow_) 
+    FseV2::Instance().DeRegisterRateFlow(fse_v2_flow_);
+
+
+//TOBIAS
+}
 
 NetworkControlUpdate GoogCcNetworkController::OnNetworkAvailability(
     NetworkAvailability msg) {
@@ -729,13 +739,33 @@ void GoogCcNetworkController::UpdateSendSideDelayBasedEstimate(Timestamp at_time
     valid_estimate = delay_based_bwe_->LatestEstimate(&ssrcs, &bitrate) ;
   }
   if (valid_estimate) {
-    bandwidth_estimation_->UpdateDelayBasedEstimate(at_time, bitrate);
+    bandwidth_estimation_->FseV2UpdateDelayBasedEstimate(at_time, bitrate);
   }
   else {
     RTC_LOG(LS_INFO) << "LatestEstimate() was invalid";
   }
 
 }
+
+std::shared_ptr<GccRateFlow> GoogCcNetworkController::MaybeRegisterInFseV2(DataRate initial_rate) {
+  FseVersion fse_opt = FseConfig::Instance().CurrentFse();
+  if (fse_opt == fse_v2) {
+    return FseV2::Instance().RegisterRateFlow(
+        initial_rate,
+        [this](DataRate fse_rate, Timestamp at_time) {
+          RTC_LOG(LS_INFO) << "Updating delay_based_bwe_";
+          //First update the origin of the estimate
+          this->delay_based_bwe_->SetEstimateDirectly(fse_rate, at_time);
+          //Then make sure the lowest rate is chosen after the fse update
+          this->UpdateSendSideDelayBasedEstimate(at_time);},
+        [this](DataRate fse_rate, Timestamp at_time) {
+          RTC_LOG(LS_INFO) << "Updating bandwidth_estimation_";
+          this->bandwidth_estimation_->SetCurrentTargetDirectly(fse_rate);
+        });
+  }
+  return nullptr;
+}
+
 //TOBIAS
 
 }  // namespace webrtc

@@ -201,7 +201,8 @@ RttBasedBackoff::~RttBasedBackoff() = default;
 
 SendSideBandwidthEstimation::SendSideBandwidthEstimation(
     const WebRtcKeyValueConfig* key_value_config,
-    RtcEventLog* event_log)
+    RtcEventLog* event_log,
+    std::shared_ptr<GccRateFlow> fse_v2_flow)
     : rtt_backoff_(key_value_config),
       lost_packets_since_last_loss_update_(0),
       expected_packets_since_last_loss_update_(0),
@@ -233,7 +234,9 @@ SendSideBandwidthEstimation::SendSideBandwidthEstimation(
       bitrate_threshold_(kDefaultBitrateThreshold),
       loss_based_bandwidth_estimator_v1_(key_value_config),
       loss_based_bandwidth_estimator_v2_(key_value_config),
-      disable_receiver_limit_caps_only_("Disabled") {
+      disable_receiver_limit_caps_only_("Disabled"),
+      fseV2Flow_(fse_v2_flow)
+{
   RTC_DCHECK(event_log);
   if (BweLossExperimentIsEnabled()) {
     uint32_t bitrate_threshold_kbps;
@@ -255,9 +258,6 @@ SendSideBandwidthEstimation::~SendSideBandwidthEstimation() {
   //Added By TOBIAS
   if(fseNgFlow_) {
     FseNg::Instance().DeRegisterRateFlow(fseNgFlow_);
-  }
-  if(fseV2Flow_) {
-    FseV2::Instance().DeRegisterRateFlow(fseV2Flow_);
   }
   //Added By TOBIAS
 }
@@ -351,6 +351,15 @@ void SendSideBandwidthEstimation::UpdateDelayBasedEstimate(Timestamp at_time,
   // limitation.
   delay_based_limit_ = bitrate.IsZero() ? DataRate::PlusInfinity() : bitrate;
   ApplyTargetLimits(at_time);
+}
+
+void SendSideBandwidthEstimation::FseV2UpdateDelayBasedEstimate(Timestamp at_time,
+                                                           DataRate bitrate) {
+  link_capacity_.UpdateDelayBasedEstimate(at_time, bitrate);
+  // TODO(srte): Ensure caller passes PlusInfinity, not zero, to represent no
+  // limitation.
+  delay_based_limit_ = bitrate.IsZero() ? DataRate::PlusInfinity() : bitrate;
+  NormalUpdateTargetBitrate(current_target_, at_time);
 }
 
 void SendSideBandwidthEstimation::SetAcknowledgedRate(
@@ -661,35 +670,37 @@ void SendSideBandwidthEstimation::UpdateTargetBitrate(DataRate new_bitrate,
   if (fse_opt == fse_ng && FseNg::Instance().UpdateValFinalRate()) {
     FseNgUpdateTargetBitrate(new_bitrate, at_time);
   }
-  else if (fse_opt == fse_v2 && FseV2::Instance().UpdateLossBasedEstimateIsEnabled()) {
+  else if (fse_opt == fse_v2 
+          && FseV2::Instance().UpdateLossBasedEstimateIsEnabled()
+          && fseV2Flow_) {
     FseV2UpdateTargetBitrate(new_bitrate, at_time);
   }
   else {
-    //TESTING
-    //new_bitrate = delay_based_limit_;
-    //TESTING
+    NormalUpdateTargetBitrate(new_bitrate, at_time);
+  }
+}
 
+void SendSideBandwidthEstimation::NormalUpdateTargetBitrate(
+        DataRate new_bitrate, 
+        Timestamp at_time) {
     new_bitrate = std::min(new_bitrate, GetUpperLimit());
     if (new_bitrate < min_bitrate_configured_) {
       MaybeLogLowBitrateWarning(new_bitrate, at_time);
       new_bitrate = min_bitrate_configured_;
     }
-
-    //TOBIAS 
+   //TOBIAS 
     if(delay_based_limit_.IsFinite() 
             && current_target_.IsFinite()) {
       RTC_LOG(LS_INFO) 
           << "PLOT_THISSSBE new_bitrate=" << current_target_.kbps() 
           << " delay_based_limit_=" << delay_based_limit_.kbps()
-          << " current_target_=" << current_target_.kbps()
-          << " increase=" << (int)new_bitrate.kbps() - (int)current_target_.kbps();
+          << " current_target_=" << current_target_.kbps();
     }
-    //TOBIAS
-    
+    //TOBIAS  
+
     current_target_ = new_bitrate;
     MaybeLogLossBasedEvent(at_time);
     link_capacity_.OnRateUpdate(acknowledged_rate_, current_target_, at_time);
-  }
 }
 
 void SendSideBandwidthEstimation::FseNgUpdateTargetBitrate(
@@ -720,37 +731,41 @@ void SendSideBandwidthEstimation::FseNgUpdateTargetBitrate(
 void SendSideBandwidthEstimation::FseV2UpdateTargetBitrate(
         DataRate new_bitrate, 
         Timestamp at_time) {
-  if (!fseV2Flow_) {
-    fseV2Flow_ = FseV2::Instance().RegisterRateFlow(
-            current_target_,
-            [this](DataRate fse_rate) { this->current_target_ = fse_rate; } );
+  //TODO: make sure new_bitrate always is loss based estimate
+  //
+  if (delay_based_limit_ < new_bitrate) {
+      FseV2::Instance().RateFlowDelayBasedUpdate(
+              fseV2Flow_,
+              delay_based_limit_,
+              last_round_trip_time_,
+              at_time);
   }
+  else {
+    //This will in turn lead to current_target_ being updated to FSE_R
+    FseV2::Instance().RateFlowLossBasedUpdate(
+              fseV2Flow_, 
+              new_bitrate, 
+              last_round_trip_time_, 
+              at_time);
+    //since call above sets current_target_, we set new_bitrate to that, 
+    //hacky way to get FSE_R
+    new_bitrate = current_target_;
 
-  FseV2::Instance().RateFlowUpdate(fseV2Flow_, new_bitrate, last_round_trip_time_);
-  //since call above sets current_target_, we set new_bitrate to that, 
-  //hacky way to get FSE_R
-  new_bitrate = current_target_;
-
-  new_bitrate = std::min(new_bitrate, GetUpperLimit());
-  if (new_bitrate < min_bitrate_configured_) {
-    MaybeLogLowBitrateWarning(new_bitrate, at_time);
-    new_bitrate = min_bitrate_configured_;
+    new_bitrate = std::min(new_bitrate, GetUpperLimit());
+    if (new_bitrate < min_bitrate_configured_) {
+      MaybeLogLowBitrateWarning(new_bitrate, at_time);
+      new_bitrate = min_bitrate_configured_;
+    }
+    
+    current_target_ = new_bitrate;
+    MaybeLogLossBasedEvent(at_time);
+    link_capacity_.OnRateUpdate(acknowledged_rate_, current_target_, at_time);
   }
+}
 
-  //TOBIAS 
-  if(delay_based_limit_.IsFinite() 
-          && current_target_.IsFinite()) {
-    RTC_LOG(LS_INFO) 
-        << "PLOT_THISSSBE new_bitrate=" << current_target_.kbps() 
-        << " delay_based_limit_=" << delay_based_limit_.kbps()
-        << " current_target_=" << current_target_.kbps()
-        << " increase=" << (int)new_bitrate.kbps() - (int)current_target_.kbps();
-  }
-  //TOBIAS
-  
-  current_target_ = new_bitrate;
-  MaybeLogLossBasedEvent(at_time);
-  link_capacity_.OnRateUpdate(acknowledged_rate_, current_target_, at_time);
+
+void SendSideBandwidthEstimation::SetCurrentTargetDirectly(DataRate fse_rate) {
+  current_target_ = fse_rate;
 }
 
 void SendSideBandwidthEstimation::ApplyTargetLimits(Timestamp at_time) {

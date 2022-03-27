@@ -84,6 +84,10 @@ class DelayBasedBwe {
                           absl::optional<DataRate> link_capacity);
   DataRate last_estimate() const { return prev_bitrate_; }
 
+  //TOBIAS
+  void SetEstimateDirectly(DataRate fse_rate, Timestamp at_time);
+  //TOBIAS
+
  private:
   friend class GoogCcStatePrinter;
   void IncomingPacketFeedback(const PacketResult& packet_feedback,

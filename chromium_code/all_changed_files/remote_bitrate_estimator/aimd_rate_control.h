@@ -24,7 +24,6 @@
 
 #include "modules/congestion_controller/goog_cc/fse_ng.h"
 #include "modules/congestion_controller/goog_cc/flow_state_exchange.h"
-#include "modules/congestion_controller/goog_cc/fse_v2.h"
 
 namespace webrtc {
 // A rate control implementation based on additive increases of
@@ -122,7 +121,6 @@ class AimdRateControl {
   std::shared_ptr<RateFlow> fseFlow_;
   void FseChangeBitrate(DataRate new_bitrate);
   void FseNgChangeBitrate(DataRate new_bitrate);
-  void FseV2ChangeBitrate(DataRate new_bitrate);
   //ADDED BY TOBIAS
 
 };

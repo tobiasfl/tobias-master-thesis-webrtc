@@ -81,6 +81,7 @@ class GoogCcNetworkController : public NetworkControllerInterface {
   friend class GoogCcStatePrinter;
   //TOBIAS
   void UpdateSendSideDelayBasedEstimate(Timestamp at_time);
+  std::shared_ptr<GccRateFlow> MaybeRegisterInFseV2(DataRate initial_rate);
   //TOBIAS
   
 
@@ -108,6 +109,10 @@ class GoogCcNetworkController : public NetworkControllerInterface {
   const std::unique_ptr<CongestionWindowPushbackController>
       congestion_window_pushback_controller_;
 
+  //TOBIAS
+  std::shared_ptr<GccRateFlow>  fse_v2_flow_;
+  //TOBIAS
+  
   std::unique_ptr<SendSideBandwidthEstimation> bandwidth_estimation_;
   std::unique_ptr<AlrDetector> alr_detector_;
   std::unique_ptr<ProbeBitrateEstimator> probe_bitrate_estimator_;
@@ -150,6 +155,8 @@ class GoogCcNetworkController : public NetworkControllerInterface {
   bool previously_in_alr_ = false;
 
   absl::optional<DataSize> current_data_window_;
+
+
 };
 
 }  // namespace webrtc

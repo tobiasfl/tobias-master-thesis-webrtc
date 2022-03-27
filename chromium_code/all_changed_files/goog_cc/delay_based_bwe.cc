@@ -365,6 +365,12 @@ void DelayBasedBwe::SetMinBitrate(DataRate min_bitrate) {
   rate_control_.SetMinBitrate(min_bitrate);
 }
 
+//TOBIAS
+void DelayBasedBwe::SetEstimateDirectly(DataRate fse_rate, Timestamp at_time) {
+  rate_control_.SetEstimate(fse_rate, at_time);
+}
+//TOBIAS
+
 TimeDelta DelayBasedBwe::GetExpectedBwePeriod() const {
   return rate_control_.GetExpectedBandwidthPeriod();
 }

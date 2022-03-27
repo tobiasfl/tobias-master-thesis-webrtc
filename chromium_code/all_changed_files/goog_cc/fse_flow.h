@@ -46,6 +46,30 @@ class RateFlow : public Flow {
   std::function<void(DataRate)> update_callback_;
 };
 
+class GccRateFlow : public Flow {
+  public:
+    GccRateFlow(int id,
+           int priority,
+           DataRate fse_rate,
+           DataRate desired_rate,
+           std::function<void(DataRate, Timestamp)> delay_update_callback,
+           std::function<void(DataRate, Timestamp)> loss_update_callback);
+    ~GccRateFlow() override;
+  void UpdateLossBasedCc(Timestamp at_time);
+  void UpdateDelayBasedCc(Timestamp at_time);
+  DataRate FseRate() const;
+  void SetFseRate(DataRate new_rate);
+  DataRate DesiredRate() const;
+  void SetDesiredRate(DataRate new_rate);
+
+  private:
+    DataRate fse_rate_;
+    DataRate desired_rate_;
+
+    std::function<void(DataRate, Timestamp)> delay_update_callback_;
+    std::function<void(DataRate, Timestamp)> loss_update_callback_;
+};
+
 class PassiveCwndFlow : public Flow {
  public:
   PassiveCwndFlow(int id,
@@ -76,6 +100,7 @@ class ActiveCwndFlow : public Flow {
   DataRate fse_rate_;
   std::function<void(uint32_t)> update_callback_;
 };
+
 
 }  // namespace webrtc
 #endif  // MODULES_CONGESTION_CONTROLLER_GOOG_CC_FSE_FLOW_H

@@ -126,10 +126,6 @@ AimdRateControl::~AimdRateControl() {
         FseNg::Instance().DeRegisterRateFlow(fseFlow_);
         break;
       }
-      case fse_v2: {
-        FseV2::Instance().DeRegisterRateFlow(fseFlow_);
-        break;
-      }
       default:
         break;
     }
@@ -396,40 +392,12 @@ void AimdRateControl::ChangeBitrate(const RateControlInput& input,
       FseNgChangeBitrate(new_bitrate.value_or(current_bitrate_));
       break;
     }
-    case fse_v2: {
-      FseV2ChangeBitrate(new_bitrate.value_or(current_bitrate_));
-      break;
-    }
     default: {
       current_bitrate_ = ClampBitrate(new_bitrate.value_or(current_bitrate_));
      }
   }
 }
 
-
-void AimdRateControl::FseV2ChangeBitrate(DataRate new_bitrate) {
-  if (!FseV2::Instance().UpdateLossBasedEstimateIsEnabled()) {
-    if (estimate_bounded_increase_ && network_estimate_) {
-      DataRate upper_bound = network_estimate_->link_capacity_upper;
-      new_bitrate = std::min(new_bitrate, upper_bound);
-    }
-    new_bitrate = std::max(new_bitrate, min_configured_bitrate_);
-    
-    if (!fseFlow_) {
-      fseFlow_ = FseV2::Instance().RegisterRateFlow(
-              current_bitrate_, 
-              [this](DataRate fse_rate) { this->current_bitrate_ = fse_rate; } );
-    }
-    
-    FseV2::Instance().RateFlowUpdate(
-            fseFlow_,
-            new_bitrate,
-            rtt_);
-  }
-  else {
-    current_bitrate_ = ClampBitrate(new_bitrate);
-  }
-}
 
 void AimdRateControl::FseChangeBitrate(DataRate new_bitrate) {
   if (estimate_bounded_increase_ && network_estimate_) {
