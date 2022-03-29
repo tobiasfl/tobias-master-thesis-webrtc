@@ -237,6 +237,12 @@ void AimdRateControl::SetEstimate(DataRate bitrate, Timestamp at_time) {
   }
 }
 
+//TOBIAS
+void AimdRateControl::SetEstimateDirectly(DataRate bitrate) {
+  current_bitrate_ = ClampBitrate(bitrate);
+}
+//TOBIAS
+
 void AimdRateControl::SetNetworkStateEstimate(
     const absl::optional<NetworkStateEstimate>& estimate) {
   network_estimate_ = estimate;

@@ -80,24 +80,25 @@ GccRateFlow::GccRateFlow(int id,
                    int priority,
                    DataRate fse_rate,
                    DataRate desired_rate,
-                   std::function<void(DataRate, Timestamp)> delay_update_callback,
-                   std::function<void(DataRate, Timestamp)> loss_update_callback)
+                   std::function<void(DataRate, Timestamp)> update_callback)
     : Flow(id, priority),
       fse_rate_(fse_rate),
       desired_rate_(desired_rate),
-      delay_update_callback_(delay_update_callback),
-      loss_update_callback_(loss_update_callback) {
+      update_callback_(update_callback)
+       {
   RTC_LOG(LS_INFO) << "Creating a GccRateFlow";
 }
 
 GccRateFlow::~GccRateFlow() = default;
 
-void GccRateFlow::UpdateLossBasedCc(Timestamp at_time) {
-  loss_update_callback_(FseRate(), at_time);
-}
 
 void GccRateFlow::UpdateDelayBasedCc(Timestamp at_time) {
-  delay_update_callback_(FseRate(), at_time);
+  update_callback_(FseRate(), at_time);
+}
+
+
+void GccRateFlow::UpdateCc(Timestamp at_time) {
+  update_callback_(FseRate(), at_time);
 }
 
 DataRate GccRateFlow::FseRate() const {
@@ -115,9 +116,6 @@ DataRate GccRateFlow::DesiredRate() const {
 void GccRateFlow::SetDesiredRate(DataRate new_rate) {
   desired_rate_ = new_rate;
 }
-
-
-
 
 PassiveCwndFlow::PassiveCwndFlow(int id,
                    int priority,

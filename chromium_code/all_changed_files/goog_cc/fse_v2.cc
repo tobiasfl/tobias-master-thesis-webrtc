@@ -39,8 +39,7 @@ FseV2::~FseV2() = default;
 
 std::shared_ptr<GccRateFlow> FseV2::RegisterRateFlow(
       DataRate initial_bit_rate,
-      std::function<void(DataRate, Timestamp)> delay_update_callback,
-      std::function<void(DataRate, Timestamp)> loss_update_callback) {
+      std::function<void(DataRate, Timestamp)> delay_update_callback) {
   mutex_.lock();
   
   int flow_id = rate_flow_id_counter_++;
@@ -49,8 +48,7 @@ std::shared_ptr<GccRateFlow> FseV2::RegisterRateFlow(
       FseConfig::Instance().ResolveRateFlowPriority(flow_id), 
       initial_bit_rate, 
       FseConfig::Instance().ResolveDesiredRate(flow_id), 
-      delay_update_callback,
-      loss_update_callback);
+      delay_update_callback);
 
   RTC_LOG(LS_INFO) 
       << "FSE Registering new flow with id: " 
@@ -105,32 +103,7 @@ std::shared_ptr<ActiveCwndFlow> FseV2::RegisterCwndFlow(
   return new_flow;
 }
 
-void FseV2::RateFlowLossBasedUpdate(std::shared_ptr<GccRateFlow> flow, DataRate new_rate, TimeDelta last_rtt, Timestamp at_time) {
-  mutex_.lock();
-
-  RTC_LOG(LS_INFO) 
-      << "PLOT_THIS_RTP" << flow->Id()
-      << " ratecc=" << new_rate.kbps()
-      << " last_rtt=" << last_rtt.ms();
-
-  UpdateRttValues(last_rtt);
-
-  sum_calculated_rates_ = sum_calculated_rates_ + new_rate - flow->FseRate();
-
-  OnFlowUpdated();
-
-  RTC_LOG(LS_INFO) 
-      << "PLOT_THISFSE_RATE sum_calculated_rates_=" 
-      << sum_calculated_rates_.kbps();
-
-  DistributeToRateFlows(at_time);
-
-  DistributeToCwndFlows(nullptr);
-
-  mutex_.unlock();
-}
-
-void FseV2::RateFlowDelayBasedUpdate(std::shared_ptr<GccRateFlow> flow,
+void FseV2::RateFlowUpdate(std::shared_ptr<GccRateFlow> flow,
               DataRate new_rate,
               TimeDelta last_rtt, 
               Timestamp at_time) {
@@ -151,14 +124,7 @@ void FseV2::RateFlowDelayBasedUpdate(std::shared_ptr<GccRateFlow> flow,
       << "PLOT_THISFSE_RATE sum_calculated_rates_=" 
       << sum_calculated_rates_.kbps();
 
-    // d. Distribute FSE_R to all the flows 
-  for (const auto& i : rate_flows_) {
-    RTC_LOG(LS_INFO) 
-        << "PLOT_THIS_RTP" << i->Id() 
-        << " rate=" << i->FseRate().kbps();
-
-    i->UpdateDelayBasedCc(at_time);
-  }
+  DistributeToRateFlows(at_time);
 
   DistributeToCwndFlows(nullptr);
 
@@ -202,14 +168,15 @@ uint32_t FseV2::CwndFlowUpdate(
 
 void FseV2::OnFlowUpdated() {
 
-  // b. calculate the sum of all priorities and initialize FSE_R
+  // calculate the sum of all priorities and initialize FSE_R
   int sum_rate_priorities = SumPrioritiesAndInitializeRateFlowRates();
   int sum_cwnd_priorities = SumPrioritiesAndInitializeCwndFlowRates();
   int sum_total_priorities = sum_rate_priorities + sum_cwnd_priorities;
 
-  // c. Distribute S_CR among all flows, ensuring desired rate is not exceeded
-  DataRate rate_flows_share = 
-      sum_calculated_rates_ * sum_rate_priorities / sum_total_priorities; 
+  // Distribute S_CR among all flows, ensuring desired rate is not exceeded
+  DataRate rate_flows_share = CalculateRateFlowRatePortion(sum_rate_priorities, sum_total_priorities);
+       
+
   AllocateToRateFlows(sum_rate_priorities, rate_flows_share);
 
   DataRate cwnd_flows_share = sum_calculated_rates_ - rate_flows_share;
@@ -235,6 +202,18 @@ int FseV2::SumPrioritiesAndInitializeCwndFlowRates() {
     i->SetFseRate(DataRate::Zero());
   }
   return sum_cwnd_priorities;
+}
+
+//TODO: this may not be 100% when it comes to sharing of leftover rate
+DataRate FseV2::CalculateRateFlowRatePortion(int rate_priorities, int total_priotities) {
+  DataRate sum_desired_rates = SumDesiredRates();
+ 
+  DataRate rate_flows_share = sum_calculated_rates_ * rate_priorities / total_priotities; 
+ 
+  if (sum_desired_rates < rate_flows_share) {
+    rate_flows_share = sum_desired_rates;
+  }
+  return rate_flows_share;
 }
 
 //TODO: currently does not leave any extra for SCTP flows if all RTP flows are DR limited
@@ -274,6 +253,15 @@ void FseV2::AllocateToCwndFlows(int sum_priorities, DataRate sum_cwnd_rates) {
   }
 }
 
+
+DataRate FseV2::SumDesiredRates() {
+  DataRate total_desired_rate = DataRate::Zero();
+  for (const auto& i : rate_flows_) {
+    total_desired_rate += i->DesiredRate();
+  }
+  return total_desired_rate;
+}
+
 DataRate FseV2::SumAllocatedRates() {
   DataRate total_alllocated_rate = DataRate::Zero();
   for (const auto& i : rate_flows_) {
@@ -294,7 +282,7 @@ void FseV2::DistributeToRateFlows(Timestamp at_time) {
         << "PLOT_THIS_RTP" << i->Id() 
         << " rate=" << i->FseRate().kbps();
 
-    i->UpdateLossBasedCc(at_time);
+    i->UpdateCc(at_time);
   }
 }
 
@@ -339,10 +327,6 @@ void FseV2::UpdateRttValues(TimeDelta last_rtt) {
   if (last_rtt.IsFinite()) {
     last_rtt_ = last_rtt;
   }
-}
-
-bool FseV2::UpdateLossBasedEstimateIsEnabled() const {
-  return true;
 }
 
 FseV2& FseV2::Instance() {

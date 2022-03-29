@@ -957,7 +957,6 @@ bool UsrsctpTransport::Connect() {
     }
     case webrtc::fse_v2: {
       RTC_LOG(LS_INFO) << "registering usrsctp update callback";
-      //TODO: double check if it shoudl be pointer here or not(does not seem to make a difference)
       usrsctp_register_cwnd_callback(sock_, &UsrSctpWrapper::OnCwndChanged);
       break;
     }

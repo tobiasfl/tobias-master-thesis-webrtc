@@ -52,11 +52,10 @@ class GccRateFlow : public Flow {
            int priority,
            DataRate fse_rate,
            DataRate desired_rate,
-           std::function<void(DataRate, Timestamp)> delay_update_callback,
-           std::function<void(DataRate, Timestamp)> loss_update_callback);
+           std::function<void(DataRate, Timestamp)> update_callback);
     ~GccRateFlow() override;
-  void UpdateLossBasedCc(Timestamp at_time);
   void UpdateDelayBasedCc(Timestamp at_time);
+  void UpdateCc(Timestamp at_time);
   DataRate FseRate() const;
   void SetFseRate(DataRate new_rate);
   DataRate DesiredRate() const;
@@ -66,8 +65,8 @@ class GccRateFlow : public Flow {
     DataRate fse_rate_;
     DataRate desired_rate_;
 
-    std::function<void(DataRate, Timestamp)> delay_update_callback_;
-    std::function<void(DataRate, Timestamp)> loss_update_callback_;
+    std::function<void(DataRate, Timestamp)> update_callback_;
+
 };
 
 class PassiveCwndFlow : public Flow {

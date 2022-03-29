@@ -59,6 +59,10 @@ class AimdRateControl {
   DataRate Update(const RateControlInput* input, Timestamp at_time);
   void SetInApplicationLimitedRegion(bool in_alr);
   void SetEstimate(DataRate bitrate, Timestamp at_time);
+  //TOBIAS
+  void SetEstimateDirectly(DataRate bitrate);
+  //TOBIAS
+
   void SetNetworkStateEstimate(
       const absl::optional<NetworkStateEstimate>& estimate);
 

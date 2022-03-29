@@ -753,15 +753,12 @@ std::shared_ptr<GccRateFlow> GoogCcNetworkController::MaybeRegisterInFseV2(DataR
     return FseV2::Instance().RegisterRateFlow(
         initial_rate,
         [this](DataRate fse_rate, Timestamp at_time) {
-          RTC_LOG(LS_INFO) << "Updating delay_based_bwe_";
           //First update the origin of the estimate
           this->delay_based_bwe_->SetEstimateDirectly(fse_rate, at_time);
           //Then make sure the lowest rate is chosen after the fse update
-          this->UpdateSendSideDelayBasedEstimate(at_time);},
-        [this](DataRate fse_rate, Timestamp at_time) {
-          RTC_LOG(LS_INFO) << "Updating bandwidth_estimation_";
+          //this->UpdateSendSideDelayBasedEstimate(at_time);
           this->bandwidth_estimation_->SetCurrentTargetDirectly(fse_rate);
-        });
+          });
   }
   return nullptr;
 }

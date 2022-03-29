@@ -61,11 +61,15 @@ __FBSDID("$FreeBSD$");
 static void
 sctp_enforce_cwnd_limit(struct sctp_association *assoc, struct sctp_nets *net, struct sctp_tcb *stcb)
 {
+      SCTP_PRINTF("PLOT_THIS_cwndcc cwndcc=%u", net->cwnd);
+      SCTP_PRINTF("PLOT_THIS_ssthreshcc cwndcc=%u", net->ssthresh);
       //Added by TOBIAS
       if (assoc->cwnd_changed) {
         uint32_t fse_cwnd = assoc->cwnd_changed(net->cwnd, net->rtt, stcb->sctp_ep->ulp_info);
-        /* in CA */
-        if (net->cwnd > net->ssthresh) {
+        /* in CA and our fse_r is lowering cwnd below ssthresh */ 
+        //TODO: double check if this is > or >=, if > is correct, then make
+        //sure that ssthresh is still below cwnd
+        if (net->cwnd > net->ssthresh && fse_cwnd <= net->ssthresh) {
           net->ssthresh = fse_cwnd-1;
         }
         net->cwnd = fse_cwnd;
@@ -80,7 +84,8 @@ sctp_enforce_cwnd_limit(struct sctp_association *assoc, struct sctp_nets *net, s
 			net->cwnd = net->mtu - sizeof(struct sctphdr);
 		}
 	}
-      SCTP_PRINTF("PLOT_THIS_set_cwnd cwnd=%u ssthresh=%u", net->cwnd, net->ssthresh);
+      SCTP_PRINTF("PLOT_THIS_cwndfse cwndfse=%u", net->cwnd);
+      SCTP_PRINTF("PLOT_THIS_ssthreshfse cwndfse=%u", net->ssthresh);
 }
 
 static void
