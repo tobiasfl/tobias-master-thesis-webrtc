@@ -136,8 +136,6 @@ GoogCcNetworkController::~GoogCcNetworkController() {
 //TOBIAS
   if (fse_v2_flow_) 
     FseV2::Instance().DeRegisterRateFlow(fse_v2_flow_);
-
-
 //TOBIAS
 }
 
@@ -212,10 +210,6 @@ NetworkControlUpdate GoogCcNetworkController::OnProcessInterval(
     congestion_window_pushback_controller_->UpdatePacingQueue(
         msg.pacer_queue->bytes());
   }
-  //TOBIAS
-  //UpdateSendSideDelayBasedEstimate(msg.at_time);
-  //TOBIAS
-
   bandwidth_estimation_->UpdateEstimate(msg.at_time);
   absl::optional<int64_t> start_time_ms =
       alr_detector_->GetApplicationLimitedRegionStartTime();
@@ -753,11 +747,14 @@ std::shared_ptr<GccRateFlow> GoogCcNetworkController::MaybeRegisterInFseV2(DataR
     return FseV2::Instance().RegisterRateFlow(
         initial_rate,
         [this](DataRate fse_rate, Timestamp at_time) {
-          //First update the origin of the estimate
-          this->delay_based_bwe_->SetEstimateDirectly(fse_rate, at_time);
-          //Then make sure the lowest rate is chosen after the fse update
-          //this->UpdateSendSideDelayBasedEstimate(at_time);
+          DataRate delay_estimate = fse_rate;
+          if (delay_based_bwe_) {
+            delay_estimate = this->delay_based_bwe_->SetEstimateDirectly(fse_rate, at_time);
+          }
           this->bandwidth_estimation_->SetCurrentTargetDirectly(fse_rate);
+          //this->bandwidth_estimation_->SetSendBitrate(fse_rate, at_time);
+          //this->UpdateSendSideDelayBasedEstimate(at_time);
+          //this->bandwidth_estimation_->FseV2UpdateDelayBasedEstimate(at_time, delay_estimate);
           });
   }
   return nullptr;

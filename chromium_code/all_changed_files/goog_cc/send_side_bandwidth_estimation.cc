@@ -310,6 +310,17 @@ void SendSideBandwidthEstimation::SetSendBitrate(DataRate bitrate,
   min_bitrate_history_.clear();
 }
 
+
+void SendSideBandwidthEstimation::FseSetSendBitrate(DataRate bitrate, Timestamp at_time){
+  RTC_DCHECK_GT(bitrate, DataRate::Zero());
+  // Reset to avoid being capped by the estimate.
+  delay_based_limit_ = DataRate::PlusInfinity();
+  NormalUpdateTargetBitrate(bitrate, at_time);
+  // Clear last sent bitrate history so the new value can be used directly
+  // and not capped.
+  min_bitrate_history_.clear();
+}
+
 void SendSideBandwidthEstimation::SetMinMaxBitrate(DataRate min_bitrate,
                                                    DataRate max_bitrate) {
   min_bitrate_configured_ =
@@ -670,20 +681,11 @@ void SendSideBandwidthEstimation::UpdateTargetBitrate(DataRate new_bitrate,
   if (fse_opt == fse_ng && FseNg::Instance().UpdateValFinalRate()) {
     FseNgUpdateTargetBitrate(new_bitrate, at_time);
   }
+  else if (fse_opt == fse_v2 && fseV2Flow_) {
+    FseV2UpdateTargetBitrate(new_bitrate, at_time);
+  }
   else {
     NormalUpdateTargetBitrate(new_bitrate, at_time);
-    
-    // Use the newly found minimum and set both estimates
-    if (fse_opt == fse_v2 
-          && fseV2Flow_) {
-      if (current_target_ == delay_based_limit_) {
-        FseV2::Instance().RateFlowUpdate(
-              fseV2Flow_,
-              current_target_,
-              last_round_trip_time_,
-              at_time);
-      }
-    }
   }
 }
 
@@ -709,6 +711,29 @@ void SendSideBandwidthEstimation::NormalUpdateTargetBitrate(
     MaybeLogLossBasedEvent(at_time);
     link_capacity_.OnRateUpdate(acknowledged_rate_, current_target_, at_time);
 }
+
+void SendSideBandwidthEstimation::FseV2UpdateTargetBitrate(
+        DataRate new_bitrate, 
+        Timestamp at_time) {
+  new_bitrate = std::min(new_bitrate, GetUpperLimit());
+  if (new_bitrate < min_bitrate_configured_) {
+      MaybeLogLowBitrateWarning(new_bitrate, at_time);
+      new_bitrate = min_bitrate_configured_;
+  }
+  current_target_ = new_bitrate; 
+  MaybeLogLossBasedEvent(at_time);
+
+  if (fseV2Flow_) {
+  FseV2::Instance().RateFlowUpdate(
+          fseV2Flow_, 
+          new_bitrate, 
+          last_round_trip_time_,
+          at_time);
+  }
+
+  link_capacity_.OnRateUpdate(acknowledged_rate_, current_target_, at_time);
+}
+
 
 void SendSideBandwidthEstimation::FseNgUpdateTargetBitrate(
         DataRate new_bitrate, 

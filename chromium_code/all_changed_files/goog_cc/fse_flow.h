@@ -54,7 +54,6 @@ class GccRateFlow : public Flow {
            DataRate desired_rate,
            std::function<void(DataRate, Timestamp)> update_callback);
     ~GccRateFlow() override;
-  void UpdateDelayBasedCc(Timestamp at_time);
   void UpdateCc(Timestamp at_time);
   DataRate FseRate() const;
   void SetFseRate(DataRate new_rate);

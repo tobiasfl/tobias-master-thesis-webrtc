@@ -138,7 +138,10 @@ uint32_t FseV2::CwndFlowUpdate(
         uint64_t last_rtt) {
   mutex_.lock();
 
-  UpdateRttValues(TimeDelta::Micros(last_rtt));
+  // 0 means that there was no RTT value in the controller 
+  if (last_rtt != 0) {
+    UpdateRttValues(TimeDelta::Micros(last_rtt));
+  }
 
   DataRate new_rate = Flow::CwndToRate(new_cwnd, last_rtt_.us());
 
@@ -327,6 +330,10 @@ void FseV2::UpdateRttValues(TimeDelta last_rtt) {
   if (last_rtt.IsFinite()) {
     last_rtt_ = last_rtt;
   }
+}
+
+bool FseV2::CoupleDcSctpLib() {
+  return true;
 }
 
 FseV2& FseV2::Instance() {

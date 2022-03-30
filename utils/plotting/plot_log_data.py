@@ -17,13 +17,13 @@ if len(args) != 2:
     print(f'Usage: {args[0]} <cc_val>')
     sys.exit(1)
 
-def extract_info(list_of_lines, cc_attribute, id_string):
+def extract_info(list_of_lines, cc_attribute, id_line):
     result = []
 
     #gets the HHMMSS.MICROSECONDS timestamp
     timestamp_regex = r"^\[\d+:\d+:\d+/(\d+\.\d+):"
     #get the identity of the thing, discard _'s in between because plt.legend() does not show them then
-    id_regex = rf".+ {id_string}_*(\w*)\b"
+    id_regex = rf".+ {id_line}_*(\w*)\b"
     #gets cc_attribute value
     cc_attr_regex = rf"\b{cc_attribute}=(\-?\d+)"
     regex = rf"{timestamp_regex}{id_regex}.+{cc_attr_regex}"
@@ -74,23 +74,25 @@ def cwnd2cwnd_segments(cwnd_bytes):
 with open("log.txt") as logfile:
     lines = logfile.readlines()
 
+    #line_finder = 'DcSctpTransport'
+    line_finder = 'PLOT_THIS'
     if args[1] == "cwnd_segments":
-        df = extract_info(lines, 'cwnd', 'PLOT_THIS')
+        df = extract_info(lines, 'cwnd', line_finder)
 
         for flow_col in df.columns[1:]:
             df[flow_col] = cwnd2cwnd_segments(df[flow_col]) 
 
-        plot_scatter_plot(df, "Time (s)", args[1])
+        plot_debug_line_plot(df, "Time (s)", args[1])
 
     elif args[1] == "max_cwnd_segments":
-        df = extract_info(lines, 'max_cwnd', 'PLOT_THIS')
+        df = extract_info(lines, 'max_cwnd', line_finder)
 
         for flow_col in df.columns[1:]:
             df[flow_col] = cwnd2cwnd_segments(df[flow_col])
 
-        plot_scatter_plot(df, "Time (s)", args[1])
+        plot_debug_line_plot(df, "Time (s)", args[1])
 
     else:
-        df = extract_info(lines, args[1], 'PLOT_THIS')
-        plot_scatter_plot(df, "Time (s)", args[1])
+        df = extract_info(lines, args[1], line_finder)
+        plot_debug_line_plot(df, "Time (s)", args[1])
     

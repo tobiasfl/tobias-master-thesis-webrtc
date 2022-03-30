@@ -92,11 +92,6 @@ GccRateFlow::GccRateFlow(int id,
 GccRateFlow::~GccRateFlow() = default;
 
 
-void GccRateFlow::UpdateDelayBasedCc(Timestamp at_time) {
-  update_callback_(FseRate(), at_time);
-}
-
-
 void GccRateFlow::UpdateCc(Timestamp at_time) {
   update_callback_(FseRate(), at_time);
 }

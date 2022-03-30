@@ -366,8 +366,9 @@ void DelayBasedBwe::SetMinBitrate(DataRate min_bitrate) {
 }
 
 //TOBIAS
-void DelayBasedBwe::SetEstimateDirectly(DataRate fse_rate, Timestamp at_time) {
+DataRate DelayBasedBwe::SetEstimateDirectly(DataRate fse_rate, Timestamp at_time) {
   rate_control_.SetEstimateDirectly(fse_rate);
+  return rate_control_.LatestEstimate();
 }
 //TOBIAS
 

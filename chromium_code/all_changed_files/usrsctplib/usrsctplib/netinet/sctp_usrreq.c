@@ -7743,7 +7743,8 @@ sctp_set_cwnd(struct socket *so, uint32_t cwnd_b)
 
   if (stcb) {
     TAILQ_FOREACH(net, &stcb->asoc.nets, sctp_next) {
-
+      SCTP_PRINTF("PLOT_THIS_cwndcc cwndcc=%u", net->cwnd);
+      SCTP_PRINTF("PLOT_THIS_ssthreshcc cwndcc=%u", net->ssthresh);
       /* Only change ssthresh in CA when you actually set 
       cwnd based on FSE_R which is lower than ssthresh */
       
@@ -7751,10 +7752,11 @@ sctp_set_cwnd(struct socket *so, uint32_t cwnd_b)
       //TODO: double check if this is > or >=
       if (net->cwnd > net->ssthresh && cwnd_b <= net->ssthresh) {
         net->ssthresh = cwnd_b-1;
+        SCTP_PRINTF("PLOT_THIS_fsesetssthresh cwndcc=%u", net->ssthresh);
       }
       net->cwnd = cwnd_b;
-      SCTP_PRINTF("PLOT_THIS_cwndfse cwndfse=%u", net->cwnd);
-      SCTP_PRINTF("PLOT_THIS_ssthreshfse cwndfse=%u", net->ssthresh);
+      SCTP_PRINTF("PLOT_THIS_cwndfse_set_cwnd cwndfse=%u", net->cwnd);
+      SCTP_PRINTF("PLOT_THIS_ssthreshfse_set_cwnd cwndfse=%u", net->ssthresh);
     }
     SCTP_TCB_UNLOCK(stcb);
     return 0;

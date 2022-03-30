@@ -118,6 +118,7 @@ class SendSideBandwidthEstimation {
                    Timestamp at_time);
   void SetSendBitrate(DataRate bitrate, Timestamp at_time);
   //TOBIAS
+  void FseSetSendBitrate(DataRate bitrate, Timestamp at_time);
   void FseV2UpdateDelayBasedEstimate(Timestamp at_time, DataRate bitrate);
   void SetCurrentTargetDirectly(DataRate fse_rate);
   //TOBIAS
@@ -216,6 +217,7 @@ class SendSideBandwidthEstimation {
   void FseNgUpdateTargetBitrate(DataRate new_bitrate, Timestamp at_time);
   std::shared_ptr<GccRateFlow> fseV2Flow_;
   void NormalUpdateTargetBitrate(DataRate new_bitrate, Timestamp at_time);
+  void FseV2UpdateTargetBitrate(DataRate new_bitrate, Timestamp at_time);
   // Added by TOBIAS
 };
 }  // namespace webrtc

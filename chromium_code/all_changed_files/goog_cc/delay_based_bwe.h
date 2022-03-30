@@ -85,7 +85,7 @@ class DelayBasedBwe {
   DataRate last_estimate() const { return prev_bitrate_; }
 
   //TOBIAS
-  void SetEstimateDirectly(DataRate fse_rate, Timestamp at_time);
+  DataRate SetEstimateDirectly(DataRate fse_rate, Timestamp at_time);
   //TOBIAS
 
  private:

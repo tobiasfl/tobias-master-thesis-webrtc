@@ -61,8 +61,9 @@ __FBSDID("$FreeBSD$");
 static void
 sctp_enforce_cwnd_limit(struct sctp_association *assoc, struct sctp_nets *net, struct sctp_tcb *stcb)
 {
-      SCTP_PRINTF("PLOT_THIS_cwndcc cwndcc=%u", net->cwnd);
-      SCTP_PRINTF("PLOT_THIS_ssthreshcc cwndcc=%u", net->ssthresh);
+      SCTP_PRINTF("PLOT_THIS_cwnd cwnd=%u", net->cwnd);
+      SCTP_PRINTF("PLOT_THIS_ssthresh cwnd=%u", net->ssthresh);
+      SCTP_PRINTF("PLOT_THIS_rtt rtt=%u", net->rtt/1000);
       //Added by TOBIAS
       if (assoc->cwnd_changed) {
         uint32_t fse_cwnd = assoc->cwnd_changed(net->cwnd, net->rtt, stcb->sctp_ep->ulp_info);
@@ -71,6 +72,7 @@ sctp_enforce_cwnd_limit(struct sctp_association *assoc, struct sctp_nets *net, s
         //sure that ssthresh is still below cwnd
         if (net->cwnd > net->ssthresh && fse_cwnd <= net->ssthresh) {
           net->ssthresh = fse_cwnd-1;
+          SCTP_PRINTF("PLOT_THIS_fsesetssthresh cwndcc=%u", net->ssthresh);
         }
         net->cwnd = fse_cwnd;
       }

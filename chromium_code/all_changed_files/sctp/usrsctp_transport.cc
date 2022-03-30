@@ -393,7 +393,7 @@ class UsrsctpTransport::UsrSctpWrapper {
     }
 
     //Added by TOBIAS
-    usrsctp_sysctl_set_sctp_logging_level(0x00000001 | 0x00000002 | 0x00000004);
+    //usrsctp_sysctl_set_sctp_logging_level(0x00000001 | 0x00000002 | 0x00000004);
     //Added by TOBIAS
     
     // TODO(ldixon): Consider turning this on/off.
@@ -956,8 +956,10 @@ bool UsrsctpTransport::Connect() {
       break;
     }
     case webrtc::fse_v2: {
-      RTC_LOG(LS_INFO) << "registering usrsctp update callback";
-      usrsctp_register_cwnd_callback(sock_, &UsrSctpWrapper::OnCwndChanged);
+      if (!webrtc::FseV2::Instance().CoupleDcSctpLib()) {
+        RTC_LOG(LS_INFO) << "registering usrsctp update callback";
+        usrsctp_register_cwnd_callback(sock_, &UsrSctpWrapper::OnCwndChanged);
+      }
       break;
     }
     default: {}
@@ -1115,7 +1117,8 @@ void UsrsctpTransport::CloseSctpSocket() {
       fse_flow_ = nullptr;
     }
     if (webrtc::FseConfig::Instance().CurrentFse() == webrtc::fse_v2 
-            && fse_v2_flow_) {
+            && fse_v2_flow_
+            && !webrtc::FseV2::Instance().CoupleDcSctpLib()) {
       webrtc::FseV2::Instance().DeRegisterCwndFlow(fse_v2_flow_);
       fse_flow_ = nullptr;
     }
@@ -1662,7 +1665,8 @@ void UsrsctpTransport::OnStreamResetEvent(
 // Added by TOBIAS
 //
 uint32_t UsrsctpTransport::CwndUpdate(uint32_t cwnd, uint64_t last_rtt) {
-  if (webrtc::FseConfig::Instance().CurrentFse() == webrtc::fse_v2) {
+  if (webrtc::FseConfig::Instance().CurrentFse() == webrtc::fse_v2
+          && !webrtc::FseV2::Instance().CoupleDcSctpLib()) {
     if (!fse_v2_flow_) {
       fse_v2_flow_ = webrtc::FseV2::Instance().RegisterCwndFlow(
               cwnd, 
