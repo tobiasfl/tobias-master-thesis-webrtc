@@ -311,11 +311,12 @@ void SendSideBandwidthEstimation::SetSendBitrate(DataRate bitrate,
 }
 
 
-void SendSideBandwidthEstimation::FseSetSendBitrate(DataRate bitrate, Timestamp at_time){
-  RTC_DCHECK_GT(bitrate, DataRate::Zero());
+void SendSideBandwidthEstimation::FseV2SetSendBitrate(DataRate new_bitrate, Timestamp at_time) {
+  RTC_DCHECK_GT(new_bitrate, DataRate::Zero());
+
   // Reset to avoid being capped by the estimate.
   delay_based_limit_ = DataRate::PlusInfinity();
-  NormalUpdateTargetBitrate(bitrate, at_time);
+  NormalUpdateTargetBitrate(new_bitrate, at_time);
   // Clear last sent bitrate history so the new value can be used directly
   // and not capped.
   min_bitrate_history_.clear();
@@ -717,11 +718,24 @@ void SendSideBandwidthEstimation::FseV2UpdateTargetBitrate(
         Timestamp at_time) {
   //TOBIAS for debugging
   DataRate old_rate = current_target_;
+  DataRate loss_based_estimate = new_bitrate;
   //TOBIAS for debugging
 
   //TODO: might consider only clamping between delay and loss here, then clamp by 
   //max_bitrate_configured_ after FSE update
-  new_bitrate = std::min(new_bitrate, GetUpperLimit());
+  
+  new_bitrate = std::min(new_bitrate, delay_based_limit_);
+
+  RTC_LOG(LS_INFO) << "PLOT_THISSSBE cc_r_change=" << current_target_.kbps() - old_rate.kbps();
+  if (new_bitrate == loss_based_estimate) {
+    RTC_LOG(LS_INFO) << "PLOT_THIS_GCC_LOSS estimate=" << loss_based_estimate.kbps();
+  }
+  else if (new_bitrate == delay_based_limit_) {
+    RTC_LOG(LS_INFO) << "PLOT_THIS_GCC_DELAY estimate=" << delay_based_limit_.kbps();
+  }
+  else {
+    RTC_LOG(LS_INFO) << "PLOT_THIS_GCC_MAX estimate=" << new_bitrate.kbps();
+  }
 
   if (fseV2Flow_) {
       FseV2::Instance().RateFlowUpdate(
@@ -731,25 +745,6 @@ void SendSideBandwidthEstimation::FseV2UpdateTargetBitrate(
           at_time,
           true);
   }
-  //call above makes sure current_target_ is set to FSE_R
-   
-  if (current_target_ < min_bitrate_configured_) {
-      MaybeLogLowBitrateWarning(current_target_, at_time);
-      current_target_ = min_bitrate_configured_;
-  }
-  MaybeLogLossBasedEvent(at_time);
-  link_capacity_.OnRateUpdate(acknowledged_rate_, current_target_, at_time);
-
-  //TOBIAS 
-  if(delay_based_limit_.IsFinite() 
-           && current_target_.IsFinite()) {
-     RTC_LOG(LS_INFO) 
-         << "PLOT_THISSSBE_AFTER_UPDATE new_bitrate=" << current_target_.kbps() 
-         << " delay_based_limit_=" << delay_based_limit_.kbps()
-         << " current_target_=" << current_target_.kbps();
-   }
-   RTC_LOG(LS_INFO) << "PLOT_THISSSBE cc_r_change=" << current_target_.kbps() - old_rate.kbps();
-   //TOBIAS
 }
 
 

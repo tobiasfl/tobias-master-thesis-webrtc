@@ -141,6 +141,7 @@ uint32_t FseV2::CwndFlowUpdate(
   RTC_LOG(LS_INFO) 
       << "PLOT_THIS_SCTP" << flow->Id()
       << " ratecc=" << new_rate.kbps()
+      << " estimate=" << new_rate.kbps()
       << " last_rtt=" << last_rtt/1000;
 
   DataRate old_s_cr = sum_calculated_rates_;
