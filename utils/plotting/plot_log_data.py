@@ -74,8 +74,12 @@ def cwnd2cwnd_segments(cwnd_bytes):
 with open("log.txt") as logfile:
     lines = logfile.readlines()
 
-    #line_finder = 'DcSctpTransport'
     line_finder = 'PLOT_THIS'
+
+    dcsctp_stuff = ['ssthresh', 'cwnd', 'rtt', 'SScwnd', 'CAcwnd', 'packet_loss'] 
+    if any(x == args[1] for x in dcsctp_stuff):
+        line_finder = 'DcSctpTransport'
+
     if args[1] == "cwnd_segments":
         df = extract_info(lines, 'cwnd', line_finder)
 
@@ -94,5 +98,6 @@ with open("log.txt") as logfile:
 
     else:
         df = extract_info(lines, args[1], line_finder)
-        plot_debug_line_plot(df, "Time (s)", args[1])
+        #plot_debug_line_plot(df, "Time (s)", args[1])
+        plot_scatter_plot(df, "Time (s)", args[1])
     

@@ -41,7 +41,7 @@ def plot_scatter_plot(df, xlabel, ylabel):
 
     time_col_name = df.columns[0]
     for col in df.columns[1:]:
-        plt.scatter(df[time_col_name], df[col], s=2, label=col)
+        plt.scatter(df[time_col_name], df[col], s=3, label=col)
 
     plt.legend(loc="upper left")
     plt.tight_layout()

@@ -37,7 +37,7 @@ class FseV2 {
 
   std::shared_ptr<GccRateFlow> RegisterRateFlow(
       DataRate initial_bit_rate,
-      std::function<void(DataRate, Timestamp)> delay_update_callback);
+      std::function<void(DataRate, Timestamp, bool)> update_callback);
 
   std::shared_ptr<ActiveCwndFlow> RegisterCwndFlow(
       uint32_t initial_cwnd,
@@ -49,7 +49,8 @@ class FseV2 {
   void RateFlowUpdate(std::shared_ptr<GccRateFlow> flow,
               DataRate new_rate,
               TimeDelta last_rtt, 
-              Timestamp at_time);
+              Timestamp at_time,
+              bool update_loss_only);
 
   uint32_t CwndFlowUpdate(std::shared_ptr<ActiveCwndFlow> flow,
           uint32_t new_cwnd,
@@ -77,16 +78,19 @@ class FseV2 {
 
   void UpdateRttValues(TimeDelta last_rtt);
   void OnFlowUpdated();
+  void OnFlowUpdatedSimple();
   int SumPrioritiesAndInitializeRateFlowRates();
   int SumPrioritiesAndInitializeCwndFlowRates();
   DataRate CalculateRateFlowRatePortion(int rate_priorities, int total_priotities);
   void AllocateToRateFlows(int sum_priorities, DataRate leftover_rate);
   void AllocateToCwndFlows(int sum_priorities, DataRate sum_cwnd_rates);
-  void DistributeToRateFlows(Timestamp at_time);
+  void DistributeToRateFlows(Timestamp at_time, bool update_loss_only);
   void DistributeToCwndFlows(std::shared_ptr<ActiveCwndFlow> update_caller);
+  void DistributeToCwndFlowsDcSctp(std::shared_ptr<ActiveCwndFlow> update_caller);
   DataRate SumDesiredRates();
   DataRate SumAllocatedRates();
-  
+
+  void LogFseState(const char* id_string, DataRate old_s_cr);
 };
 
 }  // namespace webrtc

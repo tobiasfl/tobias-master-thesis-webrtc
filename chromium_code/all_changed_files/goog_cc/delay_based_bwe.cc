@@ -77,7 +77,8 @@ DelayBasedBwe::Result::Result()
 
 DelayBasedBwe::DelayBasedBwe(const WebRtcKeyValueConfig* key_value_config,
                              RtcEventLog* event_log,
-                             NetworkStatePredictor* network_state_predictor)
+                             NetworkStatePredictor* network_state_predictor,
+                             std::shared_ptr<GccRateFlow> fse_v2_flow)
     : event_log_(event_log),
       key_value_config_(key_value_config),
       separate_audio_(key_value_config),
@@ -91,7 +92,7 @@ DelayBasedBwe::DelayBasedBwe(const WebRtcKeyValueConfig* key_value_config,
       active_delay_detector_(video_delay_detector_.get()),
       last_seen_packet_(Timestamp::MinusInfinity()),
       uma_recorded_(false),
-      rate_control_(key_value_config, /*send_side=*/true),
+      rate_control_(key_value_config, /*send_side=*/true, fse_v2_flow),
       prev_bitrate_(DataRate::Zero()),
       has_once_detected_overuse_(false),
       prev_state_(BandwidthUsage::kBwNormal),
@@ -367,7 +368,7 @@ void DelayBasedBwe::SetMinBitrate(DataRate min_bitrate) {
 
 //TOBIAS
 DataRate DelayBasedBwe::SetEstimateDirectly(DataRate fse_rate, Timestamp at_time) {
-  rate_control_.SetEstimateDirectly(fse_rate);
+  rate_control_.SetEstimateDirectly(fse_rate, at_time);
   return rate_control_.LatestEstimate();
 }
 //TOBIAS

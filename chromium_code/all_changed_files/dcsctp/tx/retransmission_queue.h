@@ -206,7 +206,8 @@ class RetransmissionQueue {
   size_t max_bytes_to_send() const;
 
   //TOBIAS
-  void OnCwndChanged(uint64_t last_rtt);
+  void OnCwndChanged();
+  DurationMs last_rtt_;
   //TOBIAS
 
   const DcSctpOptions options_;

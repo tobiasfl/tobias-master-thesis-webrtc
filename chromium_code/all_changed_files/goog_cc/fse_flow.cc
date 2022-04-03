@@ -80,7 +80,7 @@ GccRateFlow::GccRateFlow(int id,
                    int priority,
                    DataRate fse_rate,
                    DataRate desired_rate,
-                   std::function<void(DataRate, Timestamp)> update_callback)
+                   std::function<void(DataRate, Timestamp, bool)> update_callback)
     : Flow(id, priority),
       fse_rate_(fse_rate),
       desired_rate_(desired_rate),
@@ -92,8 +92,8 @@ GccRateFlow::GccRateFlow(int id,
 GccRateFlow::~GccRateFlow() = default;
 
 
-void GccRateFlow::UpdateCc(Timestamp at_time) {
-  update_callback_(FseRate(), at_time);
+void GccRateFlow::UpdateCc(Timestamp at_time, bool update_loss_only) {
+  update_callback_(FseRate(), at_time, update_loss_only);
 }
 
 DataRate GccRateFlow::FseRate() const {

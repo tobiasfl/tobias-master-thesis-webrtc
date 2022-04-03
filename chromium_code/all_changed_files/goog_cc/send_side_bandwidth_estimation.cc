@@ -558,7 +558,6 @@ void SendSideBandwidthEstimation::UpdateEstimate(Timestamp at_time) {
     // threshold. This is a crude way of handling loss which is uncorrelated
     // to congestion.
     if (current_target_ < bitrate_threshold_ || loss <= low_loss_threshold_) {
-        RTC_LOG(LS_INFO) << "PLOT_THISSSBE loss_state=" << 1;
       // Loss < 2%: Increase rate by 8% of the min bitrate in the last
       // kBweIncreaseInterval.
       // Note that by remembering the bitrate over the last second one can
@@ -576,14 +575,14 @@ void SendSideBandwidthEstimation::UpdateEstimate(Timestamp at_time) {
       // (gives a little extra increase at low rates, negligible at higher
       // rates).
       new_bitrate += DataRate::BitsPerSec(1000);
+      RTC_LOG(LS_INFO) << "PLOT_THIS_GCC_L_INC rate_and_state=" << new_bitrate.kbps();
       UpdateTargetBitrate(new_bitrate, at_time);
       return;
     } else if (current_target_ > bitrate_threshold_) {
       if (loss <= high_loss_threshold_) {
-        RTC_LOG(LS_INFO) << "PLOT_THISSSBE loss_state=" << 0;
+        RTC_LOG(LS_INFO) << "PLOT_THIS_GCC_L_HOLD rate_and_state=" << current_target_.kbps();
         // Loss between 2% - 10%: Do nothing.
       } else {
-        RTC_LOG(LS_INFO) << "PLOT_THISSSBE loss_state=" << -1;
         // Loss > 10%: Limit the rate decreases to once a kBweDecreaseInterval
         // + rtt.
         if (!has_decreased_since_last_fraction_loss_ &&
@@ -599,6 +598,7 @@ void SendSideBandwidthEstimation::UpdateEstimate(Timestamp at_time) {
                static_cast<double>(512 - last_fraction_loss_)) /
               512.0);
           has_decreased_since_last_fraction_loss_ = true;
+          RTC_LOG(LS_INFO) << "PLOT_THIS_GCC_L_DEC rate_and_state=" << new_bitrate.kbps();
           UpdateTargetBitrate(new_bitrate, at_time);
           return;
         }
@@ -705,7 +705,7 @@ void SendSideBandwidthEstimation::NormalUpdateTargetBitrate(
           << " delay_based_limit_=" << delay_based_limit_.kbps()
           << " current_target_=" << current_target_.kbps();
     }
-    //TOBIAS  
+    //TOBIAS 
 
     current_target_ = new_bitrate;
     MaybeLogLossBasedEvent(at_time);
@@ -715,23 +715,41 @@ void SendSideBandwidthEstimation::NormalUpdateTargetBitrate(
 void SendSideBandwidthEstimation::FseV2UpdateTargetBitrate(
         DataRate new_bitrate, 
         Timestamp at_time) {
+  //TOBIAS for debugging
+  DataRate old_rate = current_target_;
+  //TOBIAS for debugging
+
+  //TODO: might consider only clamping between delay and loss here, then clamp by 
+  //max_bitrate_configured_ after FSE update
   new_bitrate = std::min(new_bitrate, GetUpperLimit());
-  if (new_bitrate < min_bitrate_configured_) {
-      MaybeLogLowBitrateWarning(new_bitrate, at_time);
-      new_bitrate = min_bitrate_configured_;
-  }
-  current_target_ = new_bitrate; 
-  MaybeLogLossBasedEvent(at_time);
 
   if (fseV2Flow_) {
-  FseV2::Instance().RateFlowUpdate(
+      FseV2::Instance().RateFlowUpdate(
           fseV2Flow_, 
           new_bitrate, 
           last_round_trip_time_,
-          at_time);
+          at_time,
+          true);
   }
-
+  //call above makes sure current_target_ is set to FSE_R
+   
+  if (current_target_ < min_bitrate_configured_) {
+      MaybeLogLowBitrateWarning(current_target_, at_time);
+      current_target_ = min_bitrate_configured_;
+  }
+  MaybeLogLossBasedEvent(at_time);
   link_capacity_.OnRateUpdate(acknowledged_rate_, current_target_, at_time);
+
+  //TOBIAS 
+  if(delay_based_limit_.IsFinite() 
+           && current_target_.IsFinite()) {
+     RTC_LOG(LS_INFO) 
+         << "PLOT_THISSSBE_AFTER_UPDATE new_bitrate=" << current_target_.kbps() 
+         << " delay_based_limit_=" << delay_based_limit_.kbps()
+         << " current_target_=" << current_target_.kbps();
+   }
+   RTC_LOG(LS_INFO) << "PLOT_THISSSBE cc_r_change=" << current_target_.kbps() - old_rate.kbps();
+   //TOBIAS
 }
 
 
@@ -763,6 +781,7 @@ void SendSideBandwidthEstimation::FseNgUpdateTargetBitrate(
 
 void SendSideBandwidthEstimation::SetCurrentTargetDirectly(DataRate fse_rate) {
   current_target_ = fse_rate;
+  RTC_LOG(LS_INFO) << "PLOT_THISGCC_L_FSE rate_and_state=" << current_target_.kbps();
 }
 
 void SendSideBandwidthEstimation::ApplyTargetLimits(Timestamp at_time) {

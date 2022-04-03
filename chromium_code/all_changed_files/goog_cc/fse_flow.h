@@ -52,9 +52,9 @@ class GccRateFlow : public Flow {
            int priority,
            DataRate fse_rate,
            DataRate desired_rate,
-           std::function<void(DataRate, Timestamp)> update_callback);
+           std::function<void(DataRate, Timestamp, bool)> update_callback);
     ~GccRateFlow() override;
-  void UpdateCc(Timestamp at_time);
+  void UpdateCc(Timestamp at_time, bool update_loss_only);
   DataRate FseRate() const;
   void SetFseRate(DataRate new_rate);
   DataRate DesiredRate() const;
@@ -64,7 +64,7 @@ class GccRateFlow : public Flow {
     DataRate fse_rate_;
     DataRate desired_rate_;
 
-    std::function<void(DataRate, Timestamp)> update_callback_;
+    std::function<void(DataRate, Timestamp, bool)> update_callback_;
 
 };
 

@@ -60,7 +60,8 @@ class DelayBasedBwe {
 
   explicit DelayBasedBwe(const WebRtcKeyValueConfig* key_value_config,
                          RtcEventLog* event_log,
-                         NetworkStatePredictor* network_state_predictor);
+                         NetworkStatePredictor* network_state_predictor,
+                         std::shared_ptr<GccRateFlow> fse_v2_flow);
 
   DelayBasedBwe() = delete;
   DelayBasedBwe(const DelayBasedBwe&) = delete;

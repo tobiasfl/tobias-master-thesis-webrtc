@@ -109,7 +109,8 @@ GoogCcNetworkController::GoogCcNetworkController(NetworkControllerConfig config,
           std::move(goog_cc_config.network_state_predictor)),
       delay_based_bwe_(new DelayBasedBwe(key_value_config_,
                                          event_log_,
-                                         network_state_predictor_.get())),
+                                         network_state_predictor_.get(),
+                                         fse_v2_flow_)),
       acknowledged_bitrate_estimator_(
           AcknowledgedBitrateEstimatorInterface::Create(key_value_config_)),
       initial_config_(config),
@@ -173,7 +174,8 @@ NetworkControlUpdate GoogCcNetworkController::OnNetworkRouteChange(
   if (network_estimator_)
     network_estimator_->OnRouteChange(msg);
   delay_based_bwe_.reset(new DelayBasedBwe(key_value_config_, event_log_,
-                                           network_state_predictor_.get()));
+                                           network_state_predictor_.get(),
+                                           fse_v2_flow_));
   bandwidth_estimation_->OnRouteChange();
   probe_controller_->Reset(msg.at_time.ms());
   NetworkControlUpdate update;
@@ -746,15 +748,13 @@ std::shared_ptr<GccRateFlow> GoogCcNetworkController::MaybeRegisterInFseV2(DataR
   if (fse_opt == fse_v2) {
     return FseV2::Instance().RegisterRateFlow(
         initial_rate,
-        [this](DataRate fse_rate, Timestamp at_time) {
+        [this](DataRate fse_rate, Timestamp at_time, bool update_loss_only) {
           DataRate delay_estimate = fse_rate;
-          if (delay_based_bwe_) {
+          if (delay_based_bwe_ ) {
             delay_estimate = this->delay_based_bwe_->SetEstimateDirectly(fse_rate, at_time);
           }
+          //TODO: consider setting bwe's delay based estimate
           this->bandwidth_estimation_->SetCurrentTargetDirectly(fse_rate);
-          //this->bandwidth_estimation_->SetSendBitrate(fse_rate, at_time);
-          //this->UpdateSendSideDelayBasedEstimate(at_time);
-          //this->bandwidth_estimation_->FseV2UpdateDelayBasedEstimate(at_time, delay_estimate);
           });
   }
   return nullptr;

@@ -70,10 +70,11 @@ double ReadBackoffFactor(const WebRtcKeyValueConfig& key_value_config) {
 }  // namespace
 
 AimdRateControl::AimdRateControl(const WebRtcKeyValueConfig* key_value_config)
-    : AimdRateControl(key_value_config, /* send_side =*/false) {}
+    : AimdRateControl(key_value_config, /* send_side =*/false, nullptr) {}
 
 AimdRateControl::AimdRateControl(const WebRtcKeyValueConfig* key_value_config,
-                                 bool send_side)
+                                 bool send_side,
+                                 std::shared_ptr<GccRateFlow> fse_v2_flow)
     : min_configured_bitrate_(congestion_controller::GetMinBitrate()),
       max_configured_bitrate_(DataRate::KilobitsPerSec(30000)),
       current_bitrate_(max_configured_bitrate_),
@@ -101,7 +102,8 @@ AimdRateControl::AimdRateControl(const WebRtcKeyValueConfig* key_value_config,
           IsNotDisabled(*key_value_config,
                         "WebRTC-Bwe-EstimateBoundedIncrease")),
       initial_backoff_interval_("initial_backoff_interval"),
-      link_capacity_fix_("link_capacity_fix") {
+      link_capacity_fix_("link_capacity_fix"),
+      fse_v2_flow_(fse_v2_flow) {
   // E.g
   // WebRTC-BweAimdRateControlConfig/initial_backoff_interval:100ms/
   ParseFieldTrial({&initial_backoff_interval_, &link_capacity_fix_},
@@ -238,8 +240,9 @@ void AimdRateControl::SetEstimate(DataRate bitrate, Timestamp at_time) {
 }
 
 //TOBIAS
-void AimdRateControl::SetEstimateDirectly(DataRate bitrate) {
+void AimdRateControl::SetEstimateDirectly(DataRate bitrate, Timestamp at_time) {
   current_bitrate_ = ClampBitrate(bitrate);
+  RTC_LOG(LS_INFO) << "PLOT_THISGCC_D_FSE rate_and_state=" << current_bitrate_.kbps();
 }
 //TOBIAS
 
@@ -305,6 +308,8 @@ void AimdRateControl::ChangeBitrate(const RateControlInput& input,
 
   switch (rate_control_state_) {
     case RateControlState::kRcHold:
+      if (current_bitrate_.IsFinite())
+            RTC_LOG(LS_INFO) << "PLOT_THISGCC_D_HOLD rate_and_state=" << current_bitrate_.kbps();
       break;
 
     case RateControlState::kRcIncrease:
@@ -335,6 +340,8 @@ void AimdRateControl::ChangeBitrate(const RateControlInput& input,
           increased_bitrate = current_bitrate_ + multiplicative_increase;
         }
         new_bitrate = std::min(increased_bitrate, troughput_based_limit);
+        if (new_bitrate.has_value())
+            RTC_LOG(LS_INFO) << "PLOT_THISGCC_D_INC rate_and_state=" << new_bitrate.value().kbps();
       }
 
       time_last_bitrate_change_ = at_time;
@@ -383,6 +390,8 @@ void AimdRateControl::ChangeBitrate(const RateControlInput& input,
       rate_control_state_ = RateControlState::kRcHold;
       time_last_bitrate_change_ = at_time;
       time_last_bitrate_decrease_ = at_time;
+      if (new_bitrate.has_value())
+        RTC_LOG(LS_INFO) << "PLOT_THISGCC_D_DEC rate_and_state=" << new_bitrate.value().kbps();
       break;
     }
     default:
@@ -398,6 +407,10 @@ void AimdRateControl::ChangeBitrate(const RateControlInput& input,
       FseNgChangeBitrate(new_bitrate.value_or(current_bitrate_));
       break;
     }
+    /*case fse_v2: {
+      FseV2ChangeBitrate(new_bitrate.value_or(current_bitrate_), at_time);
+      break;
+    }*/
     default: {
       current_bitrate_ = ClampBitrate(new_bitrate.value_or(current_bitrate_));
      }
@@ -447,6 +460,23 @@ void AimdRateControl::FseNgChangeBitrate(DataRate new_bitrate) {
   else {
     current_bitrate_ = ClampBitrate(new_bitrate);
   }
+}
+
+
+void AimdRateControl::FseV2ChangeBitrate(DataRate new_bitrate, Timestamp at_time) {
+    if (estimate_bounded_increase_ && network_estimate_) {
+      DataRate upper_bound = network_estimate_->link_capacity_upper;
+      new_bitrate = std::min(new_bitrate, upper_bound);
+    }
+    new_bitrate = std::max(new_bitrate, min_configured_bitrate_);
+
+    FseV2::Instance().RateFlowUpdate(
+            fse_v2_flow_,
+            new_bitrate,
+            rtt_,
+            at_time,
+            false);
+   
 }
 
 DataRate AimdRateControl::ClampBitrate(DataRate new_bitrate) const {

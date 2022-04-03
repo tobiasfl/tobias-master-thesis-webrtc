@@ -31,6 +31,3 @@ sctp_lib="--force-fieldtrials=WebRTC-DataChannel-Dcsctp/Enabled"
 echo $enabled_features
 #The run below does not dump RTP and SCTP packets
 $chromium_bin --use-fake-device-for-media-stream --use-file-for-fake-video-capture=$CHROMIUM_SRC/KristenAndSara_1280x720_60.y4m $logging_flags $sctp_lib $enabled_features $2 > $1/log.txt 2>&1
-
-#To make sure dcsctptransport is used instead of usrsctptransport
-#--force-fieldtrials=WebRTC-DataChannel-Dcsctp/Enabled

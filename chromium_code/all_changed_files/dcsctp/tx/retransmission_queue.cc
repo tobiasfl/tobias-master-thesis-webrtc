@@ -66,7 +66,8 @@ RetransmissionQueue::RetransmissionQueue(
     bool supports_partial_reliability,
     bool use_message_interleaving,
     const DcSctpSocketHandoverState* handover_state)
-    : options_(options),
+    : last_rtt_(DurationMs(0)),
+      options_(options),
       min_bytes_required_to_send_(options.mtu * kMinBytesRequiredToSendFactor),
       partial_reliability_(supports_partial_reliability),
       log_prefix_(std::string(log_prefix) + "tx: "),
@@ -98,24 +99,30 @@ RetransmissionQueue::RetransmissionQueue(
                                     : TSN(*my_initial_tsn - 1)),
           [this](IsUnordered unordered, StreamID stream_id, MID message_id) {
             return send_queue_.Discard(unordered, stream_id, message_id);
-          }) {}
+          }){}
 
-
-void RetransmissionQueue::OnCwndChanged(uint64_t last_rtt) {
-
-
+void RetransmissionQueue::OnCwndChanged() {
+  // FSE expects rtt to be in us
+  uint64_t last_rtt = last_rtt_.value() * 1000;
 
   if (webrtc::FseConfig::Instance().CurrentFse() == webrtc::fse_v2
-          && webrtc::FseV2::Instance().CoupleDcSctpLib()) {
+          && webrtc::FseV2::Instance().CoupleDcSctpLib()
+          && last_rtt != 0) {
     if (!fse_v2_flow_) {
       RTC_LOG(LS_INFO) << "Registering cwnd flow";
       fse_v2_flow_ = webrtc::FseV2::Instance().RegisterCwndFlow(
             cwnd_,
             last_rtt, 
             [this](uint32_t fse_cwnd) {
+              if (fse_cwnd < options_.cwnd_mtus_min * options_.mtu) {
+                fse_cwnd = options_.cwnd_mtus_min * options_.mtu;
+              }
+
               if (phase() == CongestionAlgorithmPhase::kCongestionAvoidance
                       && fse_cwnd < ssthresh_) {
                 ssthresh_ = fse_cwnd;
+                RTC_LOG(LS_INFO) << "PLOT_THIS"
+                         << " ssthresh_fse=" << ssthresh_;
               }
               cwnd_ = fse_cwnd;
             });
@@ -124,9 +131,15 @@ void RetransmissionQueue::OnCwndChanged(uint64_t last_rtt) {
     //TODO: Deregister as well at some point
     uint32_t fse_cwnd = 
         webrtc::FseV2::Instance().CwndFlowUpdate(fse_v2_flow_, cwnd_, last_rtt);
+    if (fse_cwnd < options_.cwnd_mtus_min * options_.mtu) {
+      fse_cwnd = options_.cwnd_mtus_min * options_.mtu;
+    }
+
     if (phase() == CongestionAlgorithmPhase::kCongestionAvoidance
             && fse_cwnd < ssthresh_) {
       ssthresh_ = fse_cwnd;
+      RTC_LOG(LS_INFO) << "PLOT_THIS"
+               << " ssthresh_fse=" << ssthresh_;
     }
     cwnd_ = fse_cwnd;
   }
@@ -174,6 +187,8 @@ void RetransmissionQueue::HandleIncreasedCumulativeTsnAck(
       cwnd_ += std::min(total_bytes_acked, options_.mtu);
       RTC_DLOG(LS_VERBOSE) << log_prefix_ << "SS increase cwnd=" << cwnd_
                            << " (" << old_cwnd << ")";
+      RTC_LOG(LS_INFO) << "PLOT_THISSCTP_SS rate_and_state=" 
+          << webrtc::Flow::CwndToRate(cwnd_, last_rtt_.value()*1000).kbps();
     }
   } else if (phase() == CongestionAlgorithmPhase::kCongestionAvoidance) {
     // https://tools.ietf.org/html/rfc4960#section-7.2.2
@@ -200,6 +215,9 @@ void RetransmissionQueue::HandleIncreasedCumulativeTsnAck(
                            << " (" << old_cwnd << ") ssthresh=" << ssthresh_
                            << ", pba=" << partial_bytes_acked_ << " ("
                            << old_pba << ")";
+
+      RTC_LOG(LS_INFO) << "PLOT_THISSCTP_CA rate_and_state=" 
+          << webrtc::Flow::CwndToRate(cwnd_, last_rtt_.value()*1000).kbps();
     } else {
       RTC_DLOG(LS_VERBOSE) << log_prefix_ << "CA unchanged cwnd=" << cwnd_
                            << " (" << old_cwnd << ") ssthresh=" << ssthresh_
@@ -235,6 +253,8 @@ void RetransmissionQueue::HandlePacketLoss(UnwrappedTSN highest_tsn_acked) {
     RTC_DLOG(LS_VERBOSE) << log_prefix_
                          << "fast recovery initiated with exit_point="
                          << *fast_recovery_exit_tsn_->Wrap();
+    RTC_LOG(LS_INFO) << "PLOT_THISSCTP_FR rate_and_state=" 
+        << webrtc::Flow::CwndToRate(cwnd_, last_rtt_.value()*1000).kbps();
   } else {
     // https://tools.ietf.org/html/rfc4960#section-7.2.4
     // "While in Fast Recovery, the ssthresh and cwnd SHOULD NOT change for
@@ -359,9 +379,7 @@ bool RetransmissionQueue::HandleSack(TimeMs now, const SackChunk& sack) {
 
   //TOBIAS
   //TODO: Consider only updating when cwnd has actually changed
-    absl::optional<DurationMs> rtt =
-      outstanding_data_.MeasureRTT(now, cumulative_tsn_ack);
-  OnCwndChanged(rtt.value_or(DurationMs(0)).value());
+  OnCwndChanged();
   //TOBIAS
 
   StartT3RtxTimerIfOutstandingData();
@@ -384,6 +402,11 @@ void RetransmissionQueue::UpdateRTT(TimeMs now,
 
   if (rtt.has_value()) {
     on_new_rtt_(*rtt);
+    //TOBIAS Inspired by ObserveRTT in retransmission_timeout.cc
+    if (rtt > DurationMs(0) && rtt < options_.rtt_max) {
+      last_rtt_ = *rtt;
+    }
+    //TOBIAS
   }
 }
 
@@ -428,9 +451,11 @@ void RetransmissionQueue::HandleT3RtxTimerExpiry() {
                     << " (" << old_cwnd << "), ssthresh=" << ssthresh_
                     << ", outstanding_bytes " << outstanding_bytes() << " ("
                     << old_outstanding_bytes << ")";
+  RTC_LOG(LS_INFO) << "PLOT_THISSCTP_RTO rate_and_state=" 
+      << webrtc::Flow::CwndToRate(cwnd_, last_rtt_.value()*1000).kbps();
   //TOBIAS
   //TODO: Consider only updating when cwnd has actually changed
-  OnCwndChanged(0);
+  OnCwndChanged();
   //TOBIAS
   RTC_DCHECK(IsConsistent());
 }

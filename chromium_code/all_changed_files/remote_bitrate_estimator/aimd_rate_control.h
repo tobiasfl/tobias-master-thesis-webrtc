@@ -24,6 +24,7 @@
 
 #include "modules/congestion_controller/goog_cc/fse_ng.h"
 #include "modules/congestion_controller/goog_cc/flow_state_exchange.h"
+#include "modules/congestion_controller/goog_cc/fse_v2.h"
 
 namespace webrtc {
 // A rate control implementation based on additive increases of
@@ -34,7 +35,7 @@ namespace webrtc {
 class AimdRateControl {
  public:
   explicit AimdRateControl(const WebRtcKeyValueConfig* key_value_config);
-  AimdRateControl(const WebRtcKeyValueConfig* key_value_config, bool send_side);
+  AimdRateControl(const WebRtcKeyValueConfig* key_value_config, bool send_side, std::shared_ptr<GccRateFlow> fse_v2_flow);
   ~AimdRateControl();
 
   // Returns true if the target bitrate has been initialized. This happens
@@ -60,7 +61,7 @@ class AimdRateControl {
   void SetInApplicationLimitedRegion(bool in_alr);
   void SetEstimate(DataRate bitrate, Timestamp at_time);
   //TOBIAS
-  void SetEstimateDirectly(DataRate bitrate);
+  void SetEstimateDirectly(DataRate bitrate, Timestamp at_time);
   //TOBIAS
 
   void SetNetworkStateEstimate(
@@ -123,8 +124,10 @@ class AimdRateControl {
 
   //ADDED BY TOBIAS
   std::shared_ptr<RateFlow> fseFlow_;
+  std::shared_ptr<GccRateFlow> fse_v2_flow_;
   void FseChangeBitrate(DataRate new_bitrate);
   void FseNgChangeBitrate(DataRate new_bitrate);
+  void FseV2ChangeBitrate(DataRate new_bitrate, Timestamp at_time);
   //ADDED BY TOBIAS
 
 };

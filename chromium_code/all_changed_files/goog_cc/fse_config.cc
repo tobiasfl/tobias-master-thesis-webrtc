@@ -111,7 +111,7 @@ FseConfig::FseConfig() {
 DataRate FseConfig::ResolveDesiredRate(int flow_id) {
   switch (current_desired_rate_case_) {
     case infinity:
-      return DataRate::KilobitsPerSec(1000000); //1gigabit
+      return DataRate::Infinity();
     case fse_ng_paper_case:
       return DataRate::KilobitsPerSec(1500);
     case all_limited:
@@ -121,9 +121,9 @@ DataRate FseConfig::ResolveDesiredRate(int flow_id) {
         case 0:
           return DataRate::KilobitsPerSec(1000);
         case 1:
-          return DataRate::KilobitsPerSec(1000000); //1gigabit
+          return DataRate::Infinity();
         default:
-          return DataRate::KilobitsPerSec(1000000); //1gigabit
+          return DataRate::Infinity(); 
       }
   }
 }
