@@ -1,6 +1,7 @@
 import matplotlib.pyplot as plt
 import pandas as pd
 import numpy as np
+#import seaborn as sns
 from math import sqrt, ceil
 
 
@@ -82,6 +83,7 @@ def plot_debug_line_plot(df, xlabel, ylabel):
     plt.show()
 
 #Assumes time(s), vals1, vals2...
+#For pretty thesis plots
 def plot_line_plot(df, xlabel, ylabel):
     fig_size = [fig_width,fig_height] 
     params = {'backend': 'ps',
@@ -112,8 +114,10 @@ def plot_line_plot(df, xlabel, ylabel):
     maxy = max([df[col].max() for col in df.columns[1:]])
     plt.ylim(miny, maxy)
     
-    xticks = np.arange(minx, maxx+1, 10)
-    yticks = [int(x) for x in np.arange(miny, maxy+1, 1)]
+    #xticks = np.arange(minx, maxx+1, 10)
+    xticks = np.arange(minx, maxx+1, 30)
+    #yticks = [int(x) for x in np.arange(miny, maxy+1, 1)]
+    yticks = [int(x) for x in np.arange(miny, 5.5+1, 1)]
 
     #Hacky way to make sure ticks are also bold and correct font
     plt.xticks(xticks, [tex_boldify(str(tick)) for tick in xticks])
@@ -133,7 +137,7 @@ def plot_line_plot(df, xlabel, ylabel):
         else:
             plt.plot(df[time_col_name], df[col], linestyle=style, linewidth=2, label=tex_boldify(col))
    
-    legend_loc = "lower center" 
+    legend_loc = "upper left" 
     if len(df.columns[1:]) > 2:
         plt.legend(loc=legend_loc, ncol=2)
     else:
@@ -145,6 +149,13 @@ def plot_line_plot(df, xlabel, ylabel):
     print("before show")
     plt.show()
 
+#df should be format: 
+def plot_heat_map(df, x_title, y_title):
+    fig_size = [fig_width,fig_height] 
+    
+    print("test")
+
+#Probably not gonna be used
 def plot_comparison_throughput(df_left, left_title, df_right, right_title):
     fig_size = [fig_width,fig_height*0.75] 
 
@@ -211,7 +222,7 @@ def plot_comparison_throughput(df_left, left_title, df_right, right_title):
     plt.savefig("throughput_comparison.png")
     plt.show()
 
-
+#Probably not gonna be used
 def plot_fourway_comparison_throughput(df_top_left, top_left_title, df_top_right, top_right_title, df_bot_left, bot_left_title, df_bot_right, bot_right_title):
     fig_size = [fig_width,fig_height*1.25] 
 

@@ -12,7 +12,7 @@ IFVIR=ifb0
 RATE_MBIT=$1
 DELAY_MS=$2
 
-#PKT_MTU=1230
+#PKT_MTU=1267
 #BDP_BYTES=$(echo "($DELAY_MS/1000.0)*($RATE_MBIT*1000000.0/8.0)" | bc -q -l)
 #BDP_PKTS=(echo "$BDP_BYTES/1250" | bc -q)
 

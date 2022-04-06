@@ -6,27 +6,31 @@ if [ $# -lt 3 ]; then
     usage
 fi
 
-#if [[ $# -eq 3 && "-d" != $3 ]]; then
-#    echo "Error: ${3} is not equal to -d"
-#    usage
-#fi
-
-
 if [ ! -d $1 ]; then
     echo "Error: Directory $1 does not exist."
     exit 1
 fi
 
 CHROMIUM_SRC=~/Code/chromium/src
-
 chromium_bin=${CHROMIUM_SRC}/out/Default/chrome
 
 logging_flags="--enable-logging=stderr --vmodule=*/webrtc/*=1"
 
 enabled_features="--enable-features=${3}"
 
-#sctp_lib="--force-fieldtrials=WebRTC-DataChannel-Dcsctp/Disabled"
-sctp_lib="--force-fieldtrials=WebRTC-DataChannel-Dcsctp/Enabled"
+sctp_lib="--force-fieldtrials=WebRTC-DataChannel-Dcsctp/Disabled"
+#sctp_lib="--force-fieldtrials=WebRTC-DataChannel-Dcsctp/Enabled"
+
+
+if [ -z "$4" ]; then
+    echo "using default chromium build"
+else
+    echo "browser override, using {$4} and turning off logging"
+    chromium_bin=$4
+    logging_flags=''
+    enabled_features=''
+    #sctp_lib=''
+fi
 
 echo $enabled_features
 #The run below does not dump RTP and SCTP packets
