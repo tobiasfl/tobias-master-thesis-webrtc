@@ -99,6 +99,24 @@ class ActiveCwndFlow : public Flow {
   std::function<void(uint32_t)> update_callback_;
 };
 
+class HybridCwndFlow : public Flow {
+ public:
+  HybridCwndFlow(int id,
+           int priority,
+           uint32_t initial_max_cwnd,
+           DataRate inital_cwnd_as_rate,
+           std::function<void(uint32_t)> update_callback);
+  ~HybridCwndFlow() override;
+  void UpdateCcMaxCwnd(uint32_t new_max_cwnd);
+  uint32_t GetInitialMaxCwnd();
+  DataRate GetPrevCwnd() const;
+  void SetPrevCwnd(DataRate cwnd_as_rate);
+
+ private:
+  uint32_t initial_max_cwnd_;
+  std::function<void(uint32_t)> update_callback_;
+  DataRate prev_cwnd_as_rate_;
+};
 
 }  // namespace webrtc
 #endif  // MODULES_CONGESTION_CONTROLLER_GOOG_CC_FSE_FLOW_H

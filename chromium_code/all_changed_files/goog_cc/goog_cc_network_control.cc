@@ -238,7 +238,8 @@ NetworkControlUpdate GoogCcNetworkController::OnProcessInterval(
 NetworkControlUpdate GoogCcNetworkController::OnCouplingUpdateInterval(
         ProcessInterval msg) {
   NetworkControlUpdate update;
-  UpdateSendSideDelayBasedEstimate(msg.at_time);
+  RTC_LOG(LS_INFO) << "PLOT_THIS OnCouplingUpdateInterval=" << 1;
+  //UpdateSendSideDelayBasedEstimate(msg.at_time);
   MaybeTriggerOnNetworkChanged(&update, msg.at_time);
   return update;
 }
@@ -753,10 +754,9 @@ std::shared_ptr<GccRateFlow> GoogCcNetworkController::MaybeRegisterInFseV2(DataR
           if (delay_based_bwe_ ) {
             delay_estimate = this->delay_based_bwe_->SetEstimateDirectly(fse_rate, at_time);
           }
-          //this->bandwidth_estimation_->SetCurrentTargetDirectly(fse_rate);
           this->bandwidth_estimation_->FseV2SetSendBitrate(fse_rate, at_time);
-          //TODO: The commented line, makes it a tiny bit worse it seems?
-          //Update delay based after loss based, in case delay based was clamped to lower than fse_rate
+          //Update delay based after loss based, becuase FSE updates 
+          //both estimates, so ssbwe should know of the newest delay estimate
           this->bandwidth_estimation_->FseV2UpdateDelayBasedEstimate(at_time, delay_estimate);
           });
   }

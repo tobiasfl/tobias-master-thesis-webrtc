@@ -156,4 +156,35 @@ void ActiveCwndFlow::SetFseRate(DataRate new_rate) {
   fse_rate_ = new_rate;
 }
 
+HybridCwndFlow::HybridCwndFlow(int id,
+                   int priority,
+                   uint32_t initial_max_cwnd,
+                   DataRate initial_cwnd_as_rate,
+                   std::function<void(uint32_t)> update_callback)
+    : Flow(id, priority), 
+    initial_max_cwnd_(initial_max_cwnd), 
+    update_callback_(update_callback),
+    prev_cwnd_as_rate_(initial_cwnd_as_rate){
+  RTC_LOG(LS_INFO) << "creating a HybridCwndFlow";
+}
+
+HybridCwndFlow::~HybridCwndFlow() = default;
+
+void HybridCwndFlow::UpdateCcMaxCwnd(uint32_t max_cwnd) {
+  update_callback_(max_cwnd);
+}
+
+uint32_t HybridCwndFlow::GetInitialMaxCwnd() {
+  return initial_max_cwnd_;
+}
+
+DataRate HybridCwndFlow::GetPrevCwnd() const {
+  return prev_cwnd_as_rate_;
+}
+
+void HybridCwndFlow::SetPrevCwnd(DataRate cwnd) {
+  prev_cwnd_as_rate_ = cwnd;
+}
+
+
 }  // namespace webrtc

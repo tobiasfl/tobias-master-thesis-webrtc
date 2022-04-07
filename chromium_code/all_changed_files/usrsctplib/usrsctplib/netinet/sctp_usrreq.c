@@ -7864,7 +7864,7 @@ int
 #else
 static int
 #endif
-sctp_register_cwnd_callback(struct socket *so, uint32_t (*f)(uint32_t cwnd, uint64_t last_rtt, void *ulp_info))
+sctp_register_cwnd_callback(struct socket *so, uint32_t (*f)(uint32_t cwnd, uint32_t max_cwnd, uint64_t last_rtt, void *ulp_info))
 {
   SCTP_PRINTF("Calling sctp_register_cwnd_callback in sctp_usrreq\n");
   int error;

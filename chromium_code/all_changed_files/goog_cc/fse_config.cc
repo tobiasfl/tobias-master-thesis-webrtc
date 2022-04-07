@@ -32,6 +32,10 @@ const base::Feature kFseV2 {
   "FseV2", base::FEATURE_DISABLED_BY_DEFAULT
 };
 
+const base::Feature kFseNgV2 {
+  "FseNgV2", base::FEATURE_DISABLED_BY_DEFAULT
+};
+
 const base::Feature kDesiredRateFseNgPaperCase {
   "DesiredRateFseNgPaper", base::FEATURE_DISABLED_BY_DEFAULT
 };
@@ -75,6 +79,11 @@ FseConfig::FseConfig() {
   if (base::FeatureList::IsEnabled(kFseV2)) {
     RTC_LOG(LS_INFO) << "FseV2 is enabled";
     current_fse_ = fse_v2;
+  }
+
+  if (base::FeatureList::IsEnabled(kFseNgV2)) {
+    RTC_LOG(LS_INFO) << "FseNgV2 is enabled";
+    current_fse_ = fse_ng_v2;
   }
 
   current_desired_rate_case_ = infinity;
@@ -131,6 +140,7 @@ DataRate FseConfig::ResolveDesiredRate(int flow_id) {
 int FseConfig::ResolveRateFlowPriority(int flow_id) {
   switch (current_priority_case_) {
     case equal:
+        //TODO: testing only
       return 1;
     case rate_flow_double:
       return 2;
@@ -160,6 +170,7 @@ int FseConfig::ResolveRateFlowPriority(int flow_id) {
 int FseConfig::ResolveCwndFlowPriority(int flow_id) {
   switch (current_priority_case_) {
     case equal:
+      //TODO: testing only
       return 1;
     case cwnd_flow_double:
       return 2;

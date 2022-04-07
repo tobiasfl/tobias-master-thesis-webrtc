@@ -189,7 +189,6 @@ void FseV2::OnFlowUpdated() {
 
   // Distribute S_CR among all flows, ensuring desired rate is not exceeded
   DataRate rate_flows_share = CalculateRateFlowRatePortion(sum_rate_priorities, sum_total_priorities);
-       
 
   AllocateToRateFlows(sum_rate_priorities, rate_flows_share);
 
@@ -221,7 +220,7 @@ int FseV2::SumPrioritiesAndInitializeCwndFlowRates() {
 //TODO: this may not be 100% when it comes to sharing of leftover rate
 DataRate FseV2::CalculateRateFlowRatePortion(int rate_priorities, int total_priotities) {
   DataRate sum_desired_rates = SumDesiredRates();
- 
+
   DataRate rate_flows_share = sum_calculated_rates_ * rate_priorities / total_priotities; 
  
   if (sum_desired_rates < rate_flows_share) {

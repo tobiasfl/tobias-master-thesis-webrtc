@@ -2140,10 +2140,10 @@ usrsctp_get_max_cwnd(struct socket *so,
 }
 
 int
-sctp_register_cwnd_callback(struct socket *so, uint32_t (*f)(uint32_t cwnd, uint64_t last_rtt, void *ulp_info));
+sctp_register_cwnd_callback(struct socket *so, uint32_t (*f)(uint32_t cwnd, uint32_t max_cwnd, uint64_t last_rtt, void *ulp_info));
 
 int
-usrsctp_register_cwnd_callback(struct socket *so, uint32_t (*f)(uint32_t cwnd, uint64_t last_rtt, void *ulp_info))
+usrsctp_register_cwnd_callback(struct socket *so, uint32_t (*f)(uint32_t cwnd, uint32_t max_cwnd, uint64_t last_rtt, void *ulp_info))
 {
   return sctp_register_cwnd_callback(so, f);
 }

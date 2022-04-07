@@ -21,7 +21,7 @@ struct FseNgExperimentConfig {
 #define CR_DEFINE_STATIC_LOCAL(type, name, arguments) \
   static type& name = *new type arguments
 
-enum FseVersion { none, fse, fse_ng, fse_v2};
+enum FseVersion { none, fse, fse_ng, fse_v2, fse_ng_v2};
 
 enum DesiredRateCase { infinity, fse_ng_paper_case, fse_case_2, all_limited };
 
@@ -32,7 +32,6 @@ class FseConfig {
     static FseConfig& Instance();
     FseVersion CurrentFse();
     DataRate ResolveDesiredRate(int flow_id);
-    //TODO: the methods below should take in the flow type instead to avoid mistakes
     int ResolveRateFlowPriority(int flow_id);
     int ResolveCwndFlowPriority(int flow_id);
   private:

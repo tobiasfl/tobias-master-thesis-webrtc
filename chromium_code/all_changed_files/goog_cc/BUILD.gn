@@ -199,6 +199,8 @@ rtc_library("send_side_bwe") {
     "fse_ng.h",
     "fse_v2.cc",
     "fse_v2.h",
+    "fse_ng_v2.cc",
+    "fse_ng_v2.h",
     "fse_config.cc",
     "fse_config.h"
   ]

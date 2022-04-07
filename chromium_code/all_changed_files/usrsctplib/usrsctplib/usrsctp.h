@@ -916,7 +916,7 @@ int usrsctp_set_max_cwnd(struct socket* so, uint32_t max_cwnd_b);
 
 int usrsctp_get_cwnd(struct socket *so, uint32_t *cwnd_value);
 
-int usrsctp_register_cwnd_callback(struct socket* so, uint32_t (*f)(uint32_t cwnd, uint64_t last_rtt, void *ulp_info));
+int usrsctp_register_cwnd_callback(struct socket* so, uint32_t (*f)(uint32_t cwnd, uint32_t max_cwnd, uint64_t last_rtt, void *ulp_info));
 
 int usrsctp_get_max_cwnd(struct socket *so, uint32_t *max_cwnd_value);
 // Added by TOBIAS

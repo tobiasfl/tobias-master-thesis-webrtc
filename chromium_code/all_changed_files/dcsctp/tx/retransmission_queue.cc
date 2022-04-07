@@ -101,6 +101,16 @@ RetransmissionQueue::RetransmissionQueue(
             return send_queue_.Discard(unordered, stream_id, message_id);
           }){}
 
+//TOBIAS
+RetransmissionQueue::~RetransmissionQueue() {
+  if (fse_v2_flow_ 
+          && webrtc::FseConfig::Instance().CurrentFse() == webrtc::fse_v2
+          && webrtc::FseV2::Instance().CoupleDcSctpLib()) {
+    webrtc::FseV2::Instance().DeRegisterCwndFlow(fse_v2_flow_);
+  }
+}
+//TOBIAS
+
 void RetransmissionQueue::OnCwndChanged() {
   // FSE expects rtt to be in us
   uint64_t last_rtt = last_rtt_.value() * 1000;
@@ -119,8 +129,8 @@ void RetransmissionQueue::OnCwndChanged() {
               }
 
               if (phase() == CongestionAlgorithmPhase::kCongestionAvoidance
-                      && fse_cwnd < ssthresh_) {
-                ssthresh_ = fse_cwnd;
+                      && fse_cwnd <= ssthresh_) {
+                ssthresh_ = fse_cwnd-1;
                 RTC_LOG(LS_INFO) << "PLOT_THIS"
                          << " ssthresh_fse=" << ssthresh_;
               }
@@ -136,8 +146,8 @@ void RetransmissionQueue::OnCwndChanged() {
     }
 
     if (phase() == CongestionAlgorithmPhase::kCongestionAvoidance
-            && fse_cwnd < ssthresh_) {
-      ssthresh_ = fse_cwnd;
+            && fse_cwnd <= ssthresh_) {
+      ssthresh_ = fse_cwnd-1;
       RTC_LOG(LS_INFO) << "PLOT_THIS"
                << " ssthresh_fse=" << ssthresh_;
     }
@@ -378,7 +388,6 @@ bool RetransmissionQueue::HandleSack(TimeMs now, const SackChunk& sack) {
   }
 
   //TOBIAS
-  //TODO: Consider only updating when cwnd has actually changed
   OnCwndChanged();
   //TOBIAS
 
@@ -454,7 +463,6 @@ void RetransmissionQueue::HandleT3RtxTimerExpiry() {
   RTC_LOG(LS_INFO) << "PLOT_THISSCTP_RTO rate_and_state=" 
       << webrtc::Flow::CwndToRate(cwnd_, last_rtt_.value()*1000).kbps();
   //TOBIAS
-  //TODO: Consider only updating when cwnd has actually changed
   OnCwndChanged();
   //TOBIAS
   RTC_DCHECK(IsConsistent());

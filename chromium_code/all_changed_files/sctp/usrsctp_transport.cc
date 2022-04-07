@@ -563,6 +563,7 @@ class UsrsctpTransport::UsrSctpWrapper {
 
   // Added by TOBIAS
   static uint32_t OnCwndChanged(uint32_t cwnd,
+                                uint32_t max_cwnd,
                                 uint64_t last_rtt,
                                 void* ulp_info) {
     RTC_LOG(LS_INFO) << "TOBIAS OnCwndChanged was called!";
@@ -571,14 +572,14 @@ class UsrsctpTransport::UsrSctpWrapper {
       return 0;
     }
     uintptr_t id = reinterpret_cast<uintptr_t>(ulp_info);
-//TODO: this code necessary if you want to somehow update synchronously
+    //TODO: this code necessary if you want to somehow update synchronously
     UsrsctpTransport* transport = g_transport_map_->GetUsrsctpTransport(id);
     if (!transport) {
       RTC_LOG(LS_ERROR)
           << "OnCwndChanged: Failed to get transport for socket ID " << id
           << "; possibly was already destroyed.";
     }
-    return transport->CwndUpdate(cwnd, last_rtt);
+    return transport->CwndUpdate(cwnd, max_cwnd, last_rtt);
     /*bool found = g_transport_map_->PostToTransportThread(
         id, [cwnd, last_rtt](UsrsctpTransport* transport) {
             RTC_LOG(LS_INFO) << "posting CwndUpdate call to TransportThread";
@@ -962,6 +963,13 @@ bool UsrsctpTransport::Connect() {
       }
       break;
     }
+    case webrtc::fse_ng_v2: {
+      
+
+      RTC_LOG(LS_INFO) << "registering usrsctp update callback";
+      usrsctp_register_cwnd_callback(sock_, &UsrSctpWrapper::OnCwndChanged);
+      break;
+    }
     default: {}
   }
   // Added by TOBIAS
@@ -1120,7 +1128,12 @@ void UsrsctpTransport::CloseSctpSocket() {
             && fse_v2_flow_
             && !webrtc::FseV2::Instance().CoupleDcSctpLib()) {
       webrtc::FseV2::Instance().DeRegisterCwndFlow(fse_v2_flow_);
-      fse_flow_ = nullptr;
+      fse_v2_flow_ = nullptr;
+    }
+    if (webrtc::FseConfig::Instance().CurrentFse() == webrtc::fse_ng_v2
+            && fse_ng_v2_flow_) {
+      webrtc::FseNgV2::Instance().DeRegisterWindowBasedFlow(fse_ng_v2_flow_);
+      fse_ng_v2_flow_ = nullptr;
     }
     //Added by TOBIAS
   }
@@ -1664,7 +1677,7 @@ void UsrsctpTransport::OnStreamResetEvent(
 
 // Added by TOBIAS
 //
-uint32_t UsrsctpTransport::CwndUpdate(uint32_t cwnd, uint64_t last_rtt) {
+uint32_t UsrsctpTransport::CwndUpdate(uint32_t cwnd, uint32_t max_cwnd, uint64_t last_rtt) {
   if (webrtc::FseConfig::Instance().CurrentFse() == webrtc::fse_v2
           && !webrtc::FseV2::Instance().CoupleDcSctpLib()) {
     if (!fse_v2_flow_) {
@@ -1676,6 +1689,24 @@ uint32_t UsrsctpTransport::CwndUpdate(uint32_t cwnd, uint64_t last_rtt) {
               });
     }
     return webrtc::FseV2::Instance().CwndFlowUpdate(fse_v2_flow_, cwnd, last_rtt);
+  }
+  if (webrtc::FseConfig::Instance().CurrentFse() == webrtc::fse_ng_v2) {
+    if (!fse_ng_v2_flow_) {
+      fse_ng_v2_flow_ = webrtc::FseNgV2::Instance().RegisterCwndFlow(
+                cwnd,
+                max_cwnd, 
+                last_rtt,
+                [this](uint32_t fse_max_cwnd) { 
+                    this->SetMaxCwnd(fse_max_cwnd);
+                });
+    }
+
+    /*uint32_t fse_max_cwnd =*/  webrtc::FseNgV2::Instance().CwndFlowUpdate(
+            fse_ng_v2_flow_, 
+            cwnd, 
+            last_rtt);
+    //Currently only return same cwnd, since we are only really updating to get the rtt atm
+    return cwnd;
   }
   //TODO: perhaps assert that this is not reachable
   return 0;
@@ -1694,14 +1725,15 @@ void UsrsctpTransport::GetCwnd(uint32_t *cwnd_value) {
 //this one might be replaced by set_opt actually
 void UsrsctpTransport::SetMaxCwnd(uint32_t max_cwnd) {
   RTC_LOG(LS_INFO) << "SetMaxCwnd was called with max_cwnd:" << max_cwnd;
-  if(webrtc::FseConfig::Instance().CurrentFse() == webrtc::fse_ng && started_) {
-    RTC_LOG(LS_INFO) << "usrsctp_set_max_cwnd being called";
+  if (webrtc::FseConfig::Instance().CurrentFse() == webrtc::fse_ng && started_) {
+    usrsctp_set_max_cwnd(sock_, max_cwnd);
+  }
+  if (webrtc::FseConfig::Instance().CurrentFse() == webrtc::fse_ng_v2 && started_) {
     usrsctp_set_max_cwnd(sock_, max_cwnd);
   }
 }
 
 void UsrsctpTransport::GetMaxCwnd(uint32_t *max_cwnd_value) {
-  //TODO: check if started first?????
   usrsctp_get_max_cwnd(sock_, max_cwnd_value);
   RTC_LOG(LS_INFO) << "GetMaxCwnd called, max_cwnd: " << *max_cwnd_value;
 }

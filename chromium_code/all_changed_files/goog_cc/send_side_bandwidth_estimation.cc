@@ -721,20 +721,19 @@ void SendSideBandwidthEstimation::FseV2UpdateTargetBitrate(
   DataRate loss_based_estimate = new_bitrate;
   //TOBIAS for debugging
 
-  //TODO: might consider only clamping between delay and loss here, then clamp by 
-  //max_bitrate_configured_ after FSE update
-  
   new_bitrate = std::min(new_bitrate, delay_based_limit_);
 
-  RTC_LOG(LS_INFO) << "PLOT_THISSSBE cc_r_change=" << current_target_.kbps() - old_rate.kbps();
-  if (new_bitrate == loss_based_estimate) {
-    RTC_LOG(LS_INFO) << "PLOT_THIS_GCC_LOSS estimate=" << loss_based_estimate.kbps();
-  }
-  else if (new_bitrate == delay_based_limit_) {
-    RTC_LOG(LS_INFO) << "PLOT_THIS_GCC_DELAY estimate=" << delay_based_limit_.kbps();
-  }
-  else {
-    RTC_LOG(LS_INFO) << "PLOT_THIS_GCC_MAX estimate=" << new_bitrate.kbps();
+  if(current_target_.IsFinite() && old_rate.kbps() && new_bitrate.IsFinite()) {
+    RTC_LOG(LS_INFO) << "PLOT_THISSSBE cc_r_change=" << current_target_.kbps() - old_rate.kbps();
+    if (loss_based_estimate.IsFinite() && new_bitrate == loss_based_estimate ) {
+      RTC_LOG(LS_INFO) << "PLOT_THIS_GCC_LOSS estimate=" << loss_based_estimate.kbps();
+    }
+    else if (delay_based_limit_.IsFinite() && new_bitrate == delay_based_limit_ ) {
+      RTC_LOG(LS_INFO) << "PLOT_THIS_GCC_DELAY estimate=" << delay_based_limit_.kbps();
+    }
+    else  {
+      RTC_LOG(LS_INFO) << "PLOT_THIS_GCC_MAX estimate=" << new_bitrate.kbps();
+    }
   }
 
   if (fseV2Flow_) {
