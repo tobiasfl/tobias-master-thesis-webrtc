@@ -27,7 +27,6 @@ namespace webrtc {
 
 FseNgV2::FseNgV2()
     : base_rtt_(TimeDelta::PlusInfinity()),
-      last_rtt_(TimeDelta::PlusInfinity()),
       sum_calculated_rates_(DataRate::Zero()),
       cwnd_sum_calculated_rates_(DataRate::Zero()),
       rate_flow_id_counter_(0),
@@ -43,25 +42,34 @@ std::shared_ptr<HybridCwndFlow> FseNgV2::RegisterCwndFlow(
 
   UpdateRttValues(TimeDelta::Micros(initial_rtt_us));
 
+  auto new_flow = CreateAndInsertNewCwndFlow(
+          initial_max_cwnd, 
+          Flow::CwndToRate(initial_cwnd, initial_rtt_us), 
+          update_callback);
+
+  if (AllRateFlowsApplicationLimited() || rate_flows_.empty()) {
+    CwndUpdateSumCalculatedRates(DataRate::Zero(), Flow::CwndToRate(initial_cwnd, initial_rtt_us));
+  }
+  
+  LogFseState();
+  fse_mutex_.unlock();
+
+  return new_flow;
+}
+
+std::shared_ptr<HybridCwndFlow> FseNgV2::CreateAndInsertNewCwndFlow(
+          uint32_t initial_max_cwnd, 
+          DataRate cwnd_as_rate, 
+          std::function<void(uint32_t)> update_callback) {
+
   int id = cwnd_flow_id_counter_++;
-  std::shared_ptr<HybridCwndFlow> new_flow =
+    std::shared_ptr<HybridCwndFlow> new_flow =
       std::make_shared<HybridCwndFlow>(id, 
               FseConfig::Instance().ResolveCwndFlowPriority(id), 
               initial_max_cwnd, 
-              Flow::CwndToRate(initial_cwnd, initial_rtt_us),
+              cwnd_as_rate,
               update_callback);
   cwnd_flows_.insert(new_flow);
-
-  //TODO: consider checking here if any RTP flows present and if not, adding to S_CR
-  if (AllRateFlowsApplicationLimited() || rate_flows_.empty()) {
-    DataRate cwnd_as_rate = Flow::CwndToRate(initial_cwnd, initial_rtt_us);
-    cwnd_sum_calculated_rates_ += cwnd_as_rate;
-  }
-  //DataRate cwnd_as_rate = Flow::CwndToRate(initial_cwnd, initial_rtt_us);
-  //cwnd_sum_calculated_rates_ += cwnd_as_rate;
-
-  fse_mutex_.unlock();
-
   return new_flow;
 }
 
@@ -70,10 +78,19 @@ std::shared_ptr<RateFlow> FseNgV2::RegisterRateFlow(
     std::function<void(DataRate)> update_callback) {
   fse_mutex_.lock();
 
-  RTC_LOG(LS_INFO) 
-      << "RegisterRateFlow in FseNgV2 with init_rate_kbps: " 
-      << initial_rate.kbps();
+  auto new_flow = CreateAndInsertNewRateFlow(initial_rate, update_callback);
 
+  sum_calculated_rates_ += initial_rate;
+
+  LogFseState();
+  fse_mutex_.unlock();
+
+  return new_flow;
+}
+
+std::shared_ptr<RateFlow> FseNgV2::CreateAndInsertNewRateFlow(
+      DataRate initial_rate,
+      std::function<void(DataRate)> update_callback) {
   int id = rate_flow_id_counter_++;
   std::shared_ptr<RateFlow> new_flow = std::make_shared<RateFlow>(
       id, 
@@ -83,17 +100,6 @@ std::shared_ptr<RateFlow> FseNgV2::RegisterRateFlow(
       update_callback);
 
   rate_flows_.insert(new_flow);
-
-  sum_calculated_rates_ += initial_rate;
-  /*if (UseCwndBasedSumCalculatedRates()) {
-    //TODO: consider still adding initial_rate
-    sum_calculated_rates_ = cwnd_sum_calculated_rates_;
-  }
-  else {
-    sum_calculated_rates_ += initial_rate;
-  }*/
-  
-  fse_mutex_.unlock();
 
   return new_flow;
 }
@@ -106,26 +112,9 @@ void FseNgV2::RateUpdate(std::shared_ptr<RateFlow> flow,
 
   int64_t relative_rate_change_bps = new_rate.bps() - flow->FseRate().bps();
 
-  //BUG: causes crash
-  /*RTC_LOG(LS_INFO) 
-      << "PLOT_THISFSE_NG" << flow->Id()
-      << " relative_rate_change=" 
-      << relative_rate_change_bps/1000
-      << " new_rate=" << new_rate.kbps()
-      << " max_rate=" << flow->DesiredRate().kbps()
-      << " last_rtt=" << (last_rtt.IsFinite() ? last_rtt.ms() : 0);*/
-
-  OnRateFlowUpdate(
-          flow, 
-          relative_rate_change_bps, 
-          new_rate);
-
-  //TODO: make print fse state method instead
-  RTC_LOG(LS_INFO) 
-      << "PLOT_THISFSENG new sum_calculated_rates_=" 
-      << sum_calculated_rates_.kbps()
-      << " base_rtt_=" << (base_rtt_.IsFinite() ? base_rtt_.ms() : 0);
-  
+  OnRateFlowUpdate(flow, relative_rate_change_bps, new_rate);
+ 
+  LogFseState();
   fse_mutex_.unlock();
 }
 
@@ -138,13 +127,12 @@ uint32_t FseNgV2::CwndFlowUpdate(std::shared_ptr<HybridCwndFlow> flow,
 
   DataRate cwnd_as_rate = Flow::CwndToRate(new_cwnd, last_rtt);
   if (AllRateFlowsApplicationLimited() || rate_flows_.empty()) {
-    //TODO: Maybe make prettier solution, 
-    UpdateSumCalculatedRates(0, cwnd_as_rate, flow->GetPrevCwnd());
+    CwndUpdateSumCalculatedRates(flow->GetPrevCwnd(), cwnd_as_rate);
   }
 
-  //UpdateCwndSumCalculatedRates(cwnd_as_rate, flow->GetPrevCwnd());
   flow->SetPrevCwnd(cwnd_as_rate);
 
+  LogFseState();
   fse_mutex_.unlock();
   return 0;
 }
@@ -176,29 +164,25 @@ void FseNgV2::UpdateSumCalculatedRates(
         DataRate prev_fse_rate) {
   int64_t sum_of_difference = 
       sum_calculated_rates_.bps() + cc_rate.bps() - prev_fse_rate.bps();
-  if (cwnd_flows_.empty() || AllRateFlowsApplicationLimited()) {
+  //if (cwnd_flows_.empty() || AllRateFlowsApplicationLimited()) {
     sum_calculated_rates_ = DataRate::BitsPerSec(sum_of_difference);
-  }
+  /*}
   else {
     sum_calculated_rates_ = 
         DataRate::BitsPerSec(sum_of_difference + relative_rate_change_bps);
-  }  
+  }  */
 }
 
-void FseNgV2::UpdateCwndSumCalculatedRates(
-          DataRate cc_rate,
-          DataRate prev_cc_rate) {
+
+void FseNgV2::CwndUpdateSumCalculatedRates(DataRate prev_rate, DataRate new_rate) {
   int64_t sum_of_difference = 
-      cwnd_sum_calculated_rates_.bps() + cc_rate.bps() - prev_cc_rate.bps();
-  cwnd_sum_calculated_rates_ = DataRate::BitsPerSec(sum_of_difference);
+        sum_calculated_rates_.bps() + new_rate.bps() - prev_rate.bps();
+      sum_calculated_rates_ = DataRate::BitsPerSec(sum_of_difference);
 }
 
 DataRate FseNgV2::UpdateRateFlows(int sum_priorities) {
   DataRate sum_rtp_rates = DataRate::Zero();
   for (const auto& rate_flow : rate_flows_) {
-    // We use the max_rate of the corresponding stream, 
-    // because they might have different
-    // limitations based on quality of the stream, config, etc.
     DataRate fse_rate = std::min((rate_flow->Priority() * sum_calculated_rates_) 
             / sum_priorities, rate_flow->DesiredRate());
     rate_flow->SetFseRate(fse_rate);
@@ -269,8 +253,8 @@ void FseNgV2::DeRegisterRateFlow(std::shared_ptr<RateFlow> flow) {
 void FseNgV2::UpdateRttValues(TimeDelta last_rtt) {
   //If rtt is 0, assume there is no real measurement yet and say it is infinity
   //so that base_rtt is never set to 0
-  last_rtt_ = last_rtt == TimeDelta::Zero() ? TimeDelta::PlusInfinity() : last_rtt;
-  base_rtt_ = std::min(base_rtt_, last_rtt_);
+  last_rtt = last_rtt == TimeDelta::Zero() ? TimeDelta::PlusInfinity() : last_rtt;
+  base_rtt_ = std::min(base_rtt_, last_rtt);
 }
 
 int FseNgV2::SumPriorities() const {
@@ -302,6 +286,15 @@ int FseNgV2::SumCwndPriorities() const {
 
 bool FseNgV2::UseCwndBasedSumCalculatedRates() const {
   return rate_flows_.empty() && !cwnd_flows_.empty();
+}
+
+
+
+void FseNgV2::LogFseState() const {
+  RTC_LOG(LS_INFO) 
+      << "PLOT_THISFSENG sum_calculated_rates_=" 
+      << sum_calculated_rates_.kbps()
+      << " base_rtt_=" << (base_rtt_.IsFinite() ? base_rtt_.ms() : 0);
 }
 
 FseNgV2& FseNgV2::Instance() {

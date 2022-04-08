@@ -10,8 +10,11 @@ bash ~/Code/tobias-master-thesis-webrtc/utils/testing/run_test.sh 3 50 15 60 $ou
 # Starting at the same time problem
 bash ~/Code/tobias-master-thesis-webrtc/utils/testing/run_test.sh 3 50 15 60 $out_dir 'sctp1start=0\&rtp1start=0' 'equal,FseNgV2,infinity'
 
-#slow convergenve problem
+#slow convergence problem
 bash ~/Code/tobias-master-thesis-webrtc/utils/testing/run_test.sh 6 50 30 60 $out_dir 'sctp1start=10000\&rtp1start=0' 'equal,FseNgV2,DesiredRateFseNgPaper'
+
+#normal FSE-NG comparison
+bash ~/Code/tobias-master-thesis-webrtc/utils/testing/run_test.sh 6 50 30 60 $out_dir 'sctp1start=10000\&rtp1start=0' 'equal,FseNg,DesiredRateFseNgPaper'
 
 #SCTP starting first problem
 bash ~/Code/tobias-master-thesis-webrtc/utils/testing/run_test.sh 3 50 15 60 $out_dir 'sctp1start=0\&rtp1start=10000' 'equal,FseNgV2,infinity'

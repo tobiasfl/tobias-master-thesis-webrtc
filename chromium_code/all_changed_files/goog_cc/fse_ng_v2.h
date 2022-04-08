@@ -59,7 +59,6 @@ class FseNgV2 {
 
   // The minimum rtt observed during the session
   TimeDelta base_rtt_;
-  TimeDelta last_rtt_;
 
   // An estimate of the bottleneck's capacity
   // calculated by summing SRTP rates
@@ -83,9 +82,7 @@ class FseNgV2 {
           int64_t relative_rate_change_bps, 
           DataRate cc_rate, 
           DataRate prev_fse_rate);
-  void UpdateCwndSumCalculatedRates(
-          DataRate cc_rate,
-          DataRate prev_cc_rate);
+  void CwndUpdateSumCalculatedRates(DataRate prev_rate, DataRate new_rate);
   //Allocates rate to all the rtp flows, returns the sum og allocated rate
   DataRate UpdateRateFlows(int sum_priorities);
   void UpdateCwndFlows(DataRate sum_cwnd_rates);
@@ -96,6 +93,15 @@ class FseNgV2 {
   int SumCwndPriorities() const;
   void UpdateRttValues(TimeDelta last_rtt);
   bool UseCwndBasedSumCalculatedRates() const;
+  std::shared_ptr<HybridCwndFlow> CreateAndInsertNewCwndFlow(
+          uint32_t initial_max_cwnd, 
+          DataRate cwnd_as_rate, 
+          std::function<void(uint32_t)> update_callback);
+  std::shared_ptr<RateFlow> CreateAndInsertNewRateFlow(
+          DataRate initial_rate,
+          std::function<void(DataRate)> update_callback);
+
+  void LogFseState() const;
 };
 
 }  // namespace webrtc
