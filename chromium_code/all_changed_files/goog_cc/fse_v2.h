@@ -89,6 +89,7 @@ class FseV2 {
   void DistributeToCwndFlowsDcSctp(std::shared_ptr<ActiveCwndFlow> update_caller);
   DataRate SumDesiredRates();
   DataRate SumAllocatedRates();
+  void UpdateSumCalculatedRates(DataRate prev_rate, DataRate new_rate);
 
   void LogFseState(const char* id_string, DataRate old_s_cr);
 };

@@ -118,7 +118,6 @@ class SendSideBandwidthEstimation {
                    Timestamp at_time);
   void SetSendBitrate(DataRate bitrate, Timestamp at_time);
   //TOBIAS
-  void FseV2UpdateDelayBasedEstimate(Timestamp at_time, DataRate bitrate);
   void SetCurrentTargetDirectly(DataRate fse_rate);
   void FseV2SetSendBitrate(DataRate new_bitrate, Timestamp at_time);
   //TOBIAS

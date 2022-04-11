@@ -245,8 +245,6 @@ void AimdRateControl::SetEstimate(DataRate bitrate, Timestamp at_time) {
 
 //TOBIAS
 void AimdRateControl::SetEstimateDirectly(DataRate bitrate, Timestamp at_time) {
-  RTC_LOG(LS_INFO) << "Before calling ClampBitrate";
-  //BUG: null pointer dereference here, or where this one is called?
   current_bitrate_ = ClampBitrate(bitrate);
   RTC_LOG(LS_INFO) << "PLOT_THISGCC_D_FSE rate_and_state=" << current_bitrate_.kbps();
 }
@@ -482,19 +480,15 @@ void AimdRateControl::FseNgV2ChangeBitrate(DataRate new_bitrate) {
   FseNgV2::Instance().RateUpdate(
           fseFlow_,
           new_bitrate);
+
 }
 
 DataRate AimdRateControl::ClampBitrate(DataRate new_bitrate) const {
-  RTC_LOG(LS_INFO) << "before if check";
   if (estimate_bounded_increase_ && network_estimate_) {
-    RTC_LOG(LS_INFO) << "before getting upper_bound";
     DataRate upper_bound = network_estimate_->link_capacity_upper;
-    RTC_LOG(LS_INFO) << "before finding min";
     new_bitrate = std::min(new_bitrate, upper_bound);
   }
-  RTC_LOG(LS_INFO) << "after if check";
   new_bitrate = std::max(new_bitrate, min_configured_bitrate_);
-  RTC_LOG(LS_INFO) << "after finding new_bitrate";
   return new_bitrate;
 }
 

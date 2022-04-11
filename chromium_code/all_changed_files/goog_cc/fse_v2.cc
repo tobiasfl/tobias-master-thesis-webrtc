@@ -57,7 +57,7 @@ std::shared_ptr<GccRateFlow> FseV2::RegisterRateFlow(
   rate_flows_.insert(newFlow);
 
   DataRate old_s_cr = sum_calculated_rates_;
-  sum_calculated_rates_ += newFlow->FseRate();
+  UpdateSumCalculatedRates(DataRate::Zero(), newFlow->FseRate());
 
   LogFseState("RATE", old_s_cr);
 
@@ -91,7 +91,8 @@ std::shared_ptr<ActiveCwndFlow> FseV2::RegisterCwndFlow(
   cwnd_flows_.insert(new_flow);
 
   DataRate old_s_cr = sum_calculated_rates_;
-  sum_calculated_rates_ += Flow::CwndToRate(initial_cwnd, last_rtt_.us());
+  UpdateSumCalculatedRates(DataRate::Zero(), Flow::CwndToRate(initial_cwnd, last_rtt_.us()));
+
   LogFseState("CWND", old_s_cr);
 
   mutex_.unlock();
@@ -111,12 +112,11 @@ void FseV2::RateFlowUpdate(std::shared_ptr<GccRateFlow> flow,
       << " ratecc=" << new_rate.kbps()
       << " last_rtt=" << last_rtt.ms();
 
-  //UpdateRttValues(last_rtt);
-  
   DataRate old_s_cr = sum_calculated_rates_;
-  sum_calculated_rates_ = sum_calculated_rates_ + new_rate - flow->FseRate();
+  UpdateSumCalculatedRates(flow->FseRate(), new_rate);
 
   OnFlowUpdated();
+  //OnFlowUpdatedSimple();
 
   LogFseState("RATE", old_s_cr);
 
@@ -145,9 +145,10 @@ uint32_t FseV2::CwndFlowUpdate(
       << " last_rtt=" << last_rtt/1000;
 
   DataRate old_s_cr = sum_calculated_rates_;
-  sum_calculated_rates_ = sum_calculated_rates_ + new_rate - flow->FseRate();
-  
+  UpdateSumCalculatedRates(flow->FseRate(), new_rate);
+
   OnFlowUpdated();
+  //OnFlowUpdatedSimple();
 
   LogFseState("CWND", old_s_cr);
 
@@ -289,7 +290,6 @@ DataRate FseV2::SumAllocatedRates() {
 
 
 void FseV2::DistributeToRateFlows(Timestamp at_time, bool update_loss_only) {
-  // d. Distribute FSE_R to all the flows 
   for (const auto& i : rate_flows_) {
     RTC_LOG(LS_INFO) 
         << "PLOT_THIS_RTP" << i->Id() 
@@ -355,6 +355,10 @@ void FseV2::UpdateRttValues(TimeDelta last_rtt) {
   }
 }
 
+
+void FseV2::UpdateSumCalculatedRates(DataRate prev_rate, DataRate new_rate) {
+  sum_calculated_rates_ = sum_calculated_rates_ + new_rate - prev_rate;
+}
 
 void FseV2::LogFseState(const char* id_string, DataRate old_s_cr) {
   RTC_LOG(LS_INFO) 

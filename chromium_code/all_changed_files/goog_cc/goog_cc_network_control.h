@@ -80,7 +80,6 @@ class GoogCcNetworkController : public NetworkControllerInterface {
  private:
   friend class GoogCcStatePrinter;
   //TOBIAS
-  void UpdateSendSideDelayBasedEstimate(Timestamp at_time);
   std::shared_ptr<GccRateFlow> MaybeRegisterInFseV2(DataRate initial_rate);
   //TOBIAS
   

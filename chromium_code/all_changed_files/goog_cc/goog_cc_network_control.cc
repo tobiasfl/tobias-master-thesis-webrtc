@@ -728,22 +728,6 @@ PacerConfig GoogCcNetworkController::GetPacingRates(Timestamp at_time) const {
 }
 
 //TOBIAS
-void GoogCcNetworkController::UpdateSendSideDelayBasedEstimate(Timestamp at_time) {
-  std::vector<uint32_t> ssrcs;
-  DataRate bitrate = DataRate::Zero();
-  bool valid_estimate = false; 
-  if (delay_based_bwe_) {
-    valid_estimate = delay_based_bwe_->LatestEstimate(&ssrcs, &bitrate) ;
-  }
-  if (valid_estimate) {
-    bandwidth_estimation_->FseV2UpdateDelayBasedEstimate(at_time, bitrate);
-  }
-  else {
-    RTC_LOG(LS_INFO) << "LatestEstimate() was invalid";
-  }
-
-}
-
 std::shared_ptr<GccRateFlow> GoogCcNetworkController::MaybeRegisterInFseV2(DataRate initial_rate) {
   FseVersion fse_opt = FseConfig::Instance().CurrentFse();
   if (fse_opt == fse_v2) {
@@ -755,10 +739,7 @@ std::shared_ptr<GccRateFlow> GoogCcNetworkController::MaybeRegisterInFseV2(DataR
             delay_estimate = this->delay_based_bwe_->SetEstimateDirectly(fse_rate, at_time);
           }
           this->bandwidth_estimation_->FseV2SetSendBitrate(fse_rate, at_time);
-          //Update delay based after loss based, becuase FSE updates 
-          //both estimates, so ssbwe should know of the newest delay estimate
-          this->bandwidth_estimation_->FseV2UpdateDelayBasedEstimate(at_time, delay_estimate);
-          });
+        });
   }
   return nullptr;
 }
