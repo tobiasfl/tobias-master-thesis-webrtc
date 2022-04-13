@@ -1,5 +1,4 @@
 #!/bin/bash
-ROUTER=10.0.0.1
 RECEIVER=192.168.0.2
 SENDER=10.0.0.2
 
@@ -18,9 +17,12 @@ CHROMIUM_OVERRIDE="chromium"
 
 mkdir $out_dir
 
-sudo echo "applying limits at router"
-ssh -t tobias@$ROUTER "sudo bash ~/Code/tobias-master-thesis-webrtc/utils/tc/teardown_aqm.sh"
-ssh -t tobias@$ROUTER "sudo bash ~/Code/tobias-master-thesis-webrtc/utils/tc/j_limit_router.sh 2 100 51"
+sudo echo "applying limits at receiver"
+ssh -t tobias@$RECEIVER "sudo bash ~/Code/tobias-master-thesis-webrtc/utils/testing/2_hosts/teardown_receiver.sh"
+ssh -t tobias@$RECEIVER "sudo bash ~/Code/tobias-master-thesis-webrtc/utils/testing/2_hosts/limit_receiver.sh 100"
+
+echo "applying limits at sender"
+sudo bash ~/Code/tobias-master-thesis-webrtc/utils/testing/2_hosts/limit_sender.sh 2 17
 
 read -p "start iperf server at receiver"
 

@@ -19,19 +19,24 @@ logging_flags="--enable-logging=stderr --vmodule=*/webrtc/*=1"
 enabled_features="--enable-features=${3}"
 
 sctp_lib="--force-fieldtrials=WebRTC-DataChannel-Dcsctp/Disabled"
-#sctp_lib="--force-fieldtrials=WebRTC-DataChannel-Dcsctp/Enabled"
 
+fake_video_settings="--use-fake-device-for-media-stream --use-file-for-fake-video-capture=${CHROMIUM_SRC}/KristenAndSara_1280x720_60.y4m"
+
+if [[ "$3" == *"CoupleDcSctp"* ]]; then
+    echo "FseV2 feature enabled, enabling Dcsctp library"
+    sctp_lib="--force-fieldtrials=WebRTC-DataChannel-Dcsctp/Enabled"
+fi
 
 if [ -z "$4" ]; then
     echo "using default chromium build"
 else
     echo "browser override, using {$4} and turning off logging"
     chromium_bin=$4
-    logging_flags=''
+    #logging_flags=''
     enabled_features=''
-    #sctp_lib=''
+    sctp_lib=''
 fi
 
 echo $enabled_features
 #The run below does not dump RTP and SCTP packets
-$chromium_bin --use-fake-device-for-media-stream --use-file-for-fake-video-capture=$CHROMIUM_SRC/KristenAndSara_1280x720_60.y4m $logging_flags $sctp_lib $enabled_features $2 > $1/log.txt 2>&1
+$chromium_bin $fake_video_settings $logging_flags $sctp_lib $enabled_features $2 > $1/log.txt 2>&1

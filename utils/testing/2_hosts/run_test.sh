@@ -31,7 +31,7 @@ fi
 
 #ssh into router, run limitation script with arguments from this script
 #(sudo so we don't need it when tcpdumping)
-sudo echo "applying limits at router"
+sudo echo "applying limits at receiver"
 ssh -t tobias@$ROUTER "sudo bash ~/Code/tobias-master-thesis-webrtc/utils/tc/teardown_aqm.sh $1 $2 $3"
 ssh -t tobias@$ROUTER "sudo bash ~/Code/tobias-master-thesis-webrtc/utils/tc/j_limit_router.sh $1 $2 $3"
 

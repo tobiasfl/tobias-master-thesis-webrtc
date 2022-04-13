@@ -29,6 +29,10 @@ def extract_info(list_of_lines, cc):
         splitted = line.strip('\n').split(',')
         
         ts_split = splitted[0].split('.')
+        if not ts_split[0].isdigit() or not ts_split[1].isdigit():
+            continue
+
+    
         dt = datetime.fromtimestamp(int(ts_split[0]))
         delta = timedelta(microseconds=int(ts_split[1]))
 
