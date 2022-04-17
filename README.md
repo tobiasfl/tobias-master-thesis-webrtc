@@ -76,51 +76,6 @@ You can easily convert yuv, webm, etc. to y4m using:
 ### New version of test-app
 https://github.com/tobiasfl/webrtc-test-app
 
-### Reading tasks
- - [ ] Skim paper on ensemble TCP
- - [ ] Skim paper on Congestion Manager 
-
-### Implementation tasks
- - [ ] Data channel analysis 
- - [ ] FSE for media only
- 	- [X] Deregistration
- 	- [ ] Test with video and screen sharing using only media channel???
- 	- [ ] Change to observer pattern
- - [ ] FSE-NG for media and data
- 	- [X] Deregistration of media flows
-	- [ ] Deregistration of data flows
-	- [ ] Change to observer pattern
-	- [ ] Run in testbed
-	- [ ] Evaluate results, find any issues
- - [ ] FSE mechanism for media and data
- 	- [ ] Create algorithm
- 	- [ ] Implement
- 	- [ ] Run in testbed
- 	- [ ] Evaluate
- - [ ] Webrtc test application
- 	- [ ] Implement screen sharing over data channel in the webrtc app
- 	- [ ] Show stats(e.g. current average throughput)
- 	- [ ] Clean up code (proper closing of media channels, fix bug where remote stream sometimes not shown)
- 
- ### Writing tasks
- - [ ] Design chapter
- 	- [ ] FSE for media only
- 	- [ ] FSE-NG
- 	- [ ] new FSE mechanism for media and data
- 	- [ ] WebRTC test application
- - [ ] Implementation chapter
-  	- [ ] FSE for media only
- 	- [ ] FSE-NG
- 	- [ ] new FSE mechanism for media and data
- 	- [ ] WebRTC test application
- 	- [ ] WebRTC DataChannel evaluation(bug)
- - [ ] Evaluation chapter
-   	- [ ] Define the test cases(number/types of flows)
-   	- [ ] Write about metrics(look at Safiqul's papers for which fairness index and etc. ) 
-   	- [ ] Write about testbed setup(limitations, topology, chromium version etc.)
-	- [ ] Evaluate/compare with and without implemented mechanisms	
- - [ ] Conclusion chapter
-
   
 ### Deadlines
 * Master thesis: 16.05.2022
