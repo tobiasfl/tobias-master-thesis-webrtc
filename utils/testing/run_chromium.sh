@@ -30,9 +30,9 @@ fi
 if [ -z "$4" ]; then
     echo "using default chromium build"
 else
-    echo "browser override, using {$4} and turning off logging"
+    echo "browser override, using {$4}"
     chromium_bin=$4
-    #logging_flags=''
+    logging_flags='--enable-logging=stderr'
     enabled_features=''
     sctp_lib=''
 fi

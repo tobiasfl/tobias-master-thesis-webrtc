@@ -20,7 +20,7 @@ mkdir $out_dir
 
 sudo echo "applying limits at router"
 ssh -t tobias@$ROUTER "sudo bash ~/Code/tobias-master-thesis-webrtc/utils/tc/teardown_aqm.sh"
-ssh -t tobias@$ROUTER "sudo bash ~/Code/tobias-master-thesis-webrtc/utils/tc/j_limit_router.sh 2 100 51"
+ssh -t tobias@$ROUTER "sudo bash ~/Code/tobias-master-thesis-webrtc/utils/tc/j_limit_router.sh 4 200 67"
 
 read -p "start iperf server at receiver"
 
@@ -28,9 +28,12 @@ sudo tcpdump -i enp0s31f6 -w $out_dir/if_dump.pcap &
 
 timeout $SS_LEN bash ~/Code/tobias-master-thesis-webrtc/utils/ss/ss_output.sh $RECEIVER $out_dir &
 
-(sleep $TCP_START_TIME && iperf -c $RECEIVER -Z reno -n 1000M)&
+#for only running tcp solo
+timeout $TEST_LEN iperf -c $RECEIVER -Z reno -n 1000M
 
-timeout $TEST_LEN bash ~/Code/tobias-master-thesis-webrtc/utils/testing/run_chromium.sh $out_dir $url $enabled_features $CHROMIUM_OVERRIDE
+#(sleep $TCP_START_TIME && iperf -c $RECEIVER -Z reno -n 1000M)&
+#
+#timeout $TEST_LEN bash ~/Code/tobias-master-thesis-webrtc/utils/testing/run_chromium.sh $out_dir $url $enabled_features $CHROMIUM_OVERRIDE
 
 sudo killall tcpdump iperf
 

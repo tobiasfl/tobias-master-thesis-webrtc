@@ -4,18 +4,19 @@
  * Created by safiqul on 07.10.15.
  */
 var nodeStatic = require('node-static');
-var http = require('http');
-//var fs = require('fs');
-//var options = {
-//    key: fs.readFileSync('key.pem'),
-//    cert: fs.readFileSync('cert.pem')
-//};
+//var http = require('http');
+var https = require('https');
+var fs = require('fs');
+var options = {
+    key: fs.readFileSync('server.key'),
+    cert: fs.readFileSync('server.cert')
+};
 
 // Create a node-static server instance
 var file = new(nodeStatic.Server)();
 // We use the http module’s createServer function and
 // rely on our instance of node-static to serve the files
-var app = http.createServer(function (req, res) {
+var app = https.createServer(function (req, res) {
     file.serve(req, res);
 }).listen(51002);
 console.log("Listening on port 51002");

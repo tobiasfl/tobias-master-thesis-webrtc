@@ -22,3 +22,5 @@ tc qdisc add dev ifb0 root handle 1: netem delay "$3"ms
 tc qdisc add dev ifb0 parent 1: handle 2: htb default 10
 tc class add dev ifb0 parent 2: classid 10 htb rate "$2"mbit burst 1500
 tc qdisc add dev ifb0 parent 2:10 handle 15: pfifo limit "$4"
+
+bash /home/tobias/Code/tobias-master-thesis-webrtc/utils/setup/turn_off_offloading.sh ifb0

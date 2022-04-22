@@ -21,3 +21,5 @@ tc qdisc del dev ifb0 root
 tc qdisc add dev ifb0 root handle 1: htb default 10
 tc class add dev ifb0 parent 1: classid 10 htb rate "$2"mbit burst 1500
 tc qdisc add dev ifb0 parent 1:10 pfifo limit "$3"
+
+bash /home/tobias/Code/tobias-master-thesis-webrtc/utils/setup/turn_off_offloading.sh ifb0

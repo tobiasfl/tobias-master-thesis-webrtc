@@ -35,8 +35,23 @@ sudo echo "applying limits at router"
 ssh -t tobias@$ROUTER "sudo bash ~/Code/tobias-master-thesis-webrtc/utils/tc/teardown_aqm.sh $1 $2 $3"
 ssh -t tobias@$ROUTER "sudo bash ~/Code/tobias-master-thesis-webrtc/utils/tc/j_limit_router.sh $1 $2 $3"
 
+#Start data collection
+echo "starting tcpdump at receiver"
+ssh -tt tobias@$RECEIVER "sudo tcpdump -i enp0s31f6 -w /home/tobias/Code/test_results/recv_if_dump.pcap" & #1>/dev/null&
+PID_TCPDUMP_RECEIVER=$!
+
+#echo "starting tcpdump at sender"
 sudo tcpdump -i enp0s31f6 -w $out_dir/if_dump.pcap &
 
-#run chromium and tcpdump for some time before exiting
+sleep 3
+
 timeout $4 bash ~/Code/tobias-master-thesis-webrtc/utils/testing/run_chromium.sh $out_dir https://$SENDER:8888?$6 $enabled_features_list $8
+
+kill $PID_TCPDUMP_RECEIVER
+ssh -t tobias@$RECEIVER "sudo killall tcpdump"
 sudo killall tcpdump
+
+#retrieve tcpdump
+echo "retrieving pcap from receiver"
+scp $RECEIVER:/home/tobias/Code/test_results/recv_if_dump.pcap "$out_dir/recv_if_dump.pcap"
+
