@@ -56,8 +56,6 @@ class FseV2 {
           uint32_t new_cwnd,
           uint64_t last_rtt);
 
-  bool CoupleDcSctpLib();
-
  private:
   FseV2();
   ~FseV2();

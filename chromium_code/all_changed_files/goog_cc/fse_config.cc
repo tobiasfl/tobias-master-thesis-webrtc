@@ -64,6 +64,10 @@ const base::Feature kPriorityFseCase3 {
   "PriorityFseCase3", base::FEATURE_DISABLED_BY_DEFAULT
 };
 
+const base::Feature kCoupleDcSctp {
+  "CoupleDcSctp", base::FEATURE_DISABLED_BY_DEFAULT
+};
+
 FseConfig::FseConfig() {
   current_fse_ = none;
   if (base::FeatureList::IsEnabled(kFse)) {
@@ -111,6 +115,8 @@ FseConfig::FseConfig() {
     current_priority_case_ = fse_case_3;
   }
 
+  couple_dcsctp_ = base::FeatureList::IsEnabled(kCoupleDcSctp);
+
   RTC_LOG(LS_INFO) 
       << "FseConfig initialized with fse version=" << current_fse_
       << " desired rate case=" << current_desired_rate_case_
@@ -140,45 +146,47 @@ DataRate FseConfig::ResolveDesiredRate(int flow_id) {
 int FseConfig::ResolveRateFlowPriority(int flow_id) {
   switch (current_priority_case_) {
     case equal:
-        //TODO: testing only
-      return 1;
+      return 100;
     case rate_flow_double:
-      return 2;
+      return 200;
     case varied:
       switch (flow_id) {
         case 0:
-          return 1;
+          return 100;
         case 1:
-          return 3;
+          return 300;
         default:
-          return 1;
+          return 100;
       }
     case fse_case_3:
       switch (flow_id) {
         case 0:
-          return 1;
+          return 100;
         case 1:
-          return 2;
+          return 200;
         default:
-          return 1;
+          return 100;
       }
     default:
-      return 1;
+      return 100;
   }
 }
 
 int FseConfig::ResolveCwndFlowPriority(int flow_id) {
   switch (current_priority_case_) {
     case equal:
-      //TODO: testing only
-      return 1;
+      return 100;
     case cwnd_flow_double:
-      return 2;
+      return 200;
     case varied:
-      return 2;
+      return 200;
     default:
-      return 1;
+      return 100;
   }
+}
+
+bool FseConfig::CoupleDcSctp() {
+  return couple_dcsctp_;
 }
 
 FseVersion FseConfig::CurrentFse() {

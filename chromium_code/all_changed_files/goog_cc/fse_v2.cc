@@ -45,7 +45,8 @@ std::shared_ptr<GccRateFlow> FseV2::RegisterRateFlow(
   int flow_id = rate_flow_id_counter_++;
   std::shared_ptr<GccRateFlow> newFlow = std::make_shared<GccRateFlow>(
       flow_id, 
-      FseConfig::Instance().ResolveRateFlowPriority(flow_id), 
+      //FseConfig::Instance().ResolveRateFlowPriority(flow_id), 
+      FseConfig::Instance().ResolveRateFlowPriority(flow_id)+10, 
       initial_bit_rate, 
       FseConfig::Instance().ResolveDesiredRate(flow_id), 
       update_callback);
@@ -80,18 +81,20 @@ std::shared_ptr<ActiveCwndFlow> FseV2::RegisterCwndFlow(
 
   UpdateRttValues(TimeDelta::Micros(last_rtt));
 
+  DataRate cwnd_as_rate = Flow::CwndToRate(initial_cwnd, last_rtt_.us());
+
   int id = cwnd_flow_id_counter_++;
   std::shared_ptr<ActiveCwndFlow> new_flow =
       std::make_shared<ActiveCwndFlow>(id, 
               FseConfig::Instance().ResolveCwndFlowPriority(id), 
-              Flow::CwndToRate(initial_cwnd, last_rtt_.us()), 
+              cwnd_as_rate, 
               update_callback);
 
 
   cwnd_flows_.insert(new_flow);
 
   DataRate old_s_cr = sum_calculated_rates_;
-  UpdateSumCalculatedRates(DataRate::Zero(), Flow::CwndToRate(initial_cwnd, last_rtt_.us()));
+  UpdateSumCalculatedRates(DataRate::Zero(), cwnd_as_rate);
 
   LogFseState("CWND", old_s_cr);
 
@@ -116,13 +119,17 @@ void FseV2::RateFlowUpdate(std::shared_ptr<GccRateFlow> flow,
   UpdateSumCalculatedRates(flow->FseRate(), new_rate);
 
   OnFlowUpdated();
-  //OnFlowUpdatedSimple();
 
   LogFseState("RATE", old_s_cr);
 
   DistributeToRateFlows(at_time, update_loss_only);
 
-  DistributeToCwndFlowsDcSctp(nullptr);
+  if (FseConfig::Instance().CoupleDcSctp()) {
+    DistributeToCwndFlowsDcSctp(nullptr);
+  }
+  else {
+    DistributeToCwndFlows(nullptr);
+  }
 
   mutex_.unlock();
 }
@@ -148,13 +155,17 @@ uint32_t FseV2::CwndFlowUpdate(
   UpdateSumCalculatedRates(flow->FseRate(), new_rate);
 
   OnFlowUpdated();
-  //OnFlowUpdatedSimple();
 
   LogFseState("CWND", old_s_cr);
 
   DistributeToRateFlows(clock_->CurrentTime(), false);
 
-  DistributeToCwndFlowsDcSctp(flow);
+  if (FseConfig::Instance().CoupleDcSctp()) {
+    DistributeToCwndFlowsDcSctp(flow);
+  }
+  else {
+    DistributeToCwndFlows(flow);
+  }
 
   uint32_t fse_cwnd = Flow::RateToCwnd(last_rtt_, flow->FseRate());
 
@@ -323,6 +334,7 @@ void FseV2::DistributeToCwndFlows(std::shared_ptr<ActiveCwndFlow> update_caller)
     }
 
     uint32_t new_cwnd = Flow::RateToCwnd(last_rtt_, i->FseRate());
+
     mutex_.unlock();
     i->UpdateCc(new_cwnd);
     mutex_.lock();
@@ -368,10 +380,6 @@ void FseV2::LogFseState(const char* id_string, DataRate old_s_cr) {
       << last_rtt_.ms();
   RTC_LOG(LS_INFO) << "PLOT_THIS" << id_string << " s_cr_change="
       << sum_calculated_rates_.kbps() - old_s_cr.kbps();
-}
-
-bool FseV2::CoupleDcSctpLib() {
-  return true;
 }
 
 FseV2& FseV2::Instance() {

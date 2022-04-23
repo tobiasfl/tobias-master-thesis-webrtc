@@ -19,6 +19,10 @@
 #include "rtc_base/checks.h"
 #include "rtc_base/numerics/safe_minmax.h"
 
+//TOBIAS
+#include "rtc_base/logging.h"
+//TOBIAS
+
 namespace webrtc {
 
 const char kAdaptiveThresholdExperiment[] = "WebRTC-AdaptiveBweThreshold";
@@ -69,6 +73,7 @@ OveruseDetector::OveruseDetector(const WebRtcKeyValueConfig* key_value_config)
       time_over_using_(-1),
       overuse_counter_(0),
       hypothesis_(BandwidthUsage::kBwNormal) {
+  RTC_LOG(LS_INFO) << "Creating OverUseDetector";
   if (!AdaptiveThresholdExperimentIsDisabled(*key_value_config))
     InitializeExperiment(*key_value_config);
 }
@@ -124,6 +129,7 @@ BandwidthUsage OveruseDetector::Detect(double offset,
 }
 
 void OveruseDetector::UpdateThreshold(double modified_offset, int64_t now_ms) {
+  RTC_LOG(LS_INFO) << "in_experiment_:" << in_experiment_;
   if (!in_experiment_)
     return;
 
@@ -131,6 +137,7 @@ void OveruseDetector::UpdateThreshold(double modified_offset, int64_t now_ms) {
     last_update_ms_ = now_ms;
 
   if (fabs(modified_offset) > threshold_ + kMaxAdaptOffsetMs) {
+    RTC_LOG(LS_INFO) << "avoiding del_var_threshold update";
     // Avoid adapting the threshold to big latency spikes, caused e.g.,
     // by a sudden capacity drop.
     last_update_ms_ = now_ms;
@@ -143,6 +150,9 @@ void OveruseDetector::UpdateThreshold(double modified_offset, int64_t now_ms) {
   threshold_ += k * (fabs(modified_offset) - threshold_) * time_delta_ms;
   threshold_ = rtc::SafeClamp(threshold_, 6.f, 600.f);
   last_update_ms_ = now_ms;
+  //TOBIAS
+  RTC_LOG(LS_INFO) << "updaing del_var_threshold to" << threshold_;
+  //TOBIAS
 }
 
 void OveruseDetector::InitializeExperiment(

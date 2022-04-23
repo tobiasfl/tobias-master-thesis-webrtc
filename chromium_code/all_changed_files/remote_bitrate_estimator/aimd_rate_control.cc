@@ -207,7 +207,7 @@ void AimdRateControl::SetRtt(TimeDelta rtt) {
 DataRate AimdRateControl::Update(const RateControlInput* input,
                                  Timestamp at_time) {
   RTC_CHECK(input);
-
+  RTC_LOG(LS_INFO) <<"Updaing";;
   // Set the initial bit rate value to what we're receiving the first half
   // second.
   // TODO(bugs.webrtc.org/9379): The comment above doesn't match to the code.

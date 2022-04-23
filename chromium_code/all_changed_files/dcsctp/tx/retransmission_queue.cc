@@ -99,24 +99,36 @@ RetransmissionQueue::RetransmissionQueue(
                                     : TSN(*my_initial_tsn - 1)),
           [this](IsUnordered unordered, StreamID stream_id, MID message_id) {
             return send_queue_.Discard(unordered, stream_id, message_id);
-          }){}
+          }){
+    /*if (webrtc::FseConfig::Instance().CurrentFse() == webrtc::fse_v2 
+            && webrtc::FseConfig::Instance().CoupleDcSctp()
+            && !fse_v2_flow_) {
+      uint64_t last_rtt = last_rtt_.value() * 1000;
+      RTC_LOG(LS_INFO) << "Registering cwnd flow";
+      fse_v2_flow_ = webrtc::FseV2::Instance().RegisterCwndFlow(
+            cwnd_,
+            last_rtt, 
+            [this](uint32_t fse_cwnd) {
+              FseSetCwnd(fse_cwnd);
+            });
+    }*/
+}
 
 //TOBIAS
 RetransmissionQueue::~RetransmissionQueue() {
   if (fse_v2_flow_ 
           && webrtc::FseConfig::Instance().CurrentFse() == webrtc::fse_v2
-          && webrtc::FseV2::Instance().CoupleDcSctpLib()) {
+          && webrtc::FseConfig::Instance().CoupleDcSctp()) {
     webrtc::FseV2::Instance().DeRegisterCwndFlow(fse_v2_flow_);
   }
 }
-//TOBIAS
 
 void RetransmissionQueue::OnCwndChanged() {
   // FSE expects rtt to be in us
   uint64_t last_rtt = last_rtt_.value() * 1000;
 
   if (webrtc::FseConfig::Instance().CurrentFse() == webrtc::fse_v2
-          && webrtc::FseV2::Instance().CoupleDcSctpLib()
+          && webrtc::FseConfig::Instance().CoupleDcSctp()
           && last_rtt != 0) {
     if (!fse_v2_flow_) {
       RTC_LOG(LS_INFO) << "Registering cwnd flow";
@@ -124,36 +136,36 @@ void RetransmissionQueue::OnCwndChanged() {
             cwnd_,
             last_rtt, 
             [this](uint32_t fse_cwnd) {
-              if (fse_cwnd < options_.cwnd_mtus_min * options_.mtu) {
-                fse_cwnd = options_.cwnd_mtus_min * options_.mtu;
-              }
-
-              if (phase() == CongestionAlgorithmPhase::kCongestionAvoidance
-                      && fse_cwnd <= ssthresh_) {
-                ssthresh_ = fse_cwnd-1;
-                RTC_LOG(LS_INFO) << "PLOT_THIS"
-                         << " ssthresh_fse=" << ssthresh_;
-              }
-              cwnd_ = fse_cwnd;
+              FseSetCwnd(fse_cwnd);
             });
     }
 
-    //TODO: Deregister as well at some point
+
     uint32_t fse_cwnd = 
         webrtc::FseV2::Instance().CwndFlowUpdate(fse_v2_flow_, cwnd_, last_rtt);
+    FseSetCwnd(fse_cwnd);
+  }
+}
+
+void RetransmissionQueue::FseSetCwnd(uint32_t fse_cwnd) {
+    //fse_cwnd -= fse_cwnd % options_.mtu;
+
     if (fse_cwnd < options_.cwnd_mtus_min * options_.mtu) {
       fse_cwnd = options_.cwnd_mtus_min * options_.mtu;
     }
 
     if (phase() == CongestionAlgorithmPhase::kCongestionAvoidance
             && fse_cwnd <= ssthresh_) {
-      ssthresh_ = fse_cwnd-1;
+      //ssthresh_ = fse_cwnd - options_.mtu;
+      //ssthresh_ = std::max(fse_cwnd - options_.mtu, options_.cwnd_mtus_min * options_.mtu);
+      ssthresh_ = fse_cwnd - 1;
       RTC_LOG(LS_INFO) << "PLOT_THIS"
                << " ssthresh_fse=" << ssthresh_;
     }
     cwnd_ = fse_cwnd;
-  }
 }
+
+//TOBIAS
 
 bool RetransmissionQueue::IsConsistent() const {
   return true;
@@ -333,6 +345,7 @@ bool RetransmissionQueue::HandleSack(TimeMs now, const SackChunk& sack) {
   if (!IsSackValid(sack)) {
     return false;
   }
+
 
   UnwrappedTSN old_last_cumulative_tsn_ack =
       outstanding_data_.last_cumulative_tsn_ack();

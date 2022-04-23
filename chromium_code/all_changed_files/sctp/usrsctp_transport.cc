@@ -957,15 +957,13 @@ bool UsrsctpTransport::Connect() {
       break;
     }
     case webrtc::fse_v2: {
-      if (!webrtc::FseV2::Instance().CoupleDcSctpLib()) {
+      if (!webrtc::FseConfig::Instance().CoupleDcSctp()) {
         RTC_LOG(LS_INFO) << "registering usrsctp update callback";
         usrsctp_register_cwnd_callback(sock_, &UsrSctpWrapper::OnCwndChanged);
       }
       break;
     }
     case webrtc::fse_ng_v2: {
-      
-
       RTC_LOG(LS_INFO) << "registering usrsctp update callback";
       usrsctp_register_cwnd_callback(sock_, &UsrSctpWrapper::OnCwndChanged);
       break;
@@ -1126,7 +1124,7 @@ void UsrsctpTransport::CloseSctpSocket() {
     }
     if (webrtc::FseConfig::Instance().CurrentFse() == webrtc::fse_v2 
             && fse_v2_flow_
-            && !webrtc::FseV2::Instance().CoupleDcSctpLib()) {
+            && !webrtc::FseConfig::Instance().CoupleDcSctp()) {
       webrtc::FseV2::Instance().DeRegisterCwndFlow(fse_v2_flow_);
       fse_v2_flow_ = nullptr;
     }
@@ -1679,7 +1677,7 @@ void UsrsctpTransport::OnStreamResetEvent(
 //
 uint32_t UsrsctpTransport::CwndUpdate(uint32_t cwnd, uint32_t max_cwnd, uint64_t last_rtt) {
   if (webrtc::FseConfig::Instance().CurrentFse() == webrtc::fse_v2
-          && !webrtc::FseV2::Instance().CoupleDcSctpLib()) {
+          && !webrtc::FseConfig::Instance().CoupleDcSctp()) {
     if (!fse_v2_flow_) {
       fse_v2_flow_ = webrtc::FseV2::Instance().RegisterCwndFlow(
               cwnd, 

@@ -7750,8 +7750,10 @@ sctp_set_cwnd(struct socket *so, uint32_t cwnd_b)
       
       /* in CA and our fse_r is lowering cwnd belows ssthresh */ 
       //TODO: double check if this is > or >=
+      
+      cwnd_b -= cwnd_b % net->mtu;
       if (net->cwnd > net->ssthresh && cwnd_b <= net->ssthresh) {
-        net->ssthresh = cwnd_b-1;
+        net->ssthresh = cwnd_b - net->mtu;
         SCTP_PRINTF("PLOT_THIS_fsesetssthresh cwndcc=%u", net->ssthresh);
       }
       net->cwnd = cwnd_b;

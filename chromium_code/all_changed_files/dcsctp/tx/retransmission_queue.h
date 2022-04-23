@@ -211,6 +211,7 @@ class RetransmissionQueue {
 
   //TOBIAS
   void OnCwndChanged();
+  void FseSetCwnd(uint32_t fse_cwnd);
   DurationMs last_rtt_;
   //TOBIAS
 

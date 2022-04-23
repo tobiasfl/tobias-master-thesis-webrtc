@@ -34,12 +34,14 @@ class FseConfig {
     DataRate ResolveDesiredRate(int flow_id);
     int ResolveRateFlowPriority(int flow_id);
     int ResolveCwndFlowPriority(int flow_id);
+    bool CoupleDcSctp();
   private:
     FseConfig();
     ~FseConfig();
     FseVersion current_fse_;
     DesiredRateCase current_desired_rate_case_;
     PriorityCase current_priority_case_;
+    bool couple_dcsctp_;
 };
 
 }

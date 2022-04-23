@@ -314,8 +314,6 @@ void SendSideBandwidthEstimation::SetSendBitrate(DataRate bitrate,
 void SendSideBandwidthEstimation::FseV2SetSendBitrate(DataRate new_bitrate, Timestamp at_time) {
   RTC_DCHECK_GT(new_bitrate, DataRate::Zero());
 
-
-
   if (disable_receiver_limit_caps_only_)
     new_bitrate = std::min(new_bitrate, receiver_limit_);
   new_bitrate =  std::min(new_bitrate, max_bitrate_configured_);
@@ -327,6 +325,13 @@ void SendSideBandwidthEstimation::FseV2SetSendBitrate(DataRate new_bitrate, Time
 
   current_target_ = new_bitrate;
   link_capacity_.OnRateUpdate(acknowledged_rate_, current_target_, at_time);
+
+  //SetSendBitrate stuff:
+  // Clear last sent bitrate history so the new value can be used directly
+  // and not capped.
+  // THIS ONE IS NECESSARY
+  // BUG: but crashes when coupling two rtp flows
+  min_bitrate_history_.clear();
 }
 
 void SendSideBandwidthEstimation::SetMinMaxBitrate(DataRate min_bitrate,
@@ -676,6 +681,9 @@ void SendSideBandwidthEstimation::MaybeLogLossBasedEvent(Timestamp at_time) {
 
 void SendSideBandwidthEstimation::UpdateTargetBitrate(DataRate new_bitrate,
                                                       Timestamp at_time) {
+  if (last_round_trip_time_.IsFinite()) {
+      RTC_LOG(LS_INFO) << "PLOT_THIS_GCC rttgcc=" << last_round_trip_time_.ms();
+  }
   FseVersion fse_opt = FseConfig::Instance().CurrentFse();
   if (fse_opt == fse_ng && FseNg::Instance().UpdateValFinalRate()) {
     FseNgUpdateTargetBitrate(new_bitrate, at_time);
@@ -702,7 +710,7 @@ void SendSideBandwidthEstimation::NormalUpdateTargetBitrate(
       new_bitrate = min_bitrate_configured_;
     }
    //TOBIAS 
-  if(current_target_.IsFinite() && old_rate.kbps() && new_bitrate.IsFinite()) {
+  if(current_target_.IsFinite() && old_rate.IsFinite() && new_bitrate.IsFinite()) {
     RTC_LOG(LS_INFO) << "PLOT_THISSSBE cc_r_change=" << current_target_.kbps() - old_rate.kbps();
     if (loss_based_estimate.IsFinite() && new_bitrate == loss_based_estimate ) {
       RTC_LOG(LS_INFO) << "PLOT_THIS_GCC_LOSS estimate=" << loss_based_estimate.kbps();

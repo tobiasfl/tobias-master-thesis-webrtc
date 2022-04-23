@@ -119,8 +119,8 @@ void FseNgV2::RateUpdate(std::shared_ptr<RateFlow> flow,
 }
 
 uint32_t FseNgV2::CwndFlowUpdate(std::shared_ptr<HybridCwndFlow> flow,
-                       uint32_t new_cwnd,
-                       uint64_t last_rtt) {
+                                 uint32_t new_cwnd,
+                                 uint64_t last_rtt) {
   fse_mutex_.lock();
 
   UpdateRttValues(TimeDelta::Micros(last_rtt));
