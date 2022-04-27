@@ -29,11 +29,11 @@ sudo tcpdump -i enp0s31f6 -w $out_dir/if_dump.pcap &
 timeout $SS_LEN bash ~/Code/tobias-master-thesis-webrtc/utils/ss/ss_output.sh $RECEIVER $out_dir &
 
 #for only running tcp solo
-timeout $TEST_LEN iperf -c $RECEIVER -Z reno -n 1000M
+#timeout $TEST_LEN iperf -c $RECEIVER -Z reno -n 1000M
 
-#(sleep $TCP_START_TIME && iperf -c $RECEIVER -Z reno -n 1000M)&
-#
-#timeout $TEST_LEN bash ~/Code/tobias-master-thesis-webrtc/utils/testing/run_chromium.sh $out_dir $url $enabled_features $CHROMIUM_OVERRIDE
+(sleep $TCP_START_TIME && iperf -c $RECEIVER -Z reno -n 1000M)&
+
+timeout $TEST_LEN bash ~/Code/tobias-master-thesis-webrtc/utils/testing/run_chromium.sh $out_dir $url $enabled_features $CHROMIUM_OVERRIDE
 
 sudo killall tcpdump iperf
 

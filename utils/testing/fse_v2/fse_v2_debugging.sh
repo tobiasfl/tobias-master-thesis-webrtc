@@ -8,8 +8,7 @@ mkdir $out_dir
 
 
 
-bash ~/Code/tobias-master-thesis-webrtc/utils/testing/run_test.sh 3 50 15 60 $out_dir 'sctp1start=0' 'FseV2,equal,infinity,CoupleDcSctp'
-bash ~/Code/tobias-master-thesis-webrtc/utils/testing/run_test.sh 3 50 15 60 $out_dir 'rtp1start=0\&sctp1start=10000' 'FseV2,equal,infinity,CoupleDcSctp'
+bash ~/Code/tobias-master-thesis-webrtc/utils/testing/run_test.sh 3 50 15 60 $out_dir 'rtp1start=0\&sctp1start=10000' 'FseV2,equal,infinity'
 ##bash ~/Code/tobias-master-thesis-webrtc/utils/testing/run_test.sh 3 200 60 60 $out_dir 'rtp1start=0\&sctp1start=10000' 'FseV2,infinity,equal'
 ##
 ##bash ~/Code/tobias-master-thesis-webrtc/utils/testing/run_test.sh 4 50 20 60 $out_dir 'rtp1start=0\&sctp1start=10000' 'FseV2,infinity,equal'

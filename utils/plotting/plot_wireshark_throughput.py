@@ -5,30 +5,6 @@ import numpy as np
 from plotting import *
 from math import ceil
 
-def get_df(fn):
-    df = pd.read_csv(fn) 
-
-    for flow_col in df.columns[1:]:
-       
-        col = df[flow_col]
-        start = flow_start(col)
-        #end = len(col) - flow_start(reversed(col))
-
-        df[flow_col] = df.apply(lambda x: x[flow_col] / 1000000, axis=1)
-
-        #BUG: it should be -1 not -2, but -1 removes 1 too much
-        df.loc[0:start-2,[flow_col]] = np.nan
-    return df
-
-
-def flow_start(col_it):
-    index = 0
-    for val in col_it:
-        if val != 0:
-            return index
-        index += 1
-    return index
-
 
 
 args = sys.argv

@@ -52,6 +52,13 @@ ssh -t tobias@$RECEIVER "sudo killall tcpdump"
 sudo killall tcpdump
 
 #retrieve tcpdump
+ssh -t tobias@$ROUTER "sudo bash ~/Code/tobias-master-thesis-webrtc/utils/tc/teardown_aqm.sh $1 $2 $3"
 echo "retrieving pcap from receiver"
 scp $RECEIVER:/home/tobias/Code/test_results/recv_if_dump.pcap "$out_dir/recv_if_dump.pcap"
+
+#get stats dumped by web clients
+cp ~/Code/webrtc-test-app/1video_stats.txt $out_dir
+rm ~/Code/webrtc-test-app/1video_stats.txt
+cp ~/Code/webrtc-test-app/1data_channel_stats.txt $out_dir
+rm ~/Code/webrtc-test-app/1data_channel_stats.txt
 
