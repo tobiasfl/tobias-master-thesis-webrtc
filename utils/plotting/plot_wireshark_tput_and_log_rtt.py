@@ -5,7 +5,10 @@ from extract_log_data import *
 def rename_df(df, rttsctp_df, rttgcc_df):
     renamings = {rttsctp_df.columns[1]:'SCTP'}
     for (key, num) in zip(rttgcc_df.columns[1:], range(1, len(rttgcc_df.columns))):
-        renamings[key] = f'RTP {num}'
+        if len(rttgcc_df.columns[1:]) == 1:
+            renamings[key] = f'RTP'
+        else:
+            renamings[key] = f'RTP {num}'
 
     return df.rename(columns=renamings)
 

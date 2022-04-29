@@ -2,19 +2,13 @@ import pandas as pd
 from extract_log_data import *
 from avg_throughput import *
 
-#TODO: THIS IS INCORRECT
-def round_rtt_data_to_1s(df):
-        earliest_date =  df.index.min()
 
-        df.reset_index(inplace=True)
-        df["Time"] = df["Time"] - earliest_date
-        df["Time"] = df["Time"].round(0)
-        df.groupby(df["Time"]).mean()
-        df = df.drop_duplicates(subset=["Time"])
+def get_avg_rtt(df, start, end):
+    earliest_date =  df.index.min()
+    df.reset_index(inplace=True)
+    df["Time"] = df["Time"] - earliest_date
 
-        return df
-
-
+    return df[df["Time"] >= start][df["Time"] <= end].mean()
 
 def main():
     args = sys.argv
@@ -38,15 +32,11 @@ def main():
              
             #TODO: must round it to something first or it will not make sense!!!
             rttsctp_df = extract_info(lines, 'rttsctp', 'PLOT_THIS')
-            remove_NaNs(rttsctp_df)
-            rttsctp_df = round_rtt_data_to_1s(rttsctp_df)
-            sctp_avg_rtt = rttsctp_df[rttsctp_df.columns[0]].mean()
+            sctp_avg_rtt = get_avg_rtt(rttsctp_df, start, end)[1]
             print("SCTP Avg. RTT(ms): " + str(sctp_avg_rtt))
 
             rttgcc_df = extract_info(lines, 'rttgcc', 'PLOT_THIS')
-            remove_NaNs(rttgcc_df)
-            rttgcc_df = round_rtt_data_to_1s(rttgcc_df)
-            gcc_avg_rtt = rttgcc_df[rttgcc_df.columns[0]].mean()
+            gcc_avg_rtt = get_avg_rtt(rttgcc_df, start, end)[1]
             print("GCC Avg. RTT(ms): " + str(gcc_avg_rtt))
 
             gcc_sum_avg_rtts = gcc_sum_avg_rtts + gcc_avg_rtt

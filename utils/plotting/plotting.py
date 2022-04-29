@@ -40,6 +40,7 @@ def finalize_plot(filename, legend_loc):
     plt.savefig(filename)
     plt.show()
 
+
 def plot_scatter_plot(df, xlabel, ylabel):
     plt.rcParams.update(get_rc_params(15, 14, 12, 12, fig_size))
 
@@ -88,6 +89,28 @@ def plot_stacked_bar_plot(labels, ys):
     ax.legend(loc="upper left")
 
     plt.savefig("stacked_bar_plot.png")
+    plt.show()
+
+
+def plot_box_plot(df):
+    plt.rcParams.update(get_rc_params(16,12,10,10,fig_size))
+
+    data = [df[col] for col in df.columns[1:]]
+
+    fig, ax = plt.subplots(figsize=fig_size)
+    ax.boxplot(data)
+    mechanisms = ['Uncoupled', 'FSE-NG', 'Extended FSE-NG', 'FSEv2']
+    ax.set_xticks([1,2,3,4], [tex_boldify(x) for x in mechanisms])
+   
+    yticks = [x for x in np.arange(100, 350, 50)]
+    ax.set_yticks(yticks, [tex_boldify(str(y)) for y in yticks])
+
+    plt.ylabel(tex_boldify("Delay(ms)"))
+
+
+    fig.tight_layout()
+
+    plt.savefig("boxplot.png")
     plt.show()
 
 #Assumes time(s), vals1, vals2...
@@ -160,9 +183,9 @@ def plot_tput_and_rtt_comparison(tput_df, rtt_df):
 
     #tput plot
     min_tput = 0
-    max_tput = 2
+    max_tput = 5
     #max_tput = max([tput_df[col].max() for col in tput_df.columns[1:]])+0.5
-    tput_yticks = [float(x) for x in np.arange(min_tput, max_tput+1, 0.5)]
+    tput_yticks = [float(x) for x in np.arange(min_tput, max_tput+1, 1)]
     ax_t.set_yticks(tput_yticks, [tex_boldify(str(tick)) for tick in tput_yticks])    
     ax_t.set_ylim(min_tput, max_tput)
 
@@ -173,7 +196,7 @@ def plot_tput_and_rtt_comparison(tput_df, rtt_df):
     ax_t.set(ylabel=tex_boldify("mbps"))
     ax_t.grid(which="both")
 
-    ax_t.legend(loc="lower right")
+    ax_t.legend(loc="center right", ncol=2)
 
 
     #RTT plot
@@ -192,7 +215,7 @@ def plot_tput_and_rtt_comparison(tput_df, rtt_df):
     ax_b.set(ylabel=tex_boldify("ms"))
     ax_b.grid(which="both")
 
-    ax_b.legend(loc="upper right", ncol=2)
+    ax_b.legend(loc="upper left", ncol=2)
 
     fig.tight_layout()
     

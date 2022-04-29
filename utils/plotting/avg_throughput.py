@@ -55,6 +55,7 @@ def get_list_of_files(dir_name):
             all_files.append(full_path)
     return all_files 
 
+
 def get_pcap_files(dir_name):
     all_files = get_list_of_files(dir_name)
     return [pcap_file for pcap_file in all_files if pcap_file.endswith('.pcap')]
@@ -101,7 +102,6 @@ def analyze_rtp_type_packets(pcap_file, start_time, end_time):
 
         duration_s = min(find_duration_s(splitted_result), end_time - start_time)
         
-        #TODO: duration might be incorrect here, don't know if it takes start and end into account'
         avg_tput =  calculate_avg_throghput_mbps(duration_s, total_bytes)
         print('Duration(s): ' + str(duration_s))
         print('Bytes: ' + str(total_bytes))
