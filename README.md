@@ -1,9 +1,6 @@
 ## Overleaf link
 https://www.overleaf.com/project/60817333215ca555bef3aa17
 
-## FSE-NG test cases notes
-https://docs.google.com/document/d/1Lhr-acZPmxIhwwvKZJcPSE-YcYC3q1x4ztqg2QlQho4/edit?usp=sharing
-
 ## Background
 
 The following papers are important for implementing <a href="http://heim.ifi.uio.no/davihay/hayes14__pract_passiv_shared_bottl_detec-abstract.html">shared bottlenect detection</a> and <a href="http://heim.ifi.uio.no/safiquli/coupled-cc/"> coupled congestion control </a> in <a href="https://www.chromium.org/Home">chromium</a> for webrtc.
