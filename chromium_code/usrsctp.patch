@@ -1,0 +1,504 @@
+From 23e2f5b009e675de3d1ef29660edc8a5c800c20e Mon Sep 17 00:00:00 2001
+From: Tobias <t_fladby@msn.com>
+Date: Thu, 12 May 2022 09:23:52 +0200
+Subject: [PATCH] support for coupling mechanisms
+
+---
+ usrsctplib/netinet/sctp_cc_functions.c |  57 +++++---
+ usrsctplib/netinet/sctp_structs.h      |   4 +
+ usrsctplib/netinet/sctp_usrreq.c       | 176 +++++++++++++++++++++++++
+ usrsctplib/user_socket.c               |  54 ++++++++
+ usrsctplib/usrsctp.h                   |  15 +++
+ 5 files changed, 288 insertions(+), 18 deletions(-)
+
+diff --git a/usrsctplib/netinet/sctp_cc_functions.c b/usrsctplib/netinet/sctp_cc_functions.c
+index 68d53bd..9b9b434 100755
+--- a/usrsctplib/netinet/sctp_cc_functions.c
++++ b/usrsctplib/netinet/sctp_cc_functions.c
+@@ -59,8 +59,23 @@ __FBSDID("$FreeBSD$");
+ #define SHIFT_MPTCP_MULTI 8
+ 
+ static void
+-sctp_enforce_cwnd_limit(struct sctp_association *assoc, struct sctp_nets *net)
++sctp_enforce_cwnd_limit(struct sctp_association *assoc, struct sctp_nets *net, struct sctp_tcb *stcb)
+ {
++      //Added by TOBIAS
++      if (assoc->cwnd_changed) {
++        uint32_t fse_cwnd = assoc->cwnd_changed(net->cwnd, assoc->max_cwnd, net->rtt, stcb->sctp_ep->ulp_info);
++        fse_cwnd -= fse_cwnd % net->mtu;
++        
++
++        /* in CA and our fse_r is lowering cwnd below ssthresh */ 
++        if (net->cwnd > net->ssthresh && fse_cwnd <= net->ssthresh) {
++          net->ssthresh = fse_cwnd - net->mtu;
++          SCTP_PRINTF("PLOT_THIS_fsesetssthresh cwndcc=%u", net->ssthresh);
++        }
++        net->cwnd = fse_cwnd;
++      }
++      //Added by TOBIAS
++
+ 	if ((assoc->max_cwnd > 0) &&
+ 	    (net->cwnd > assoc->max_cwnd) &&
+ 	    (net->cwnd > (net->mtu - sizeof(struct sctphdr)))) {
+@@ -69,6 +84,12 @@ sctp_enforce_cwnd_limit(struct sctp_association *assoc, struct sctp_nets *net)
+ 			net->cwnd = net->mtu - sizeof(struct sctphdr);
+ 		}
+ 	}
++      SCTP_PRINTF("PLOT_THIS_cwndfse_set_cwnd cwndfse=%u", net->cwnd);
++      SCTP_PRINTF("PLOT_THIS_ssthreshfse_set_cwnd cwndfse=%u", net->ssthresh);
++      SCTP_PRINTF("PLOT_THIS_%u_cwnd cwndsctp=%u", assoc, net->cwnd);
++      SCTP_PRINTF("PLOT_THIS_%u_ssthresh cwndsctp=%u", assoc, net->ssthresh);
++      SCTP_PRINTF("PLOT_THIS_%u_max_cwnd cwndsctp=%u", assoc, assoc->max_cwnd);
++      SCTP_PRINTF("PLOT_THIS_%u_rtt rttsctp=%u", assoc, net->rtt/1000);
+ }
+ 
+ static void
+@@ -99,7 +120,7 @@ sctp_set_initial_cc_param(struct sctp_tcb *stcb, struct sctp_nets *net)
+ 			net->cwnd = net->mtu - sizeof(struct sctphdr);
+ 		}
+ 	}
+-	sctp_enforce_cwnd_limit(assoc, net);
++	sctp_enforce_cwnd_limit(assoc, net, stcb);
+ 	net->ssthresh = assoc->peers_rwnd;
+ #if defined(__FreeBSD__) && !defined(__Userspace__)
+ 	SDT_PROBE5(sctp, cwnd, net, init,
+@@ -194,7 +215,7 @@ sctp_cwnd_update_after_fr(struct sctp_tcb *stcb,
+ 					}
+ 				}
+ 				net->cwnd = net->ssthresh;
+-				sctp_enforce_cwnd_limit(asoc, net);
++				sctp_enforce_cwnd_limit(asoc, net, stcb);
+ #if defined(__FreeBSD__) && !defined(__Userspace__)
+ 				SDT_PROBE5(sctp, cwnd, net, fr,
+ 					  stcb->asoc.my_vtag, ((stcb->sctp_ep->sctp_lport << 16) | (stcb->rport)), net,
+@@ -477,7 +498,7 @@ cc_bw_decrease(struct sctp_tcb *stcb SCTP_UNUSED, struct sctp_nets *net, uint64_
+ 			if ((net->cc_mod.rtcc.vol_reduce) &&
+ 			    (inst_ind != SCTP_INST_GAINING)) {
+ 				net->cwnd += net->mtu;
+-				sctp_enforce_cwnd_limit(&stcb->asoc, net);
++				sctp_enforce_cwnd_limit(&stcb->asoc, net, stcb);
+ 				net->cc_mod.rtcc.vol_reduce--;
+ 			}
+ 			net->cc_mod.rtcc.last_step_state = 2;
+@@ -513,7 +534,7 @@ cc_bw_decrease(struct sctp_tcb *stcb SCTP_UNUSED, struct sctp_nets *net, uint64_
+ 			if ((net->cc_mod.rtcc.vol_reduce) &&
+ 			    (inst_ind != SCTP_INST_GAINING)) {
+ 				net->cwnd += net->mtu;
+-				sctp_enforce_cwnd_limit(&stcb->asoc, net);
++				sctp_enforce_cwnd_limit(&stcb->asoc, net, stcb);
+ 				net->cc_mod.rtcc.vol_reduce--;
+ 			}
+ 			net->cc_mod.rtcc.last_step_state = 3;
+@@ -549,7 +570,7 @@ cc_bw_decrease(struct sctp_tcb *stcb SCTP_UNUSED, struct sctp_nets *net, uint64_
+ 		if ((net->cc_mod.rtcc.vol_reduce) &&
+ 		    (inst_ind != SCTP_INST_GAINING)) {
+ 			net->cwnd += net->mtu;
+-			sctp_enforce_cwnd_limit(&stcb->asoc, net);
++			sctp_enforce_cwnd_limit(&stcb->asoc, net, stcb);
+ 			net->cc_mod.rtcc.vol_reduce--;
+ 		}
+ 		net->cc_mod.rtcc.last_step_state = 4;
+@@ -977,7 +998,7 @@ sctp_cwnd_update_after_sack_common(struct sctp_tcb *stcb,
+ 						break;
+ 					}
+ 					net->cwnd += incr;
+-					sctp_enforce_cwnd_limit(asoc, net);
++					sctp_enforce_cwnd_limit(asoc, net, stcb);
+ 					if (SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_CWND_MONITOR_ENABLE) {
+ 						sctp_log_cwnd(stcb, net, incr,
+ 						              SCTP_CWND_LOG_FROM_SS);
+@@ -1045,7 +1066,7 @@ sctp_cwnd_update_after_sack_common(struct sctp_tcb *stcb,
+ 						break;
+ 					}
+ 					net->cwnd += incr;
+-					sctp_enforce_cwnd_limit(asoc, net);
++					sctp_enforce_cwnd_limit(asoc, net, stcb);
+ #if defined(__FreeBSD__) && !defined(__Userspace__)
+ 					SDT_PROBE5(sctp, cwnd, net, ack,
+ 						  stcb->asoc.my_vtag,
+@@ -1331,7 +1352,7 @@ sctp_cwnd_update_after_packet_dropped(struct sctp_tcb *stcb,
+ 		/* We always have 1 MTU */
+ 		net->cwnd = net->mtu;
+ 	}
+-	sctp_enforce_cwnd_limit(&stcb->asoc, net);
++	sctp_enforce_cwnd_limit(&stcb->asoc, net, stcb);
+ 	if (net->cwnd - old_cwnd != 0) {
+ 		/* log only changes */
+ #if defined(__FreeBSD__) && !defined(__Userspace__)
+@@ -1358,7 +1379,7 @@ sctp_cwnd_update_after_output(struct sctp_tcb *stcb,
+ 		net->ssthresh = net->cwnd;
+ 	if (burst_limit) {
+ 		net->cwnd = (net->flight_size + (burst_limit * net->mtu));
+-		sctp_enforce_cwnd_limit(&stcb->asoc, net);
++		sctp_enforce_cwnd_limit(&stcb->asoc, net, stcb);
+ #if defined(__FreeBSD__) && !defined(__Userspace__)
+ 		SDT_PROBE5(sctp, cwnd, net, bl,
+ 			  stcb->asoc.my_vtag,
+@@ -1718,7 +1739,7 @@ sctp_hs_cwnd_increase(struct sctp_tcb *stcb, struct sctp_nets *net)
+ 		incr = (((int32_t)sctp_cwnd_adjust[indx].increase) << 10);
+ 		net->cwnd += incr;
+ 	}
+-	sctp_enforce_cwnd_limit(&stcb->asoc, net);
++	sctp_enforce_cwnd_limit(&stcb->asoc, net, stcb);
+ 	if (SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_CWND_MONITOR_ENABLE) {
+ 		sctp_log_cwnd(stcb, net, (net->cwnd - old_cwnd), SCTP_CWND_LOG_FROM_SS);
+ 	}
+@@ -1759,7 +1780,7 @@ sctp_hs_cwnd_decrease(struct sctp_tcb *stcb, struct sctp_nets *net)
+ 			net->last_hs_used = indx;
+ 		}
+ 	}
+-	sctp_enforce_cwnd_limit(&stcb->asoc, net);
++	sctp_enforce_cwnd_limit(&stcb->asoc, net, stcb);
+ 	if (SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_CWND_MONITOR_ENABLE) {
+ 		sctp_log_cwnd(stcb, net, (net->cwnd - old_cwnd), SCTP_CWND_LOG_FROM_FR);
+ 	}
+@@ -1902,7 +1923,7 @@ sctp_hs_cwnd_update_after_sack(struct sctp_tcb *stcb,
+ 				    (net->partial_bytes_acked >= net->cwnd)) {
+ 					net->partial_bytes_acked -= net->cwnd;
+ 					net->cwnd += net->mtu;
+-					sctp_enforce_cwnd_limit(asoc, net);
++					sctp_enforce_cwnd_limit(asoc, net, stcb);
+ 					if (SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_CWND_MONITOR_ENABLE) {
+ 						sctp_log_cwnd(stcb, net, net->mtu,
+ 							SCTP_CWND_LOG_FROM_CA);
+@@ -2138,7 +2159,7 @@ htcp_cong_avoid(struct sctp_tcb *stcb, struct sctp_nets *net)
+ 						SCTP_CWND_LOG_FROM_SS);
+ 				}
+ 			}
+-			sctp_enforce_cwnd_limit(&stcb->asoc, net);
++			sctp_enforce_cwnd_limit(&stcb->asoc, net, stcb);
+ 		} else {
+ 			if (SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_CWND_LOGGING_ENABLE) {
+ 				sctp_log_cwnd(stcb, net, net->net_ack,
+@@ -2159,7 +2180,7 @@ htcp_cong_avoid(struct sctp_tcb *stcb, struct sctp_nets *net)
+ 			 */
+ 			net->cwnd += net->mtu;
+ 			net->partial_bytes_acked = 0;
+-			sctp_enforce_cwnd_limit(&stcb->asoc, net);
++			sctp_enforce_cwnd_limit(&stcb->asoc, net, stcb);
+ 			htcp_alpha_update(&net->cc_mod.htcp_ca);
+ 			if (SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_CWND_MONITOR_ENABLE) {
+ 				sctp_log_cwnd(stcb, net, net->mtu,
+@@ -2205,7 +2226,7 @@ sctp_htcp_set_initial_cc_param(struct sctp_tcb *stcb, struct sctp_nets *net)
+ 	 */
+ 	net->cwnd = min((net->mtu * 4), max((2 * net->mtu), SCTP_INITIAL_CWND));
+ 	net->ssthresh = stcb->asoc.peers_rwnd;
+-	sctp_enforce_cwnd_limit(&stcb->asoc, net);
++	sctp_enforce_cwnd_limit(&stcb->asoc, net, stcb);
+ 	htcp_init(net);
+ 
+ 	if (SCTP_BASE_SYSCTL(sctp_logging_level) & (SCTP_CWND_MONITOR_ENABLE|SCTP_CWND_LOGGING_ENABLE)) {
+@@ -2306,7 +2327,7 @@ sctp_htcp_cwnd_update_after_fr(struct sctp_tcb *stcb,
+ 				htcp_reset(&net->cc_mod.htcp_ca);
+ 				net->ssthresh = htcp_recalc_ssthresh(net);
+ 				net->cwnd = net->ssthresh;
+-				sctp_enforce_cwnd_limit(asoc, net);
++				sctp_enforce_cwnd_limit(asoc, net, stcb);
+ 				if (SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_CWND_MONITOR_ENABLE) {
+ 					sctp_log_cwnd(stcb, net, (net->cwnd - old_cwnd),
+ 						SCTP_CWND_LOG_FROM_FR);
+@@ -2386,7 +2407,7 @@ sctp_htcp_cwnd_update_after_ecn_echo(struct sctp_tcb *stcb,
+ 			net->RTO <<= 1;
+ 		}
+ 		net->cwnd = net->ssthresh;
+-		sctp_enforce_cwnd_limit(&stcb->asoc, net);
++		sctp_enforce_cwnd_limit(&stcb->asoc, net, stcb);
+ 		if (SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_CWND_MONITOR_ENABLE) {
+ 			sctp_log_cwnd(stcb, net, (net->cwnd - old_cwnd), SCTP_CWND_LOG_FROM_SAT);
+ 		}
+diff --git a/usrsctplib/netinet/sctp_structs.h b/usrsctplib/netinet/sctp_structs.h
+index c3ce749..a8a67b8 100755
+--- a/usrsctplib/netinet/sctp_structs.h
++++ b/usrsctplib/netinet/sctp_structs.h
+@@ -1283,6 +1283,10 @@ struct sctp_association {
+ 	struct timeval discontinuity_time;
+ 	uint64_t abandoned_unsent[SCTP_PR_SCTP_MAX + 1];
+ 	uint64_t abandoned_sent[SCTP_PR_SCTP_MAX + 1];
++
++        // Added by TOBIAS
++        uint32_t (*cwnd_changed)(uint32_t cwnd, uint32_t max_cwnd, uint64_t last_rtt, void *ulp_info);
++        // Added by TOBIAS
+ };
+ 
+ #endif
+diff --git a/usrsctplib/netinet/sctp_usrreq.c b/usrsctplib/netinet/sctp_usrreq.c
+index 24785d2..4770c31 100755
+--- a/usrsctplib/netinet/sctp_usrreq.c
++++ b/usrsctplib/netinet/sctp_usrreq.c
+@@ -7718,6 +7718,182 @@ sctp_setopt(struct socket *so, int optname, void *optval, size_t optsize,
+ 	return (error);
+ }
+ 
++// Added by TOBIAS
++#if defined(__Userspace__)
++int
++#else
++static int
++#endif
++sctp_set_cwnd(struct socket *so, uint32_t cwnd_b)
++{
++  int error;
++  struct sctp_tcb *stcb = NULL;
++  struct sctp_inpcb *inp = NULL;
++  struct sctp_nets *net;
++
++  inp = (struct sctp_inpcb *)so->so_pcb;
++
++  if (inp == NULL) {
++    SCTP_PRINTF("sctp_set_cwnd: inp is NULL");
++    return EINVAL;
++  }
++
++  for (int i = 0; i < 1; ++i) 
++    SCTP_FIND_STCB(inp, stcb, SCTP_ALL_ASSOC);
++
++  if (stcb) {
++    TAILQ_FOREACH(net, &stcb->asoc.nets, sctp_next) {
++      SCTP_PRINTF("PLOT_THIS_cwndcc cwndcc=%u", net->cwnd);
++      SCTP_PRINTF("PLOT_THIS_ssthreshcc cwndcc=%u", net->ssthresh);
++      /* Only change ssthresh in CA when you actually set 
++      cwnd based on FSE_R which is lower than ssthresh */
++      
++      /* in CA and our fse_r is lowering cwnd belows ssthresh */ 
++      //TODO: double check if this is > or >=
++      
++      cwnd_b -= cwnd_b % net->mtu;
++      if (net->cwnd > net->ssthresh && cwnd_b <= net->ssthresh) {
++        net->ssthresh = cwnd_b - net->mtu;
++        SCTP_PRINTF("PLOT_THIS_fsesetssthresh cwndcc=%u", net->ssthresh);
++      }
++      net->cwnd = cwnd_b;
++      SCTP_PRINTF("PLOT_THIS_cwndfse_set_cwnd cwndfse=%u", net->cwnd);
++      SCTP_PRINTF("PLOT_THIS_ssthreshfse_set_cwnd cwndfse=%u", net->ssthresh);
++    }
++    SCTP_TCB_UNLOCK(stcb);
++    return 0;
++  }
++  return 1;
++}
++
++#if defined(__Userspace__)
++int
++#else
++static int
++#endif
++sctp_get_cwnd(struct socket *so, uint32_t *cwnd_value)
++{
++  SCTP_PRINTF("Calling sctp_get_cwnd in sctp_usrreq\n");
++  int error;
++  struct sctp_tcb *stcb = NULL;
++  struct sctp_inpcb *inp = NULL;
++  struct sctp_nets *net;
++
++  inp = (struct sctp_inpcb *)so->so_pcb;
++  if (inp == NULL) {
++    SCTP_PRINTF("sctp_get_cwnd: inp is NULL\n");
++    return EINVAL;
++  }
++  for (int i = 0; i < 1; ++i)
++    SCTP_FIND_STCB(inp, stcb, SCTP_ALL_ASSOC);
++
++  if (stcb) {
++    SCTP_TCB_UNLOCK(stcb);
++    TAILQ_FOREACH(net, &stcb->asoc.nets, sctp_next) {
++      SCTP_PRINTF("sctp_get_cwnd returning cwnd\n");
++      *cwnd_value = net->cwnd;
++    }
++    SCTP_TCB_UNLOCK(stcb);
++    return 0;
++  }
++  return 1;
++}
++
++#if defined(__Userspace__)
++int
++#else
++static int
++#endif
++sctp_set_max_cwnd(struct socket *so, uint32_t max_cwnd_b)
++{
++  SCTP_PRINTF("Calling sctp_set_max_cwnd in sctp_usrreq\n");
++  int error;
++
++  struct sctp_tcb *stcb = NULL;
++  struct sctp_inpcb *inp = NULL;
++  struct sctp_association *assoc = NULL;
++
++  inp = (struct sctp_inpcb *)so->so_pcb;
++  if (inp == NULL) {
++    SCTP_PRINTF("sctp_set_max_cwnd: inp is NULL\n");
++    return EINVAL;
++  }
++  for (int i = 0; i < 1; ++i)
++    SCTP_FIND_STCB(inp, stcb, SCTP_ALL_ASSOC);
++
++  if (stcb) {
++    assoc = &stcb->asoc;
++    assoc->max_cwnd = max_cwnd_b;
++    SCTP_TCB_UNLOCK(stcb);
++    return 0;
++  }
++  return 1;
++}
++
++#if defined(__Userspace__)
++int
++#else
++static int
++#endif
++sctp_get_max_cwnd(struct socket *so, uint32_t *max_cwnd_value)
++{
++  SCTP_PRINTF("Calling sctp_get_max_cwnd in sctp_usrreq\n");
++  int error;
++
++  struct sctp_tcb *stcb = NULL;
++  struct sctp_inpcb *inp = NULL;
++  struct sctp_association *assoc = NULL;
++
++  inp = (struct sctp_inpcb *)so->so_pcb;
++  if (inp == NULL) {
++    SCTP_PRINTF("sctp_get_max_cwnd: inp is NULL\n");
++    return EINVAL;
++  }
++  for (int i = 0; i < 1; ++i)
++    SCTP_FIND_STCB(inp, stcb, SCTP_ALL_ASSOC);
++
++  if (stcb) {
++    assoc = &stcb->asoc;
++    *max_cwnd_value = assoc->max_cwnd;
++    SCTP_TCB_UNLOCK(stcb);
++    return 0;
++  }
++  return 1;
++}
++
++#if defined(__Userspace__)
++int
++#else
++static int
++#endif
++sctp_register_cwnd_callback(struct socket *so, uint32_t (*f)(uint32_t cwnd, uint32_t max_cwnd, uint64_t last_rtt, void *ulp_info))
++{
++  SCTP_PRINTF("Calling sctp_register_cwnd_callback in sctp_usrreq\n");
++  int error;
++
++  struct sctp_tcb *stcb = NULL;
++  struct sctp_inpcb *inp = NULL;
++  struct sctp_association *assoc = NULL;
++
++  inp = (struct sctp_inpcb *)so->so_pcb;
++  if (inp == NULL) {
++    SCTP_PRINTF("sctp_register_cwnd_callback: inp is NULL\n");
++    return EINVAL;
++  }
++  for (int i = 0; i < 1; ++i)
++    SCTP_FIND_STCB(inp, stcb, SCTP_ALL_ASSOC);
++
++  if (stcb) {
++    assoc = &stcb->asoc;
++    assoc->cwnd_changed = f;
++    SCTP_TCB_UNLOCK(stcb);
++    return 0;
++  }
++  return 1;
++}
++
++// Added by TOBIAS
++
+ #if !defined(__Userspace__)
+ int
+ sctp_ctloutput(struct socket *so, struct sockopt *sopt)
+diff --git a/usrsctplib/user_socket.c b/usrsctplib/user_socket.c
+index 9385abd..7918c2e 100755
+--- a/usrsctplib/user_socket.c
++++ b/usrsctplib/user_socket.c
+@@ -2097,6 +2097,60 @@ userspace_finish(void)
+ int
+ sctp_setopt(struct socket *so, int optname, void *optval, size_t optsize, void *p);
+ 
++//Added by TOBIAS
++int
++sctp_set_cwnd(struct socket *so, uint32_t cwnd_b);
++
++int
++usrsctp_set_cwnd(struct socket *so,
++                uint32_t cwnd)
++{
++  return sctp_set_cwnd(so, cwnd);
++}
++
++
++int 
++sctp_get_cwnd(struct socket *so, uint32_t *cwnd_value);
++
++int
++usrsctp_get_cwnd(struct socket *so, 
++                uint32_t *cwnd_value)
++{
++  return sctp_get_cwnd(so, cwnd_value);
++}
++
++int
++sctp_set_max_cwnd(struct socket *so, uint32_t max_cwnd_b);
++
++int
++usrsctp_set_max_cwnd(struct socket *so,
++                uint32_t max_cwnd)
++{
++  return sctp_set_max_cwnd(so, max_cwnd);
++}
++
++int 
++sctp_get_max_cwnd(struct socket *so, uint32_t *max_cwnd_value);
++
++int
++usrsctp_get_max_cwnd(struct socket *so, 
++                uint32_t *max_cwnd_value)
++{
++  return sctp_get_max_cwnd(so, max_cwnd_value);
++}
++
++int
++sctp_register_cwnd_callback(struct socket *so, uint32_t (*f)(uint32_t cwnd, uint32_t max_cwnd, uint64_t last_rtt, void *ulp_info));
++
++int
++usrsctp_register_cwnd_callback(struct socket *so, uint32_t (*f)(uint32_t cwnd, uint32_t max_cwnd, uint64_t last_rtt, void *ulp_info))
++{
++  return sctp_register_cwnd_callback(so, f);
++}
++//Added by TOBIAS
++
++
++
+ int
+ usrsctp_setsockopt(struct socket *so, int level, int option_name,
+                    const void *option_value, socklen_t option_len)
+diff --git a/usrsctplib/usrsctp.h b/usrsctplib/usrsctp.h
+index e0c17c3..5b6d501 100644
+--- a/usrsctplib/usrsctp.h
++++ b/usrsctplib/usrsctp.h
+@@ -908,6 +908,21 @@ usrsctp_socket(int domain, int type, int protocol,
+                uint32_t sb_threshold,
+                void *ulp_info);
+ 
++
++// Added by TOBIAS
++int usrsctp_set_cwnd(struct socket* so, uint32_t cwnd_b);
++
++int usrsctp_set_max_cwnd(struct socket* so, uint32_t max_cwnd_b);
++
++int usrsctp_get_cwnd(struct socket *so, uint32_t *cwnd_value);
++
++int usrsctp_register_cwnd_callback(struct socket* so, uint32_t (*f)(uint32_t cwnd, uint32_t max_cwnd, uint64_t last_rtt, void *ulp_info));
++
++int usrsctp_get_max_cwnd(struct socket *so, uint32_t *max_cwnd_value);
++// Added by TOBIAS
++
++
++
+ int
+ usrsctp_setsockopt(struct socket *so,
+                    int level,
+-- 
+2.25.1
+

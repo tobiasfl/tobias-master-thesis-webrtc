@@ -1,0 +1,3758 @@
+From cf5628bdc3e2b68e98a5646c40079f09ef84f833 Mon Sep 17 00:00:00 2001
+From: Tobias <t_fladby@msn.com>
+Date: Thu, 12 May 2022 09:18:32 +0200
+Subject: [PATCH] coupling mechanisms
+
+---
+ api/transport/network_control.h               |   4 +
+ call/rtp_transport_controller_send.cc         |  20 +-
+ call/rtp_transport_controller_send.h          |   4 +
+ media/BUILD.gn                                |   2 +-
+ media/sctp/usrsctp_transport.cc               | 179 +++++++-
+ media/sctp/usrsctp_transport.h                |  29 +-
+ .../congestion_controller/goog_cc/BUILD.gn    |  12 +
+ .../goog_cc/delay_based_bwe.cc                |  12 +-
+ .../goog_cc/delay_based_bwe.h                 |   7 +-
+ .../goog_cc/flow_state_exchange.cc            | 144 +++++++
+ .../goog_cc/flow_state_exchange.h             |  57 +++
+ .../goog_cc/fse_config.cc                     | 304 ++++++++++++++
+ .../goog_cc/fse_config.h                      |  48 +++
+ .../congestion_controller/goog_cc/fse_flow.cc | 190 +++++++++
+ .../congestion_controller/goog_cc/fse_flow.h  | 123 ++++++
+ .../congestion_controller/goog_cc/fse_ng.cc   | 273 ++++++++++++
+ .../congestion_controller/goog_cc/fse_ng.h    |  96 +++++
+ .../goog_cc/fse_ng_v2.cc                      | 305 ++++++++++++++
+ .../congestion_controller/goog_cc/fse_ng_v2.h | 109 +++++
+ .../congestion_controller/goog_cc/fse_v2.cc   | 390 ++++++++++++++++++
+ .../congestion_controller/goog_cc/fse_v2.h    |  97 +++++
+ .../goog_cc/goog_cc_network_control.cc        |  47 ++-
+ .../goog_cc/goog_cc_network_control.h         |  15 +
+ .../goog_cc/send_side_bandwidth_estimation.cc | 158 ++++++-
+ .../goog_cc/send_side_bandwidth_estimation.h  |  21 +-
+ .../aimd_rate_control.cc                      | 130 +++++-
+ .../aimd_rate_control.h                       |  20 +-
+ .../overuse_detector.cc                       |  11 +-
+ net/dcsctp/tx/retransmission_queue.cc         |  99 ++++-
+ net/dcsctp/tx/retransmission_queue.h          |  19 +
+ 30 files changed, 2886 insertions(+), 39 deletions(-)
+ create mode 100644 modules/congestion_controller/goog_cc/flow_state_exchange.cc
+ create mode 100644 modules/congestion_controller/goog_cc/flow_state_exchange.h
+ create mode 100644 modules/congestion_controller/goog_cc/fse_config.cc
+ create mode 100644 modules/congestion_controller/goog_cc/fse_config.h
+ create mode 100644 modules/congestion_controller/goog_cc/fse_flow.cc
+ create mode 100644 modules/congestion_controller/goog_cc/fse_flow.h
+ create mode 100644 modules/congestion_controller/goog_cc/fse_ng.cc
+ create mode 100644 modules/congestion_controller/goog_cc/fse_ng.h
+ create mode 100644 modules/congestion_controller/goog_cc/fse_ng_v2.cc
+ create mode 100644 modules/congestion_controller/goog_cc/fse_ng_v2.h
+ create mode 100644 modules/congestion_controller/goog_cc/fse_v2.cc
+ create mode 100644 modules/congestion_controller/goog_cc/fse_v2.h
+
+diff --git a/api/transport/network_control.h b/api/transport/network_control.h
+index c2b005e..9ea4473 100644
+--- a/api/transport/network_control.h
++++ b/api/transport/network_control.h
+@@ -97,6 +97,10 @@ class NetworkControllerInterface {
+   // Called with network state estimate updates.
+   ABSL_MUST_USE_RESULT virtual NetworkControlUpdate OnNetworkStateEstimate(
+       NetworkStateEstimate) = 0;
++  //TOBIAS
++  ABSL_MUST_USE_RESULT virtual NetworkControlUpdate OnCouplingUpdateInterval(
++      ProcessInterval) = 0;
++  //TOBIAS
+ };
+ 
+ // NetworkControllerFactoryInterface is an interface for creating a network
+diff --git a/call/rtp_transport_controller_send.cc b/call/rtp_transport_controller_send.cc
+index 8825df2..31b2c0a 100644
+--- a/call/rtp_transport_controller_send.cc
++++ b/call/rtp_transport_controller_send.cc
+@@ -644,12 +644,27 @@ void RtpTransportControllerSend::StartProcessPeriodicTasks() {
+   controller_task_.Stop();
+   if (process_interval_.IsFinite()) {
+     controller_task_ = RepeatingTaskHandle::DelayedStart(
+-        task_queue_.Get(), process_interval_, [this]() {
++          task_queue_.Get(), process_interval_, [this]() {
+           RTC_DCHECK_RUN_ON(&task_queue_);
+           UpdateControllerWithTimeInterval();
+           return process_interval_;
+         });
+   }
++  //TOBIAS
++  /*
++  static TimeDelta coupler_task_interval =  TimeDelta::Millis(1);
++  coupler_update_task_.Stop();
++  coupler_update_task_ = RepeatingTaskHandle::DelayedStart(
++    task_queue_.Get(), coupler_task_interval, [this]() {
++      RTC_DCHECK_RUN_ON(&task_queue_);
++      RTC_DCHECK(controller_)  ;
++      ProcessInterval msg;
++      msg.at_time = Timestamp::Millis(clock_->TimeInMilliseconds());
++      RTC_LOG(LS_INFO) << "PLOT_THISENCODER_UPDATE coupler_update=0";
++      PostUpdates(controller_->OnCouplingUpdateInterval(msg));
++      return coupler_task_interval;
++    });*/
++  //TOBIAS
+ }
+ 
+ void RtpTransportControllerSend::UpdateControllerWithTimeInterval() {
+@@ -672,13 +687,16 @@ void RtpTransportControllerSend::PostUpdates(NetworkControlUpdate update) {
+     pacer()->SetCongestionWindow(*update.congestion_window);
+   }
+   if (update.pacer_config) {
++    RTC_LOG(LS_INFO) << "PLOT_THISPACER_UPDATE pacer_rate=" << update.pacer_config->data_rate().kbps();
+     pacer()->SetPacingRates(update.pacer_config->data_rate(),
+                             update.pacer_config->pad_rate());
+   }
+   for (const auto& probe : update.probe_cluster_configs) {
++    RTC_LOG(LS_INFO) << "PLOT_THISPACERPROBE_UPDATE pacer_rate=" << probe.target_data_rate.kbps();
+     pacer()->CreateProbeCluster(probe.target_data_rate, probe.id);
+   }
+   if (update.target_rate) {
++    RTC_LOG(LS_INFO) << "PLOT_THISENCODER_UPDATE pacer_rate=" << update.target_rate->target_rate.kbps();
+     control_handler_->SetTargetRate(*update.target_rate);
+     UpdateControlState();
+   }
+diff --git a/call/rtp_transport_controller_send.h b/call/rtp_transport_controller_send.h
+index ac4213d..41c44b7 100644
+--- a/call/rtp_transport_controller_send.h
++++ b/call/rtp_transport_controller_send.h
+@@ -208,6 +208,10 @@ class RtpTransportControllerSend final
+   RepeatingTaskHandle pacer_queue_update_task_ RTC_GUARDED_BY(task_queue_);
+   RepeatingTaskHandle controller_task_ RTC_GUARDED_BY(task_queue_);
+ 
++  //TOBIAS
++  RepeatingTaskHandle coupler_update_task_ RTC_GUARDED_BY(task_queue_);
++  //TOBIAS
++
+   // Protected by internal locks.
+   RateLimiter retransmission_rate_limiter_;
+ 
+diff --git a/media/BUILD.gn b/media/BUILD.gn
+index ffbb4f0..e7fb989 100644
+--- a/media/BUILD.gn
++++ b/media/BUILD.gn
+@@ -414,7 +414,7 @@ if (rtc_build_dcsctp) {
+ if (rtc_build_usrsctp) {
+   rtc_library("rtc_data_usrsctp_transport") {
+     defines = [
+-      # "SCTP_DEBUG" # Uncomment for SCTP debugging.
++      "SCTP_DEBUG" # Uncomment for SCTP debugging.
+     ]
+     sources = [
+       "sctp/usrsctp_transport.cc",
+diff --git a/media/sctp/usrsctp_transport.cc b/media/sctp/usrsctp_transport.cc
+index 4babf11..619bb9e 100644
+--- a/media/sctp/usrsctp_transport.cc
++++ b/media/sctp/usrsctp_transport.cc
+@@ -53,6 +53,12 @@ constexpr int kSctpErrorReturn = 0;
+ #include "rtc_base/thread_annotations.h"
+ #include "rtc_base/trace_event.h"
+ 
++// Added by TOBIAS
++#include "modules/congestion_controller/goog_cc/fse_ng.h"
++#include "modules/congestion_controller/goog_cc/fse_v2.h"
++#include "modules/congestion_controller/goog_cc/fse_config.h"
++// Added by TOBIAS
++
+ namespace cricket {
+ namespace {
+ 
+@@ -189,7 +195,8 @@ bool IsEmptyPPID(uint32_t ppid) {
+ // getting a normal packet capture won't help you, unless you have the DTLS
+ // keying material.
+ void VerboseLogPacket(const void* data, size_t length, int direction) {
+-  if (RTC_LOG_CHECK_LEVEL(LS_VERBOSE) && length > 0) {
++  //Commented by TOBIAS
++  /*if (RTC_LOG_CHECK_LEVEL(LS_VERBOSE) && length > 0) {
+     char* dump_buf;
+     // Some downstream project uses an older version of usrsctp that expects
+     // a non-const "void*" as first parameter when dumping the packet, so we
+@@ -199,7 +206,8 @@ void VerboseLogPacket(const void* data, size_t length, int direction) {
+       RTC_LOG(LS_VERBOSE) << dump_buf;
+       usrsctp_freedumpbuffer(dump_buf);
+     }
+-  }
++  }*/
++  //Commented by TOBIAS
+ }
+ 
+ // Creates the sctp_sendv_spa struct used for setting flags in the
+@@ -321,6 +329,13 @@ class UsrsctpTransportMap {
+     return true;
+   }
+ 
++  //TOBIAS
++  UsrsctpTransport* GetUsrsctpTransport(uintptr_t id) const {
++    webrtc::MutexLock lock(&lock_);
++    return RetrieveWhileHoldingLock(id);
++  }
++  //TOBIAS
++
+  private:
+   UsrsctpTransport* RetrieveWhileHoldingLock(uintptr_t id) const
+       RTC_EXCLUSIVE_LOCKS_REQUIRED(lock_) {
+@@ -359,7 +374,7 @@ class UsrsctpTransport::UsrSctpWrapper {
+ 
+     // To turn on/off detailed SCTP debugging. You will also need to have the
+     // SCTP_DEBUG cpp defines flag, which can be turned on in media/BUILD.gn.
+-    // usrsctp_sysctl_set_sctp_debug_on(SCTP_DEBUG_ALL);
++    //usrsctp_sysctl_set_sctp_debug_on(1);
+ 
+     // TODO(ldixon): Consider turning this on/off.
+     usrsctp_sysctl_set_sctp_ecn_enable(0);
+@@ -377,6 +392,10 @@ class UsrsctpTransport::UsrSctpWrapper {
+                         << send_size;
+     }
+ 
++    //Added by TOBIAS
++    //usrsctp_sysctl_set_sctp_logging_level(0x00000001 | 0x00000002 | 0x00000004);
++    //Added by TOBIAS
++    
+     // TODO(ldixon): Consider turning this on/off.
+     // This is not needed right now (we don't do dynamic address changes):
+     // If SCTP Auto-ASCONF is enabled, the peer is informed automatically
+@@ -541,6 +560,38 @@ class UsrsctpTransport::UsrSctpWrapper {
+     }
+     return 0;
+   }
++
++  // Added by TOBIAS
++  static uint32_t OnCwndChanged(uint32_t cwnd,
++                                uint32_t max_cwnd,
++                                uint64_t last_rtt,
++                                void* ulp_info) {
++    RTC_LOG(LS_INFO) << "TOBIAS OnCwndChanged was called!";
++    if (!g_transport_map_) {
++      RTC_LOG(LS_ERROR) << "OnCwndChanged called after usrsctp uninitialized?";
++      return 0;
++    }
++    uintptr_t id = reinterpret_cast<uintptr_t>(ulp_info);
++    //TODO: this code necessary if you want to somehow update synchronously
++    UsrsctpTransport* transport = g_transport_map_->GetUsrsctpTransport(id);
++    if (!transport) {
++      RTC_LOG(LS_ERROR)
++          << "OnCwndChanged: Failed to get transport for socket ID " << id
++          << "; possibly was already destroyed.";
++    }
++    return transport->CwndUpdate(cwnd, max_cwnd, last_rtt);
++    /*bool found = g_transport_map_->PostToTransportThread(
++        id, [cwnd, last_rtt](UsrsctpTransport* transport) {
++            RTC_LOG(LS_INFO) << "posting CwndUpdate call to TransportThread";
++            transport->CwndUpdate(cwnd, last_rtt);
++        });
++    if (!found) {
++      RTC_LOG(LS_ERROR)
++          << "OnCwndChanged: Failed to get transport for socket ID " << id
++          << "; possibly was already destroyed.";
++    }*/
++  }
++  // Added by TOBIAS
+ };
+ 
+ UsrsctpTransport::UsrsctpTransport(rtc::Thread* network_thread,
+@@ -550,6 +601,7 @@ UsrsctpTransport::UsrsctpTransport(rtc::Thread* network_thread,
+       was_ever_writable_(transport ? transport->writable() : false) {
+   RTC_DCHECK(network_thread_);
+   RTC_DCHECK_RUN_ON(network_thread_);
++
+   ConnectTransportSignals();
+ }
+ 
+@@ -788,8 +840,8 @@ SendDataResult UsrsctpTransport::SendMessageInternal(OutgoingMessage* message) {
+   if (send_res < 0) {
+     if (errno == SCTP_EWOULDBLOCK) {
+       ready_to_send_data_ = false;
+-      RTC_LOG(LS_VERBOSE) << debug_name_
+-                          << "->SendMessageInternal(...): EWOULDBLOCK returned";
++      RTC_LOG(LS_INFO) << debug_name_
++                       << "->SendMessageInternal(...): EWOULDBLOCK returned";
+       return SDR_BLOCK;
+     }
+ 
+@@ -890,6 +942,36 @@ bool UsrsctpTransport::Connect() {
+                             << "->Connect(): "
+                                "Failed to set SCTP_PEER_ADDR_PARAMS.";
+   }
++  // Added by TOBIAS
++  RTC_LOG(LS_INFO) << "Checking which FSE to register with";
++  switch (webrtc::FseConfig::Instance().CurrentFse()) {
++    case webrtc::fse_ng: {
++      RTC_LOG(LS_INFO) << "registering SCTP flow with fse-ng";
++      // even though registered here there is no guarantee any SCTP streams are
++      // running
++      uint32_t initial_max_cwnd_to_register;
++      GetMaxCwnd(&initial_max_cwnd_to_register);
++      fse_flow_ = webrtc::FseNg::Instance().RegisterCwndFlow(
++              initial_max_cwnd_to_register, 
++              [this](uint32_t max_cwnd) { this->SetMaxCwnd(max_cwnd);});
++      break;
++    }
++    case webrtc::fse_v2: {
++      if (!webrtc::FseConfig::Instance().CoupleDcSctp()) {
++        RTC_LOG(LS_INFO) << "registering usrsctp update callback";
++        usrsctp_register_cwnd_callback(sock_, &UsrSctpWrapper::OnCwndChanged);
++      }
++      break;
++    }
++    case webrtc::fse_ng_v2: {
++      RTC_LOG(LS_INFO) << "registering usrsctp update callback";
++      usrsctp_register_cwnd_callback(sock_, &UsrSctpWrapper::OnCwndChanged);
++      break;
++    }
++    default: {}
++  }
++  // Added by TOBIAS
++
+   // Since this is a fresh SCTP association, we'll always start out with empty
+   // queues, so "ReadyToSendData" should be true.
+   SetReadyToSendData();
+@@ -1033,6 +1115,25 @@ void UsrsctpTransport::CloseSctpSocket() {
+     RTC_CHECK(g_transport_map_->Deregister(id_));
+     UsrSctpWrapper::DecrementUsrSctpUsageCount();
+     ready_to_send_data_ = false;
++
++    //Added by TOBIAS
++    if (webrtc::FseConfig::Instance().CurrentFse() == webrtc::fse_ng 
++            && fse_flow_) {
++      webrtc::FseNg::Instance().DeRegisterWindowBasedFlow(fse_flow_);
++      fse_flow_ = nullptr;
++    }
++    if (webrtc::FseConfig::Instance().CurrentFse() == webrtc::fse_v2 
++            && fse_v2_flow_
++            && !webrtc::FseConfig::Instance().CoupleDcSctp()) {
++      webrtc::FseV2::Instance().DeRegisterCwndFlow(fse_v2_flow_);
++      fse_v2_flow_ = nullptr;
++    }
++    if (webrtc::FseConfig::Instance().CurrentFse() == webrtc::fse_ng_v2
++            && fse_ng_v2_flow_) {
++      webrtc::FseNgV2::Instance().DeRegisterWindowBasedFlow(fse_ng_v2_flow_);
++      fse_ng_v2_flow_ = nullptr;
++    }
++    //Added by TOBIAS
+   }
+ }
+ 
+@@ -1172,8 +1273,8 @@ void UsrsctpTransport::OnPacketRead(rtc::PacketTransportInternal* transport,
+   // packet will have called connect, and a connection will be established.
+   if (sock_) {
+     // Pass received packet to SCTP stack. Once processed by usrsctp, the data
+-    // will be will be given to the global OnSctpInboundPacket callback and
+-    // posted to the transport thread.
++    // will be will be given to the global OnSctpInboundData, and then,
++    // marshalled by the AsyncInvoker.
+     VerboseLogPacket(data, len, SCTP_DUMP_INBOUND);
+     usrsctp_conninput(reinterpret_cast<void*>(id_), data, len, 0);
+   } else {
+@@ -1572,4 +1673,68 @@ void UsrsctpTransport::OnStreamResetEvent(
+   SendQueuedStreamResets();
+ }
+ 
++// Added by TOBIAS
++//
++uint32_t UsrsctpTransport::CwndUpdate(uint32_t cwnd, uint32_t max_cwnd, uint64_t last_rtt) {
++  if (webrtc::FseConfig::Instance().CurrentFse() == webrtc::fse_v2
++          && !webrtc::FseConfig::Instance().CoupleDcSctp()) {
++    if (!fse_v2_flow_) {
++      fse_v2_flow_ = webrtc::FseV2::Instance().RegisterCwndFlow(
++              cwnd, 
++              last_rtt,
++              [this](uint32_t cwnd) {
++                  this->SetCwnd(cwnd);
++              });
++    }
++    return webrtc::FseV2::Instance().CwndFlowUpdate(fse_v2_flow_, cwnd, last_rtt);
++  }
++  if (webrtc::FseConfig::Instance().CurrentFse() == webrtc::fse_ng_v2) {
++    if (!fse_ng_v2_flow_) {
++      fse_ng_v2_flow_ = webrtc::FseNgV2::Instance().RegisterCwndFlow(
++                cwnd,
++                max_cwnd, 
++                last_rtt,
++                [this](uint32_t fse_max_cwnd) { 
++                    this->SetMaxCwnd(fse_max_cwnd);
++                });
++    }
++
++    /*uint32_t fse_max_cwnd =*/  webrtc::FseNgV2::Instance().CwndFlowUpdate(
++            fse_ng_v2_flow_, 
++            cwnd, 
++            last_rtt);
++    //Currently only return same cwnd, since we are only really updating to get the rtt atm
++    return cwnd;
++  }
++  //TODO: perhaps assert that this is not reachable
++  return 0;
++}
++
++void UsrsctpTransport::SetCwnd(uint32_t cwnd) {
++  RTC_LOG(LS_INFO) << "SetCwnd was called with cwnd:" << cwnd;
++  usrsctp_set_cwnd(sock_, cwnd);
++}
++
++void UsrsctpTransport::GetCwnd(uint32_t *cwnd_value) {
++  usrsctp_get_cwnd(sock_, cwnd_value);
++  RTC_LOG(LS_INFO) << "GetCwnd called, cwnd: " << *cwnd_value;
++}
++
++//this one might be replaced by set_opt actually
++void UsrsctpTransport::SetMaxCwnd(uint32_t max_cwnd) {
++  RTC_LOG(LS_INFO) << "SetMaxCwnd was called with max_cwnd:" << max_cwnd;
++  if (webrtc::FseConfig::Instance().CurrentFse() == webrtc::fse_ng && started_) {
++    usrsctp_set_max_cwnd(sock_, max_cwnd);
++  }
++  if (webrtc::FseConfig::Instance().CurrentFse() == webrtc::fse_ng_v2 && started_) {
++    usrsctp_set_max_cwnd(sock_, max_cwnd);
++  }
++}
++
++void UsrsctpTransport::GetMaxCwnd(uint32_t *max_cwnd_value) {
++  usrsctp_get_max_cwnd(sock_, max_cwnd_value);
++  RTC_LOG(LS_INFO) << "GetMaxCwnd called, max_cwnd: " << *max_cwnd_value;
++}
++// Added by TOBIAS
++
+ }  // namespace cricket
+diff --git a/media/sctp/usrsctp_transport.h b/media/sctp/usrsctp_transport.h
+index 06988fd..faf107d 100644
+--- a/media/sctp/usrsctp_transport.h
++++ b/media/sctp/usrsctp_transport.h
+@@ -30,6 +30,11 @@
+ // For SendDataParams/ReceiveDataParams.
+ #include "media/base/media_channel.h"
+ #include "media/sctp/sctp_transport_internal.h"
++// added by TOBIAS
++#include "modules/congestion_controller/goog_cc/fse_ng.h"
++#include "modules/congestion_controller/goog_cc/fse_ng_v2.h"
++#include "modules/congestion_controller/goog_cc/fse_flow.h"
++// added by TOBIAS
+ 
+ // Defined by "usrsctplib/usrsctp.h"
+ struct sockaddr_conn;
+@@ -105,12 +110,20 @@ class UsrsctpTransport : public SctpTransportInternal,
+   // TODO(deadbeef): Remove this or at least make it return a const pointer.
+   rtc::Thread* network_thread() const { return network_thread_; }
+ 
++  // Added by TOBIAS
++  void SetCwnd(uint32_t cwnd);
++  void GetCwnd(uint32_t *cwnd_value);
++  void SetMaxCwnd(uint32_t max_cwnd);
++  uint32_t CwndUpdate(uint32_t cwnd, uint32_t max_cwnd, uint64_t last_rtt);
++  void GetMaxCwnd(uint32_t *max_cwnd_value);
++  // Added by TOBIAS
++
+  private:
+-  // A message to be sent by the sctp library. This class is used to track the
+-  // progress of writing a single message to the sctp library in the presence of
+-  // partial writes. In this case, the Advance() function is provided in order
+-  // to advance over what has already been accepted by the sctp library and
+-  // avoid copying the remaining partial message buffer.
++  // A message to be sent by the sctp library. This class is used to track
++  // the progress of writing a single message to the sctp library in the
++  // presence of partial writes. In this case, the Advance() function is
++  // provided in order to advance over what has already been accepted by the
++  // sctp library and avoid copying the remaining partial message buffer.
+   class OutgoingMessage {
+    public:
+     OutgoingMessage(const rtc::CopyOnWriteBuffer& buffer,
+@@ -287,6 +300,12 @@ class UsrsctpTransport : public SctpTransportInternal,
+   friend class UsrsctpTransportMap;
+ 
+   RTC_DISALLOW_COPY_AND_ASSIGN(UsrsctpTransport);
++
++  // added by TOBIAS
++  std::shared_ptr<webrtc::PassiveCwndFlow> fse_flow_;
++  std::shared_ptr<webrtc::ActiveCwndFlow> fse_v2_flow_;
++  std::shared_ptr<webrtc::HybridCwndFlow> fse_ng_v2_flow_;
++  // added by TOBIAS
+ };
+ 
+ class UsrsctpTransportMap;
+diff --git a/modules/congestion_controller/goog_cc/BUILD.gn b/modules/congestion_controller/goog_cc/BUILD.gn
+index 9aafedb..149e7cc 100644
+--- a/modules/congestion_controller/goog_cc/BUILD.gn
++++ b/modules/congestion_controller/goog_cc/BUILD.gn
+@@ -191,6 +191,18 @@ rtc_library("send_side_bwe") {
+   sources = [
+     "send_side_bandwidth_estimation.cc",
+     "send_side_bandwidth_estimation.h",
++    "flow_state_exchange.cc",
++    "flow_state_exchange.h",
++    "fse_flow.cc",
++    "fse_flow.h",
++    "fse_ng.cc",
++    "fse_ng.h",
++    "fse_v2.cc",
++    "fse_v2.h",
++    "fse_ng_v2.cc",
++    "fse_ng_v2.h",
++    "fse_config.cc",
++    "fse_config.h"
+   ]
+   deps = [
+     ":loss_based_bwe_v1",
+diff --git a/modules/congestion_controller/goog_cc/delay_based_bwe.cc b/modules/congestion_controller/goog_cc/delay_based_bwe.cc
+index 4c5bdb6..fe8e75b 100644
+--- a/modules/congestion_controller/goog_cc/delay_based_bwe.cc
++++ b/modules/congestion_controller/goog_cc/delay_based_bwe.cc
+@@ -77,7 +77,8 @@ DelayBasedBwe::Result::Result()
+ 
+ DelayBasedBwe::DelayBasedBwe(const WebRtcKeyValueConfig* key_value_config,
+                              RtcEventLog* event_log,
+-                             NetworkStatePredictor* network_state_predictor)
++                             NetworkStatePredictor* network_state_predictor,
++                             std::shared_ptr<GccRateFlow> fse_v2_flow)
+     : event_log_(event_log),
+       key_value_config_(key_value_config),
+       separate_audio_(key_value_config),
+@@ -91,7 +92,7 @@ DelayBasedBwe::DelayBasedBwe(const WebRtcKeyValueConfig* key_value_config,
+       active_delay_detector_(video_delay_detector_.get()),
+       last_seen_packet_(Timestamp::MinusInfinity()),
+       uma_recorded_(false),
+-      rate_control_(key_value_config, /*send_side=*/true),
++      rate_control_(key_value_config, /*send_side=*/true, fse_v2_flow),
+       prev_bitrate_(DataRate::Zero()),
+       has_once_detected_overuse_(false),
+       prev_state_(BandwidthUsage::kBwNormal),
+@@ -365,6 +366,13 @@ void DelayBasedBwe::SetMinBitrate(DataRate min_bitrate) {
+   rate_control_.SetMinBitrate(min_bitrate);
+ }
+ 
++//TOBIAS
++DataRate DelayBasedBwe::SetEstimateDirectly(DataRate fse_rate, Timestamp at_time) {
++  rate_control_.SetEstimateDirectly(fse_rate, at_time);
++  return rate_control_.LatestEstimate();
++}
++//TOBIAS
++
+ TimeDelta DelayBasedBwe::GetExpectedBwePeriod() const {
+   return rate_control_.GetExpectedBandwidthPeriod();
+ }
+diff --git a/modules/congestion_controller/goog_cc/delay_based_bwe.h b/modules/congestion_controller/goog_cc/delay_based_bwe.h
+index 85ce6ea..2619ed4 100644
+--- a/modules/congestion_controller/goog_cc/delay_based_bwe.h
++++ b/modules/congestion_controller/goog_cc/delay_based_bwe.h
+@@ -60,7 +60,8 @@ class DelayBasedBwe {
+ 
+   explicit DelayBasedBwe(const WebRtcKeyValueConfig* key_value_config,
+                          RtcEventLog* event_log,
+-                         NetworkStatePredictor* network_state_predictor);
++                         NetworkStatePredictor* network_state_predictor,
++                         std::shared_ptr<GccRateFlow> fse_v2_flow);
+ 
+   DelayBasedBwe() = delete;
+   DelayBasedBwe(const DelayBasedBwe&) = delete;
+@@ -84,6 +85,10 @@ class DelayBasedBwe {
+                           absl::optional<DataRate> link_capacity);
+   DataRate last_estimate() const { return prev_bitrate_; }
+ 
++  //TOBIAS
++  DataRate SetEstimateDirectly(DataRate fse_rate, Timestamp at_time);
++  //TOBIAS
++
+  private:
+   friend class GoogCcStatePrinter;
+   void IncomingPacketFeedback(const PacketResult& packet_feedback,
+diff --git a/modules/congestion_controller/goog_cc/flow_state_exchange.cc b/modules/congestion_controller/goog_cc/flow_state_exchange.cc
+new file mode 100644
+index 0000000..e5546ab
+--- /dev/null
++++ b/modules/congestion_controller/goog_cc/flow_state_exchange.cc
+@@ -0,0 +1,144 @@
++//
++// Created by tobias on 20.04.2021.
++//
++
++#include "modules/congestion_controller/goog_cc/flow_state_exchange.h"
++#include "modules/congestion_controller/goog_cc/fse_config.h"
++
++#include <stdint.h>
++
++#include <cstdint>
++#include <iostream>
++#include <memory>
++#include <mutex>
++#include <unordered_set>
++#include <numeric>
++
++
++#include "absl/strings/match.h"
++#include "api/units/data_rate.h"
++#include "api/units/timestamp.h"
++#include "modules/congestion_controller/goog_cc/fse_flow.h"
++#include "rtc_base/logging.h"
++
++namespace webrtc {
++
++FlowStateExchange::FlowStateExchange()
++    : flow_id_counter_(0), 
++      sum_calculated_rates_(DataRate::Zero()) {
++  RTC_LOG(LS_INFO) << "FSE created";
++}
++
++FlowStateExchange::~FlowStateExchange() = default;
++
++std::shared_ptr<RateFlow> FlowStateExchange::Register(
++    DataRate initial_bit_rate,
++    std::function<void(DataRate)> update_callback) {
++  fse_mutex_.lock();
++  
++  int flow_id = flow_id_counter_++;
++  std::shared_ptr<RateFlow> newFlow = std::make_shared<RateFlow>(
++      flow_id, 
++      FseConfig::Instance().ResolveRateFlowPriority(flow_id), 
++      initial_bit_rate, 
++      FseConfig::Instance().ResolveDesiredRate(flow_id), 
++      update_callback);
++
++  RTC_LOG(LS_INFO) 
++      << "FSE Registering new flow with id: " 
++      << flow_id;
++
++  flows_.insert(newFlow);
++  sum_calculated_rates_ += newFlow->FseRate();
++  RTC_LOG(LS_INFO)
++      << "PLOT_THISFSE after registration sum_calculated_rates_="
++      << sum_calculated_rates_.kbps();
++
++
++  fse_mutex_.unlock();
++
++  return newFlow;
++}
++
++void FlowStateExchange::Update(std::shared_ptr<RateFlow> flow,
++                               DataRate new_rate) {
++  fse_mutex_.lock();
++   RTC_LOG(LS_INFO) 
++       << "PLOT_THISFSE" << flow->Id()
++       << " new_rate=" << new_rate.kbps();
++
++  OnFlowUpdated(flow, new_rate);
++
++  RTC_LOG(LS_INFO) 
++      << "PLOT_THISFSE sum_calculated_rates_=" 
++      << sum_calculated_rates_.kbps();
++
++  fse_mutex_.unlock();
++}
++
++void FlowStateExchange::OnFlowUpdated(std::shared_ptr<RateFlow> flow,
++                                      DataRate cc_rate) {
++  // a. update S_CR
++  sum_calculated_rates_ = sum_calculated_rates_ + cc_rate - flow->FseRate();
++
++  // b. calculate the sum of all priorities and initialize FSE_R
++  int sum_priorities = 0;
++  for (const auto& i : flows_) {
++    sum_priorities += i->Priority();
++    i->SetFseRate(DataRate::Zero());
++  }
++
++  // c.Distribute S_CR among all flows, ensuring desired rate is not exceeded
++  DataRate leftover_rate = sum_calculated_rates_;
++  DataRate aggregate_rate = DataRate::Zero();
++  // while there is more rate to distribute
++  // (we check against 1 because the divison might lead to uneven number)
++  while (leftover_rate - aggregate_rate > DataRate::BitsPerSec(1) && sum_priorities > 0) {
++    aggregate_rate = DataRate::Zero();
++    for (const auto& i : flows_) {
++
++      DataRate desired_rate_i = i->DesiredRate();
++      // if the current fse rate is less than desired
++      if (i->FseRate() < desired_rate_i) {
++        DataRate flow_rate = leftover_rate * i->Priority() / sum_priorities;
++
++        // if the flow can get more than it desires
++        if (flow_rate >= desired_rate_i) {
++          leftover_rate -= desired_rate_i;
++          i->SetFseRate(desired_rate_i);
++          sum_priorities -= i->Priority();
++        } 
++        else {
++          i->SetFseRate(flow_rate);
++          aggregate_rate += flow_rate;
++        }
++      }
++    }
++  }
++  // d. distribute FSE_R to all the flows
++  for (const auto& i : flows_) {
++    i->UpdateCc();
++  }
++
++  //Extension to avoid S_CR leftover buildup, make sure S_CR==total allocated rate
++  auto fold = [](DataRate acc, std::shared_ptr<RateFlow> x){ return acc + x->FseRate();};
++  sum_calculated_rates_ = std::accumulate(flows_.begin(), flows_.end(), DataRate::Zero(), fold);
++}
++
++void FlowStateExchange::DeRegister(std::shared_ptr<RateFlow> flow) {
++  fse_mutex_.lock();
++  RTC_LOG(LS_INFO) << "deregistering flow with id" << flow->Id();
++
++  flows_.erase(flow);
++
++  fse_mutex_.unlock();
++}
++
++
++
++FlowStateExchange& FlowStateExchange::Instance() {
++  CR_DEFINE_STATIC_LOCAL(FlowStateExchange, s, ());
++  return s;
++}
++
++}  // namespace webrtc
+diff --git a/modules/congestion_controller/goog_cc/flow_state_exchange.h b/modules/congestion_controller/goog_cc/flow_state_exchange.h
+new file mode 100644
+index 0000000..e0f5957
+--- /dev/null
++++ b/modules/congestion_controller/goog_cc/flow_state_exchange.h
+@@ -0,0 +1,57 @@
++//
++// Created by tobias on 20.04.2021.
++//
++
++#ifndef MODULES_CONGESTION_CONTROLLER_GOOG_CC_FLOW_STATE_EXCHANGE_H
++#define MODULES_CONGESTION_CONTROLLER_GOOG_CC_FLOW_STATE_EXCHANGE_H
++
++#include <cstdint>
++#include <memory>
++#include <mutex>
++#include <unordered_set>
++
++#include "absl/strings/match.h"
++#include "absl/types/optional.h"
++#include "api/units/data_rate.h"
++#include "api/units/timestamp.h"
++
++namespace cricket {
++
++class UsrsctpTransport;
++}
++
++namespace webrtc {
++
++class SendSideBandwidthEstimation;
++class RateFlow;
++
++#define CR_DEFINE_STATIC_LOCAL(type, name, arguments) \
++  static type& name = *new type arguments
++
++class FlowStateExchange {
++ public:
++  static FlowStateExchange& Instance();
++
++  // creates a Flow object, assigns to FG and returns the flow
++  std::shared_ptr<RateFlow> Register(DataRate initial_bit_rate,
++                                     std::function<void(DataRate)> update_callback);
++  void DeRegister(std::shared_ptr<RateFlow> flow);
++  void Update(std::shared_ptr<RateFlow> flow,
++              DataRate new_rate);
++
++ private:
++  FlowStateExchange();
++  ~FlowStateExchange();
++  std::mutex fse_mutex_;
++  int flow_id_counter_;
++  DataRate sum_calculated_rates_;
++  std::unordered_set<std::shared_ptr<RateFlow>> flows_;
++
++  void PrintFseGroupState();
++  void OnFlowUpdated(std::shared_ptr<RateFlow> flow,
++                     DataRate cc_rate);
++};
++
++}  // namespace webrtc
++
++#endif  // MODULES_CONGESTION_CONTROLLER_GOOG_CC_CHROMIUM_FLOW_STATE_EXCHANGE_H
+diff --git a/modules/congestion_controller/goog_cc/fse_config.cc b/modules/congestion_controller/goog_cc/fse_config.cc
+new file mode 100644
+index 0000000..8a0316d
+--- /dev/null
++++ b/modules/congestion_controller/goog_cc/fse_config.cc
+@@ -0,0 +1,304 @@
++//
++// Created by tobias on 15.02.2022.
++//
++#include "modules/congestion_controller/goog_cc/fse_config.h"
++
++#include "base/feature_list.h"
++
++#include "rtc_base/diagnostic_logging.h"
++#include "rtc_base/logging.h"
++
++namespace webrtc {
++
++/*
++const struct FseNgExperimentConfig defaultExperimentConfig = {
++    1, 
++    1, 
++    1, 
++    1, 
++    DataRate::KilobitsPerSec(1000000), 
++    DataRate::KilobitsPerSec(1000000)};
++*/
++
++const base::Feature kFse {
++  "Fse", base::FEATURE_DISABLED_BY_DEFAULT
++};
++
++const base::Feature kFseNg {
++  "FseNg", base::FEATURE_DISABLED_BY_DEFAULT
++};
++
++const base::Feature kFseV2 {
++  "FseV2", base::FEATURE_DISABLED_BY_DEFAULT
++};
++
++const base::Feature kFseNgV2 {
++  "FseNgV2", base::FEATURE_DISABLED_BY_DEFAULT
++};
++
++const base::Feature kDesiredRateFseNgPaperCase {
++  "DesiredRateFseNgPaper", base::FEATURE_DISABLED_BY_DEFAULT
++};
++
++const base::Feature kDesiredRateAllLimited {
++  "DesiredRateAllLimited", base::FEATURE_DISABLED_BY_DEFAULT
++};
++
++const base::Feature kPriorityRateFlowDouble {
++  "PriorityRateFlowDouble", base::FEATURE_DISABLED_BY_DEFAULT
++};
++
++const base::Feature kPriorityCwndFlowDouble {
++  "PriorityCwndFlowDouble", base::FEATURE_DISABLED_BY_DEFAULT
++};
++
++const base::Feature kPriorityVaried {
++  "PriorityVaried", base::FEATURE_DISABLED_BY_DEFAULT
++};
++
++const base::Feature kPriorityEvaluation {
++  "PriorityEvaluation", base::FEATURE_DISABLED_BY_DEFAULT 
++};
++
++const base::Feature kPriorityEvaluationPlot1 {
++  "PriorityEvaluationPlot1", base::FEATURE_DISABLED_BY_DEFAULT 
++};
++
++const base::Feature kPriorityEvaluationPlot2 {
++  "PriorityEvaluationPlot2", base::FEATURE_DISABLED_BY_DEFAULT 
++};
++
++const base::Feature kPriorityEvaluationPlot3 {
++  "PriorityEvaluationPlot3", base::FEATURE_DISABLED_BY_DEFAULT 
++};
++
++const base::Feature kPriorityEvaluationPlot4 {
++  "PriorityEvaluationPlot4", base::FEATURE_DISABLED_BY_DEFAULT 
++};
++
++const base::Feature kPriorityEvaluationPlot5 {
++  "PriorityEvaluationPlot5", base::FEATURE_DISABLED_BY_DEFAULT 
++};
++
++const base::Feature kPriorityEvaluationPlot6 {
++  "PriorityEvaluationPlot6", base::FEATURE_DISABLED_BY_DEFAULT 
++};
++
++const base::Feature kPriorityEvaluationPlot7 {
++  "PriorityEvaluationPlot7", base::FEATURE_DISABLED_BY_DEFAULT 
++};
++
++const base::Feature kPriorityEvaluationPlot8 {
++  "PriorityEvaluationPlot8", base::FEATURE_DISABLED_BY_DEFAULT 
++};
++
++const base::Feature kPriorityEvaluationPlot9 {
++  "PriorityEvaluationPlot9", base::FEATURE_DISABLED_BY_DEFAULT 
++};
++
++const base::Feature kPriorityEvaluationPlot10 {
++  "PriorityEvaluationPlot10", base::FEATURE_DISABLED_BY_DEFAULT 
++};
++
++
++const base::Feature kDesiredRateFseCase2 {
++  "DesiredRateFseCase2", base::FEATURE_DISABLED_BY_DEFAULT
++};
++
++const base::Feature kPriorityFseCase3 {
++  "PriorityFseCase3", base::FEATURE_DISABLED_BY_DEFAULT
++};
++
++const base::Feature kCoupleDcSctp {
++  "CoupleDcSctp", base::FEATURE_DISABLED_BY_DEFAULT
++};
++
++FseConfig::FseConfig() {
++  current_fse_ = none;
++  if (base::FeatureList::IsEnabled(kFse)) {
++    RTC_LOG(LS_INFO) << "Fse is enabled";
++    current_fse_ = fse;
++  }
++
++  if (base::FeatureList::IsEnabled(kFseNg)) {
++    RTC_LOG(LS_INFO) << "FseNg is enabled";
++    current_fse_ = fse_ng;
++  }
++
++  if (base::FeatureList::IsEnabled(kFseV2)) {
++    RTC_LOG(LS_INFO) << "FseV2 is enabled";
++    current_fse_ = fse_v2;
++  }
++
++  if (base::FeatureList::IsEnabled(kFseNgV2)) {
++    RTC_LOG(LS_INFO) << "FseNgV2 is enabled";
++    current_fse_ = fse_ng_v2;
++  }
++
++  current_desired_rate_case_ = infinity;
++  if (base::FeatureList::IsEnabled(kDesiredRateFseNgPaperCase)) {
++    current_desired_rate_case_ = fse_ng_paper_case;
++  }
++  if (base::FeatureList::IsEnabled(kDesiredRateFseCase2)) {
++    current_desired_rate_case_ = fse_case_2;
++  }
++  if (base::FeatureList::IsEnabled(kDesiredRateAllLimited)) {
++    current_desired_rate_case_ = all_limited;
++  }
++
++  current_priority_case_ = equal;
++  if (base::FeatureList::IsEnabled(kPriorityRateFlowDouble)) {
++    current_priority_case_ = rate_flow_double;
++  }
++  if (base::FeatureList::IsEnabled(kPriorityCwndFlowDouble)) {
++    current_priority_case_ = cwnd_flow_double;
++  }
++  if (base::FeatureList::IsEnabled(kPriorityVaried)) {
++    current_priority_case_ = varied;
++  }
++  if (base::FeatureList::IsEnabled(kPriorityFseCase3)) {
++    current_priority_case_ = fse_case_3;
++  }
++  if (base::FeatureList::IsEnabled(kPriorityEvaluation)) {
++    current_priority_case_ = eval_case;
++  }
++  if (base::FeatureList::IsEnabled(kPriorityEvaluationPlot1)) {
++    current_priority_case_ = eval_plot1;
++  }
++  if (base::FeatureList::IsEnabled(kPriorityEvaluationPlot2)) {
++    current_priority_case_ = eval_plot2;
++  }
++  if (base::FeatureList::IsEnabled(kPriorityEvaluationPlot3)) {
++    current_priority_case_ = eval_plot3;
++  }
++  if (base::FeatureList::IsEnabled(kPriorityEvaluationPlot4)) {
++    current_priority_case_ = eval_plot4;
++  }
++  if (base::FeatureList::IsEnabled(kPriorityEvaluationPlot5)) {
++    current_priority_case_ = eval_plot5;
++  }
++  if (base::FeatureList::IsEnabled(kPriorityEvaluationPlot6)) {
++    current_priority_case_ = eval_plot6;
++  }
++  if (base::FeatureList::IsEnabled(kPriorityEvaluationPlot7)) {
++    current_priority_case_ = eval_plot7;
++  }
++  if (base::FeatureList::IsEnabled(kPriorityEvaluationPlot8)) {
++    current_priority_case_ = eval_plot8;
++  }
++  if (base::FeatureList::IsEnabled(kPriorityEvaluationPlot9)) {
++    current_priority_case_ = eval_plot9;
++  }
++  if (base::FeatureList::IsEnabled(kPriorityEvaluationPlot10)) {
++    current_priority_case_ = eval_plot10;
++  }
++
++
++  couple_dcsctp_ = base::FeatureList::IsEnabled(kCoupleDcSctp);
++
++  RTC_LOG(LS_INFO) 
++      << "FseConfig initialized with fse version=" << current_fse_
++      << " desired rate case=" << current_desired_rate_case_
++      << " priority case=" << current_priority_case_;
++}
++
++DataRate FseConfig::ResolveDesiredRate(int flow_id) {
++  switch (current_desired_rate_case_) {
++    case infinity:
++      return DataRate::Infinity();
++    case fse_ng_paper_case:
++      return DataRate::KilobitsPerSec(1500);
++    case all_limited:
++      return DataRate::KilobitsPerSec(1000);
++    case fse_case_2:
++      switch (flow_id) {
++        case 0:
++          return DataRate::KilobitsPerSec(2500);
++        case 1:
++          return DataRate::Infinity();
++        default:
++          return DataRate::Infinity(); 
++      }
++  }
++}
++
++int FseConfig::ResolveRateFlowPriority(int flow_id) {
++  switch (current_priority_case_) {
++    case equal:
++      return 100;
++    case rate_flow_double:
++      return 200;
++    case eval_case:
++      return 150;
++    case varied:
++      switch (flow_id) {
++        case 0:
++          return 100;
++        case 1:
++          return 300;
++        default:
++          return 100;
++      }
++    case fse_case_3:
++      switch (flow_id) {
++        case 0:
++          return 100;
++        case 1:
++          return 200;
++        default:
++          return 100;
++      }
++    default:
++      return 100;
++  }
++}
++
++int FseConfig::ResolveCwndFlowPriority(int flow_id) {
++  switch (current_priority_case_) {
++    case equal:
++      return 100;
++    case cwnd_flow_double:
++      return 200;
++    case varied:
++      return 200;
++    case eval_case:
++      return 100;
++    case eval_plot1:
++      return 100;
++    case eval_plot2:
++      return 90;
++    case eval_plot3:
++      return 80;
++    case eval_plot4:
++      return 70;
++    case eval_plot5:
++      return 60;
++    case eval_plot6:
++      return 50;
++    case eval_plot7:
++      return 40;
++    case eval_plot8:
++      return 30;
++    case eval_plot9:
++      return 20;
++    case eval_plot10:
++      return 10;
++    default:
++      return 100;
++  }
++}
++
++bool FseConfig::CoupleDcSctp() {
++  return couple_dcsctp_;
++}
++
++FseVersion FseConfig::CurrentFse() {
++  return current_fse_;
++}
++
++FseConfig& FseConfig::Instance() {
++  CR_DEFINE_STATIC_LOCAL(FseConfig, s, ());
++  return s;
++}
++
++}  // namespace webrtc
+diff --git a/modules/congestion_controller/goog_cc/fse_config.h b/modules/congestion_controller/goog_cc/fse_config.h
+new file mode 100644
+index 0000000..d8e6ad4
+--- /dev/null
++++ b/modules/congestion_controller/goog_cc/fse_config.h
+@@ -0,0 +1,48 @@
++#ifndef MODULES_CONGESTION_CONTROLLER_GOOG_CC_FSE_CONFIG_H
++#define MODULES_CONGESTION_CONTROLLER_GOOG_CC_FSE_CONFIG_H
++
++#include <map>
++
++#include "api/units/data_rate.h"
++#include "modules/congestion_controller/goog_cc/fse_flow.h"
++
++namespace webrtc {
++
++/*
++struct FseNgExperimentConfig {
++      int rtp_flow1_prio;
++      int rtp_flow2_prio;
++      int sctp_flow1_prio;
++      int sctp_flow2_prio;
++      DataRate rtp_flow1_max_rate_kbps;
++      DataRate rtp_flow2_max_rate_kbps;
++};*/
++
++#define CR_DEFINE_STATIC_LOCAL(type, name, arguments) \
++  static type& name = *new type arguments
++
++enum FseVersion { none, fse, fse_ng, fse_v2, fse_ng_v2};
++
++enum DesiredRateCase { infinity, fse_ng_paper_case, fse_case_2, all_limited };
++
++enum PriorityCase { equal, rate_flow_double, cwnd_flow_double, varied, fse_case_3, eval_case, eval_plot1, eval_plot2, eval_plot3, eval_plot4, eval_plot5, eval_plot6, eval_plot7, eval_plot8, eval_plot9, eval_plot10 };
++
++class FseConfig {
++  public:
++    static FseConfig& Instance();
++    FseVersion CurrentFse();
++    DataRate ResolveDesiredRate(int flow_id);
++    int ResolveRateFlowPriority(int flow_id);
++    int ResolveCwndFlowPriority(int flow_id);
++    bool CoupleDcSctp();
++  private:
++    FseConfig();
++    ~FseConfig();
++    FseVersion current_fse_;
++    DesiredRateCase current_desired_rate_case_;
++    PriorityCase current_priority_case_;
++    bool couple_dcsctp_;
++};
++
++}
++#endif  // MODULES_CONGESTION_CONTROLLER_GOOG_CC_FSE_CONFIG_H
+diff --git a/modules/congestion_controller/goog_cc/fse_flow.cc b/modules/congestion_controller/goog_cc/fse_flow.cc
+new file mode 100644
+index 0000000..1bb4763
+--- /dev/null
++++ b/modules/congestion_controller/goog_cc/fse_flow.cc
+@@ -0,0 +1,190 @@
++//
++// Created by tobias on 30.09.2021.
++//
++
++#include "modules/congestion_controller/goog_cc/fse_flow.h"
++
++#include <cstdint>
++
++#include "api/units/data_rate.h"
++#include "media/sctp/usrsctp_transport.h"
++#include "modules/congestion_controller/goog_cc/send_side_bandwidth_estimation.h"
++#include "rtc_base/diagnostic_logging.h"
++#include "rtc_base/logging.h"
++
++namespace webrtc {
++
++Flow::Flow(int id, int priority) : id_(id), priority_(priority) {}
++
++Flow::~Flow() = default;
++
++int Flow::Id() const {
++  return id_;
++}
++
++int Flow::Priority() const {
++  return priority_;
++}
++
++DataRate Flow::CwndToRate(uint32_t cwnd, uint64_t rtt_us) {
++  if (rtt_us == 0) {
++    return DataRate::Zero();
++  }
++  return DataRate::BitsPerSec(static_cast<uint32_t>(
++      (1000000 * (static_cast<uint64_t>(cwnd)) << 3) / rtt_us));
++}
++
++uint32_t Flow::RateToCwnd(TimeDelta rtt, DataRate rate) {
++  return (rtt * rate).bytes();
++}
++
++RateFlow::RateFlow(int id,
++                   int priority,
++                   DataRate fse_rate,
++                   DataRate desired_rate,
++                   std::function<void(DataRate)> update_callback)
++    : Flow(id, priority),
++      fse_rate_(fse_rate),
++      desired_rate_(desired_rate),
++      update_callback_(update_callback) {
++  RTC_LOG(LS_INFO) << "Creating a RateFlow";
++}
++
++RateFlow::~RateFlow() = default;
++
++void RateFlow::UpdateCc() {
++  update_callback_(FseRate());
++}
++
++DataRate RateFlow::FseRate() const {
++  return fse_rate_;
++}
++
++void RateFlow::SetFseRate(DataRate new_rate) {
++  fse_rate_ = new_rate;
++}
++
++DataRate RateFlow::DesiredRate() const {
++  return desired_rate_;
++}
++
++void RateFlow::SetDesiredRate(DataRate new_rate) {
++  desired_rate_ = new_rate;
++}
++
++bool RateFlow::IsApplicationLimited() {
++    return FseRate() >= desired_rate_;
++}
++
++GccRateFlow::GccRateFlow(int id,
++                   int priority,
++                   DataRate fse_rate,
++                   DataRate desired_rate,
++                   std::function<void(DataRate, Timestamp, bool)> update_callback)
++    : Flow(id, priority),
++      fse_rate_(fse_rate),
++      desired_rate_(desired_rate),
++      update_callback_(update_callback)
++       {
++  RTC_LOG(LS_INFO) << "Creating a GccRateFlow";
++}
++
++GccRateFlow::~GccRateFlow() = default;
++
++
++void GccRateFlow::UpdateCc(Timestamp at_time, bool update_loss_only) {
++  update_callback_(FseRate(), at_time, update_loss_only);
++}
++
++DataRate GccRateFlow::FseRate() const {
++  return fse_rate_;
++}
++
++void GccRateFlow::SetFseRate(DataRate new_rate) {
++  fse_rate_ = new_rate;
++}
++
++DataRate GccRateFlow::DesiredRate() const {
++  return desired_rate_;
++}
++
++void GccRateFlow::SetDesiredRate(DataRate new_rate) {
++  desired_rate_ = new_rate;
++}
++
++PassiveCwndFlow::PassiveCwndFlow(int id,
++                   int priority,
++                   uint32_t initial_max_cwnd,
++                   std::function<void(uint32_t)> update_callback)
++    : Flow(id, priority), 
++    initial_max_cwnd_(initial_max_cwnd), 
++    update_callback_(update_callback) {
++  RTC_LOG(LS_INFO) << "creating a PassiveCwndFlow";
++}
++
++PassiveCwndFlow::~PassiveCwndFlow() = default;
++
++void PassiveCwndFlow::UpdateCc(uint32_t max_cwnd) {
++  update_callback_(max_cwnd);
++}
++
++uint32_t PassiveCwndFlow::GetInitialMaxCwnd() {
++  return initial_max_cwnd_;
++}
++
++ActiveCwndFlow::ActiveCwndFlow(int id,
++                    int priority, 
++                    DataRate initial_rate,
++                    std::function<void(uint32_t)> update_callback) 
++    : Flow(id, priority),
++    fse_rate_(initial_rate),
++    update_callback_(update_callback) {
++  RTC_LOG(LS_INFO) << "creating an ActiveCwndFlow";
++}
++
++ActiveCwndFlow::~ActiveCwndFlow() = default;
++
++void ActiveCwndFlow::UpdateCc(uint32_t new_cwnd) {
++  update_callback_(new_cwnd);
++}
++
++DataRate ActiveCwndFlow::FseRate() const {
++  return fse_rate_;
++}
++
++void ActiveCwndFlow::SetFseRate(DataRate new_rate) {
++  fse_rate_ = new_rate;
++}
++
++HybridCwndFlow::HybridCwndFlow(int id,
++                   int priority,
++                   uint32_t initial_max_cwnd,
++                   DataRate initial_cwnd_as_rate,
++                   std::function<void(uint32_t)> update_callback)
++    : Flow(id, priority), 
++    initial_max_cwnd_(initial_max_cwnd), 
++    update_callback_(update_callback),
++    prev_cwnd_as_rate_(initial_cwnd_as_rate){
++  RTC_LOG(LS_INFO) << "creating a HybridCwndFlow";
++}
++
++HybridCwndFlow::~HybridCwndFlow() = default;
++
++void HybridCwndFlow::UpdateCcMaxCwnd(uint32_t max_cwnd) {
++  update_callback_(max_cwnd);
++}
++
++uint32_t HybridCwndFlow::GetInitialMaxCwnd() {
++  return initial_max_cwnd_;
++}
++
++DataRate HybridCwndFlow::GetPrevCwnd() const {
++  return prev_cwnd_as_rate_;
++}
++
++void HybridCwndFlow::SetPrevCwnd(DataRate cwnd) {
++  prev_cwnd_as_rate_ = cwnd;
++}
++
++
++}  // namespace webrtc
+diff --git a/modules/congestion_controller/goog_cc/fse_flow.h b/modules/congestion_controller/goog_cc/fse_flow.h
+new file mode 100644
+index 0000000..46593db
+--- /dev/null
++++ b/modules/congestion_controller/goog_cc/fse_flow.h
+@@ -0,0 +1,123 @@
++#ifndef MODULES_CONGESTION_CONTROLLER_GOOG_CC_FSE_FLOW_H
++#define MODULES_CONGESTION_CONTROLLER_GOOG_CC_FSE_FLOW_H
++
++#include <cstdint>
++
++#include "api/units/data_rate.h"
++#include "api/units/time_delta.h"
++#include "api/units/timestamp.h"
++
++namespace webrtc {
++
++class SendSideBandwidthEstimation;
++
++class Flow {
++ public:
++  Flow(int id, int priority);
++  virtual ~Flow();
++  int Id() const;
++  int Priority() const;
++  static DataRate CwndToRate(uint32_t cwnd, uint64_t rtt);
++  static uint32_t RateToCwnd(TimeDelta rtt, DataRate rate);
++
++ protected:
++  int id_;
++  int priority_;
++};
++
++class RateFlow : public Flow {
++ public:
++  RateFlow(int id,
++           int priority,
++           DataRate fse_rate,
++           DataRate desired_rate,
++           std::function<void(DataRate)> update_callback);
++  ~RateFlow() override;
++  void UpdateCc();
++  DataRate FseRate() const;
++  void SetFseRate(DataRate new_rate);
++  DataRate DesiredRate() const;
++  void SetDesiredRate(DataRate new_rate);
++  bool IsApplicationLimited();
++ private:
++  DataRate fse_rate_;
++  DataRate desired_rate_;
++  //Callback function registered by the congestion controller to apply updates with
++  std::function<void(DataRate)> update_callback_;
++};
++
++//TODO: this one can be combined with RateFlow instead most likely
++class GccRateFlow : public Flow {
++  public:
++    GccRateFlow(int id,
++           int priority,
++           DataRate fse_rate,
++           DataRate desired_rate,
++           std::function<void(DataRate, Timestamp, bool)> update_callback);
++    ~GccRateFlow() override;
++  void UpdateCc(Timestamp at_time, bool update_loss_only);
++  DataRate FseRate() const;
++  void SetFseRate(DataRate new_rate);
++  DataRate DesiredRate() const;
++  void SetDesiredRate(DataRate new_rate);
++
++  private:
++    DataRate fse_rate_;
++    DataRate desired_rate_;
++
++    std::function<void(DataRate, Timestamp, bool)> update_callback_;
++
++};
++
++class PassiveCwndFlow : public Flow {
++ public:
++  PassiveCwndFlow(int id,
++           int priority,
++           uint32_t initial_max_cwnd,
++           std::function<void(uint32_t)> update_callback);
++  ~PassiveCwndFlow() override;
++  void UpdateCc(uint32_t max_cwnd);
++  uint32_t GetInitialMaxCwnd();
++    
++ private:
++  uint32_t initial_max_cwnd_;
++  std::function<void(uint32_t)> update_callback_;
++};
++
++class ActiveCwndFlow : public Flow {
++ public:
++  ActiveCwndFlow(int id,
++           int priority,
++           DataRate initial_rate,
++           std::function<void(uint32_t)> update_callback);
++  ~ActiveCwndFlow() override;
++  void UpdateCc(uint32_t new_cwnd);
++  DataRate FseRate() const;
++  void SetFseRate(DataRate new_rate);
++    
++ private:
++  DataRate fse_rate_;
++  std::function<void(uint32_t)> update_callback_;
++};
++
++class HybridCwndFlow : public Flow {
++ public:
++  HybridCwndFlow(int id,
++           int priority,
++           uint32_t initial_max_cwnd,
++           DataRate inital_cwnd_as_rate,
++           std::function<void(uint32_t)> update_callback);
++  ~HybridCwndFlow() override;
++  void UpdateCcMaxCwnd(uint32_t new_max_cwnd);
++  uint32_t GetInitialMaxCwnd();
++  DataRate GetPrevCwnd() const;
++  void SetPrevCwnd(DataRate cwnd_as_rate);
++
++ private:
++  uint32_t initial_max_cwnd_;
++  std::function<void(uint32_t)> update_callback_;
++  DataRate prev_cwnd_as_rate_;
++};
++
++}  // namespace webrtc
++#endif  // MODULES_CONGESTION_CONTROLLER_GOOG_CC_FSE_FLOW_H
+diff --git a/modules/congestion_controller/goog_cc/fse_ng.cc b/modules/congestion_controller/goog_cc/fse_ng.cc
+new file mode 100644
+index 0000000..703c2d9
+--- /dev/null
++++ b/modules/congestion_controller/goog_cc/fse_ng.cc
+@@ -0,0 +1,273 @@
++//
++// Created by tobias on 03.10.2021.
++//
++#include "modules/congestion_controller/goog_cc/fse_ng.h"
++
++#include "base/feature_list.h"
++
++#include <algorithm>
++#include <cstdint>
++#include <memory>
++#include <chrono>
++#include <functional>
++
++#include "api/units/data_rate.h"
++#include "api/units/time_delta.h"
++#include "api/units/timestamp.h"
++#include "modules/congestion_controller/goog_cc/fse_flow.h"
++#include "modules/congestion_controller/goog_cc/fse_config.h"
++#include "rtc_base/diagnostic_logging.h"
++#include "rtc_base/logging.h"
++
++namespace cricket {
++class UsrsctpTransport;
++}
++
++namespace webrtc {
++
++const base::Feature kUpdateValFinalRate {
++  "UpdateValFinalRate", base::FEATURE_DISABLED_BY_DEFAULT
++};
++
++FseNg::FseNg()
++    : base_rtt_(TimeDelta::PlusInfinity()),
++      sum_calculated_rates_(DataRate::Zero()),
++      update_call_num(0),
++      rate_flow_id_counter_(0),
++      cwnd_flow_id_counter_(0),
++      update_val_final_rate_(false){
++  update_val_final_rate_ = base::FeatureList::IsEnabled(kUpdateValFinalRate);
++
++  RTC_LOG(LS_INFO) 
++      << "FseNg created with update_val_final_rate_=" << update_val_final_rate_;
++}
++
++std::shared_ptr<PassiveCwndFlow> FseNg::RegisterCwndFlow(
++    uint32_t initial_max_cwnd,
++    std::function<void(uint32_t)> update_callback) {
++  fse_mutex_.lock();
++
++  RTC_LOG(LS_INFO) << "FseNgRegisterWindowBasedFlow was called";
++
++  int id = cwnd_flow_id_counter_++;
++  std::shared_ptr<PassiveCwndFlow> new_flow =
++      std::make_shared<PassiveCwndFlow>(id, 
++              FseConfig::Instance().ResolveCwndFlowPriority(id), 
++              initial_max_cwnd, update_callback);
++  cwnd_flows_.insert(new_flow);
++
++  fse_mutex_.unlock();
++
++  return new_flow;
++}
++
++std::shared_ptr<RateFlow> FseNg::RegisterRateFlow(
++    DataRate initial_rate,
++    std::function<void(DataRate)> update_callback) {
++  fse_mutex_.lock();
++
++  RTC_LOG(LS_INFO) 
++      << "RegisterRateFlow in FseNg with init_rate_kbps: " 
++      << initial_rate.kbps();
++
++  int id = rate_flow_id_counter_++;
++
++  std::shared_ptr<RateFlow> new_flow = std::make_shared<RateFlow>(
++      id, 
++      FseConfig::Instance().ResolveRateFlowPriority(id), 
++      initial_rate, 
++      FseConfig::Instance().ResolveDesiredRate(id),
++      update_callback);
++
++  rate_flows_.insert(new_flow);
++
++  sum_calculated_rates_ += initial_rate;
++  
++  fse_mutex_.unlock();
++
++  return new_flow;
++}
++
++void FseNg::RateUpdate(std::shared_ptr<RateFlow> flow,
++                       DataRate new_rate,
++                       TimeDelta last_rtt) {
++  fse_mutex_.lock();
++
++  update_call_num++;
++
++  flow->SetDesiredRate(FseConfig::Instance().ResolveDesiredRate(flow->Id()));
++
++  //If rtt is 0, assume there is no real measurement yet and say it is infinity
++  //so that base_rtt is never set to 0
++  //This line only relevant if UpdateValFinalRate is enabled
++  //since AimdRateControl has a default rtt of 200ms
++  last_rtt = last_rtt == TimeDelta::Zero() ? TimeDelta::PlusInfinity() : last_rtt;
++ 
++  int64_t relative_rate_change_bps = new_rate.bps() - flow->FseRate().bps();
++
++  
++  OnRateFlowUpdate(
++          flow, 
++          relative_rate_change_bps, 
++          new_rate,
++          last_rtt);
++
++  fse_mutex_.unlock();
++}
++
++// Must be called while owning the mutex
++void FseNg::OnRateFlowUpdate(std::shared_ptr<RateFlow> flow,
++                             int64_t relative_rate_change_bps,
++                             DataRate cc_rate,
++                             TimeDelta last_rtt ) {
++  
++  UpdateSumCalculatedRates(relative_rate_change_bps, cc_rate, flow->FseRate());
++
++  // We are only gonna allocate to SCTP flows if there is a valid base_rtt_
++  // Only really necessary for cases where we update with final rate, since
++  // aimd_rate_control uses a default RTT instead of infinity
++  bool rtt_is_valid = !last_rtt.IsPlusInfinity() || !base_rtt_.IsPlusInfinity();
++
++  //Extension, if we we don't have valid base_rtt yet we are not going to allocate 
++  //Bandwidth to any SCTP flows and should only use rate based flow priorities
++  int sum_priorities = rtt_is_valid ? SumPriorities() : SumRatePriorities();
++
++  DataRate sum_rtp_rates = UpdateRateFlows(sum_priorities);
++
++  // Extension, we can not allocate to SCTP if there is no valid base_rtt 
++  if (rtt_is_valid) {
++    base_rtt_ = std::min(base_rtt_, last_rtt);
++    
++    DataRate sum_cwnd_rates = sum_calculated_rates_ - sum_rtp_rates;
++    UpdateCwndFlows(sum_cwnd_rates);
++  }
++  //TODO: Maybe check if all RTP flows are application limited as well
++  if (cwnd_flows_.empty() || !rtt_is_valid) {
++    //Extension, to make sure there is no extra unallocated bandwidth accumulating
++    //when there are no SCTP flows to spend it
++    sum_calculated_rates_ = sum_rtp_rates;
++  }
++}
++
++void FseNg::UpdateSumCalculatedRates(
++        int64_t relative_rate_change_bps, 
++        DataRate cc_rate,
++        DataRate prev_fse_rate) {
++  int64_t sum_of_difference = 
++      sum_calculated_rates_.bps() + cc_rate.bps() - prev_fse_rate.bps();
++  if (cwnd_flows_.empty() || AllRateFlowsApplicationLimited()) {
++    sum_calculated_rates_ = DataRate::BitsPerSec(sum_of_difference);
++  }
++  else {
++    sum_calculated_rates_ = 
++        DataRate::BitsPerSec(sum_of_difference + relative_rate_change_bps);
++  }  
++}
++
++DataRate FseNg::UpdateRateFlows(int sum_priorities) {
++  DataRate sum_rtp_rates = DataRate::Zero();
++  for (const auto& rate_flow : rate_flows_) {
++    // We use the max_rate of the corresponding stream, 
++    // because they might have different
++    // limitations based on quality of the stream, config, etc.
++    DataRate fse_rate = std::min((rate_flow->Priority() * sum_calculated_rates_) 
++            / sum_priorities, rate_flow->DesiredRate());
++    rate_flow->SetFseRate(fse_rate);
++
++    RTC_LOG(LS_INFO) << "PLOT_THIS_RTP_FSE_RATE_KBPS" << rate_flow->Id() 
++                     << " rate=" << fse_rate.kbps();
++
++    rate_flow->UpdateCc();
++  
++    sum_rtp_rates += fse_rate;
++  }
++  return sum_rtp_rates;
++}
++
++void FseNg::UpdateCwndFlows(DataRate sum_cwnd_rates) {
++ int sum_cwnd_priorities = SumCwndPriorities();
++
++  for(const auto& cwnd_flow : cwnd_flows_) {
++    DataRate cwnd_flow_max_rate = (cwnd_flow->Priority() * sum_cwnd_rates) / sum_cwnd_priorities;
++    uint32_t flow_max_cwnd = Flow::RateToCwnd(base_rtt_, cwnd_flow_max_rate);
++
++    RTC_LOG(LS_INFO) << "PLOT_THIS_SCTP_FSE_RATE_KBPS" << cwnd_flow->Id() 
++                     << " rate=" << cwnd_flow_max_rate.kbps();
++  
++    cwnd_flow->UpdateCc(flow_max_cwnd);
++  }  
++}
++
++bool FseNg::AllRateFlowsApplicationLimited() const {
++  for (const auto& flow : rate_flows_) {
++    if (!flow->IsApplicationLimited()) {
++      return false;
++    }
++  }
++  return true;
++}
++
++void FseNg::DeRegisterWindowBasedFlow(std::shared_ptr<PassiveCwndFlow> flow) {
++  fse_mutex_.lock();
++
++  RTC_LOG(LS_INFO) << "DeRegisterWindowBasedFlow was called";
++  cwnd_flows_.erase(flow);
++
++  fse_mutex_.unlock();
++}
++
++void FseNg::DeRegisterRateFlow(std::shared_ptr<RateFlow> flow) {
++  fse_mutex_.lock();
++
++  RTC_LOG(LS_INFO) << "DeRegisterRateFlow removing rate flow with id:" << flow->Id();
++
++  rate_flows_.erase(flow);
++
++  // If last RTP flow leaves, the window limits of all window based flows are removed
++  // Since no congestion control info is available
++  if (rate_flows_.empty()){
++    for (const auto& cwnd_flow : cwnd_flows_) {
++      cwnd_flow->UpdateCc(cwnd_flow->GetInitialMaxCwnd());
++    }
++  }
++
++  fse_mutex_.unlock();
++}
++
++int FseNg::SumPriorities() const {
++  int sum_priorities = 0;
++  for (const auto& i : rate_flows_) {
++    sum_priorities += i->Priority();
++  }
++  for (const auto& i : cwnd_flows_) {
++    sum_priorities += i->Priority();
++  }
++  return sum_priorities;
++}
++
++int FseNg::SumRatePriorities() const {
++  int sum_priorities = 0;
++  for (const auto& i : rate_flows_) {
++    sum_priorities += i->Priority();
++  }
++  return sum_priorities;
++}
++
++int FseNg::SumCwndPriorities() const {
++  int sum_priorities = 0;
++  for (const auto& i : cwnd_flows_) {
++      sum_priorities += i->Priority();
++    }
++    return sum_priorities;
++}
++
++bool FseNg::UpdateValFinalRate() const {
++  return update_val_final_rate_;
++}
++
++FseNg& FseNg::Instance() {
++  CR_DEFINE_STATIC_LOCAL(FseNg, s, ());
++  return s;
++}
++
++}  // namespace webrtc
+diff --git a/modules/congestion_controller/goog_cc/fse_ng.h b/modules/congestion_controller/goog_cc/fse_ng.h
+new file mode 100644
+index 0000000..71c8e87
+--- /dev/null
++++ b/modules/congestion_controller/goog_cc/fse_ng.h
+@@ -0,0 +1,96 @@
++//
++// Created by tobias on 03.10.2021.
++//
++
++#ifndef MODULES_CONGESTION_CONTROLLER_GOOG_CC_FSE_NG_H
++#define MODULES_CONGESTION_CONTROLLER_GOOG_CC_FSE_NG_H
++
++#include <cstdint>
++#include <list>
++#include <memory>
++#include <mutex>
++#include <unordered_set>
++
++#include "api/units/data_rate.h"
++#include "api/units/time_delta.h"
++#include "api/units/timestamp.h"
++
++#include "rtc_base/experiments/field_trial_parser.h"
++
++namespace cricket {
++class UsrsctpTransport;
++}
++
++namespace webrtc {
++
++class SendSideBandwidthEstimation;
++
++class PassiveCwndFlow;
++class RateFlow;
++
++#define CR_DEFINE_STATIC_LOCAL(type, name, arguments) \
++  static type& name = *new type arguments
++
++class FseNg {
++ public:
++  static FseNg& Instance();
++
++  void RateUpdate(std::shared_ptr<RateFlow> flow,
++                       DataRate new_rate,
++                       TimeDelta last_rtt);
++
++  std::shared_ptr<PassiveCwndFlow> RegisterCwndFlow(
++      uint32_t initial_max_cwnd, 
++      std::function<void(uint32_t)> update_callback);
++  std::shared_ptr<RateFlow> RegisterRateFlow(
++      DataRate initial_rate,
++      std::function<void(DataRate)> update_callback);
++  void DeRegisterWindowBasedFlow(std::shared_ptr<PassiveCwndFlow> flow);
++  void DeRegisterRateFlow(std::shared_ptr<RateFlow> flow);
++
++  bool UpdateValFinalRate() const;
++
++ private:
++  FseNg();
++  ~FseNg();
++
++  // The minimum rtt observed during the session
++  TimeDelta base_rtt_;
++
++  // An estimate of the bottleneck's capacity
++  // calculated by summing SRTP rates
++  DataRate sum_calculated_rates_;
++
++  uint64_t update_call_num;
++  int rate_flow_id_counter_;
++  int cwnd_flow_id_counter_;
++
++  std::unordered_set<std::shared_ptr<PassiveCwndFlow>> cwnd_flows_;
++  std::unordered_set<std::shared_ptr<RateFlow>> rate_flows_;
++
++  std::mutex fse_mutex_;
++
++  bool update_val_final_rate_;
++
++  void OnRateFlowUpdate(
++         std::shared_ptr<RateFlow> flow,
++         int64_t relative_rate_change_bps,
++         DataRate cc_rate,
++         TimeDelta last_rtt);
++  void UpdateSumCalculatedRates(
++          int64_t relative_rate_change_bps, 
++          DataRate cc_rate, 
++          DataRate prev_fse_rate);
++  //Allocates rate to all the rtp flows, returns the sum og allocated rate
++  DataRate UpdateRateFlows(int sum_priorities);
++  void UpdateCwndFlows(DataRate sum_cwnd_rates);
++
++  bool AllRateFlowsApplicationLimited() const;
++  int SumPriorities() const;
++  int SumRatePriorities() const;
++  int SumCwndPriorities() const;
++};
++
++}  // namespace webrtc
++
++#endif  // MODULES_CONGESTION_CONTROLLER_GOOG_CC_FSE_NG_H
+diff --git a/modules/congestion_controller/goog_cc/fse_ng_v2.cc b/modules/congestion_controller/goog_cc/fse_ng_v2.cc
+new file mode 100644
+index 0000000..09991f3
+--- /dev/null
++++ b/modules/congestion_controller/goog_cc/fse_ng_v2.cc
+@@ -0,0 +1,305 @@
++//
++// Created by tobias on 03.10.2021.
++//
++#include "modules/congestion_controller/goog_cc/fse_ng_v2.h"
++
++#include "base/feature_list.h"
++
++#include <algorithm>
++#include <cstdint>
++#include <memory>
++#include <chrono>
++#include <functional>
++
++#include "api/units/data_rate.h"
++#include "api/units/time_delta.h"
++#include "api/units/timestamp.h"
++#include "modules/congestion_controller/goog_cc/fse_flow.h"
++#include "modules/congestion_controller/goog_cc/fse_config.h"
++#include "rtc_base/diagnostic_logging.h"
++#include "rtc_base/logging.h"
++
++namespace cricket {
++class UsrsctpTransport;
++}
++
++namespace webrtc {
++
++FseNgV2::FseNgV2()
++    : base_rtt_(TimeDelta::PlusInfinity()),
++      sum_calculated_rates_(DataRate::Zero()),
++      cwnd_sum_calculated_rates_(DataRate::Zero()),
++      rate_flow_id_counter_(0),
++      cwnd_flow_id_counter_(0)
++      {}
++
++std::shared_ptr<HybridCwndFlow> FseNgV2::RegisterCwndFlow(
++    uint32_t initial_cwnd,
++    uint32_t initial_max_cwnd,
++    uint64_t initial_rtt_us,
++    std::function<void(uint32_t)> update_callback) {
++  fse_mutex_.lock();
++
++  UpdateRttValues(TimeDelta::Micros(initial_rtt_us));
++
++  auto new_flow = CreateAndInsertNewCwndFlow(
++          initial_max_cwnd, 
++          Flow::CwndToRate(initial_cwnd, initial_rtt_us), 
++          update_callback);
++
++  if (AllRateFlowsApplicationLimited() || rate_flows_.empty()) {
++    CwndUpdateSumCalculatedRates(DataRate::Zero(), Flow::CwndToRate(initial_cwnd, initial_rtt_us));
++  }
++  
++  LogFseState();
++  fse_mutex_.unlock();
++
++  return new_flow;
++}
++
++std::shared_ptr<HybridCwndFlow> FseNgV2::CreateAndInsertNewCwndFlow(
++          uint32_t initial_max_cwnd, 
++          DataRate cwnd_as_rate, 
++          std::function<void(uint32_t)> update_callback) {
++
++  int id = cwnd_flow_id_counter_++;
++    std::shared_ptr<HybridCwndFlow> new_flow =
++      std::make_shared<HybridCwndFlow>(id, 
++              FseConfig::Instance().ResolveCwndFlowPriority(id), 
++              initial_max_cwnd, 
++              cwnd_as_rate,
++              update_callback);
++  cwnd_flows_.insert(new_flow);
++  return new_flow;
++}
++
++std::shared_ptr<RateFlow> FseNgV2::RegisterRateFlow(
++    DataRate initial_rate,
++    std::function<void(DataRate)> update_callback) {
++  fse_mutex_.lock();
++
++  auto new_flow = CreateAndInsertNewRateFlow(initial_rate, update_callback);
++
++  sum_calculated_rates_ += initial_rate;
++
++  LogFseState();
++  fse_mutex_.unlock();
++
++  return new_flow;
++}
++
++std::shared_ptr<RateFlow> FseNgV2::CreateAndInsertNewRateFlow(
++      DataRate initial_rate,
++      std::function<void(DataRate)> update_callback) {
++  int id = rate_flow_id_counter_++;
++  std::shared_ptr<RateFlow> new_flow = std::make_shared<RateFlow>(
++      id, 
++      FseConfig::Instance().ResolveRateFlowPriority(id), 
++      initial_rate, 
++      FseConfig::Instance().ResolveDesiredRate(id),
++      update_callback);
++
++  rate_flows_.insert(new_flow);
++
++  return new_flow;
++}
++
++void FseNgV2::RateUpdate(std::shared_ptr<RateFlow> flow,
++                       DataRate new_rate) {
++  fse_mutex_.lock();
++
++  flow->SetDesiredRate(FseConfig::Instance().ResolveDesiredRate(flow->Id()));
++
++  int64_t relative_rate_change_bps = new_rate.bps() - flow->FseRate().bps();
++
++  OnRateFlowUpdate(flow, relative_rate_change_bps, new_rate);
++ 
++  LogFseState();
++  fse_mutex_.unlock();
++}
++
++uint32_t FseNgV2::CwndFlowUpdate(std::shared_ptr<HybridCwndFlow> flow,
++                                 uint32_t new_cwnd,
++                                 uint64_t last_rtt) {
++  fse_mutex_.lock();
++
++  UpdateRttValues(TimeDelta::Micros(last_rtt));
++
++  DataRate cwnd_as_rate = Flow::CwndToRate(new_cwnd, last_rtt);
++  if (AllRateFlowsApplicationLimited() || rate_flows_.empty()) {
++    CwndUpdateSumCalculatedRates(flow->GetPrevCwnd(), cwnd_as_rate);
++  }
++
++  flow->SetPrevCwnd(cwnd_as_rate);
++
++  LogFseState();
++  fse_mutex_.unlock();
++  return 0;
++}
++
++
++// Must be called while owning the mutex
++void FseNgV2::OnRateFlowUpdate(std::shared_ptr<RateFlow> flow,
++                             int64_t relative_rate_change_bps,
++                             DataRate cc_rate) {
++  
++  UpdateSumCalculatedRates(relative_rate_change_bps, cc_rate, flow->FseRate());
++
++  int sum_priorities = SumPriorities();
++  DataRate sum_rtp_rates = UpdateRateFlows(sum_priorities);
++
++  DataRate sum_cwnd_rates = sum_calculated_rates_ - sum_rtp_rates;
++  UpdateCwndFlows(sum_cwnd_rates);
++
++  if (cwnd_flows_.empty() ) {
++    //Extension, to make sure there is no extra unallocated bandwidth accumulating
++    //when there are no SCTP flows to spend it
++    sum_calculated_rates_ = sum_rtp_rates;
++  }
++}
++
++void FseNgV2::UpdateSumCalculatedRates(
++        int64_t relative_rate_change_bps, 
++        DataRate cc_rate,
++        DataRate prev_fse_rate) {
++  int64_t sum_of_difference = 
++      sum_calculated_rates_.bps() + cc_rate.bps() - prev_fse_rate.bps();
++  //if (cwnd_flows_.empty() || AllRateFlowsApplicationLimited()) {
++    sum_calculated_rates_ = DataRate::BitsPerSec(sum_of_difference);
++  /*}
++  else {
++    sum_calculated_rates_ = 
++        DataRate::BitsPerSec(sum_of_difference + relative_rate_change_bps);
++  }  */
++}
++
++
++void FseNgV2::CwndUpdateSumCalculatedRates(DataRate prev_rate, DataRate new_rate) {
++  int64_t sum_of_difference = 
++        sum_calculated_rates_.bps() + new_rate.bps() - prev_rate.bps();
++      sum_calculated_rates_ = DataRate::BitsPerSec(sum_of_difference);
++}
++
++DataRate FseNgV2::UpdateRateFlows(int sum_priorities) {
++  DataRate sum_rtp_rates = DataRate::Zero();
++  for (const auto& rate_flow : rate_flows_) {
++    DataRate fse_rate = std::min((rate_flow->Priority() * sum_calculated_rates_) 
++            / sum_priorities, rate_flow->DesiredRate());
++    rate_flow->SetFseRate(fse_rate);
++    RTC_LOG(LS_INFO) << "PLOT_THIS_RTP_FSE_RATE_KBPS" << rate_flow->Id() 
++                     << " rate=" << rate_flow->FseRate().kbps();
++ 
++
++    rate_flow->UpdateCc();
++  
++    sum_rtp_rates += fse_rate;
++  }
++  return sum_rtp_rates;
++}
++
++void FseNgV2::UpdateCwndFlows(DataRate sum_cwnd_rates) {
++ int sum_cwnd_priorities = SumCwndPriorities();
++
++  for(const auto& cwnd_flow : cwnd_flows_) {
++    DataRate cwnd_flow_max_rate = (cwnd_flow->Priority() * sum_cwnd_rates) / sum_cwnd_priorities;
++    uint32_t flow_max_cwnd = Flow::RateToCwnd(base_rtt_, cwnd_flow_max_rate);
++
++    RTC_LOG(LS_INFO) << "PLOT_THIS_SCTP_FSE_RATE_KBPS" << cwnd_flow->Id() 
++                     << " rate=" << cwnd_flow_max_rate.kbps();
++ 
++    //Hacky way to avoid deadlock
++    fse_mutex_.unlock();
++    cwnd_flow->UpdateCcMaxCwnd(flow_max_cwnd);
++    fse_mutex_.lock();
++  }  
++}
++
++bool FseNgV2::AllRateFlowsApplicationLimited() const {
++  for (const auto& flow : rate_flows_) {
++    if (!flow->IsApplicationLimited()) {
++      return false;
++    }
++  }
++  return true;
++}
++
++void FseNgV2::DeRegisterWindowBasedFlow(std::shared_ptr<HybridCwndFlow> flow) {
++  fse_mutex_.lock();
++
++  RTC_LOG(LS_INFO) << "DeRegisterWindowBasedFlow was called";
++  cwnd_flows_.erase(flow);
++
++  fse_mutex_.unlock();
++}
++
++void FseNgV2::DeRegisterRateFlow(std::shared_ptr<RateFlow> flow) {
++  fse_mutex_.lock();
++
++  RTC_LOG(LS_INFO) << "DeRegisterRateFlow removing rate flow with id:" << flow->Id();
++
++  rate_flows_.erase(flow);
++
++  // If last RTP flow leaves, the window limits of all window based flows are removed
++  // Since no congestion control info is available
++  if (rate_flows_.empty()){
++    for (const auto& cwnd_flow : cwnd_flows_) {
++      cwnd_flow->UpdateCcMaxCwnd(cwnd_flow->GetInitialMaxCwnd());
++    }
++  }
++
++  fse_mutex_.unlock();
++}
++
++void FseNgV2::UpdateRttValues(TimeDelta last_rtt) {
++  //If rtt is 0, assume there is no real measurement yet and say it is infinity
++  //so that base_rtt is never set to 0
++  last_rtt = last_rtt == TimeDelta::Zero() ? TimeDelta::PlusInfinity() : last_rtt;
++  base_rtt_ = std::min(base_rtt_, last_rtt);
++}
++
++int FseNgV2::SumPriorities() const {
++  int sum_priorities = 0;
++  for (const auto& i : rate_flows_) {
++    sum_priorities += i->Priority();
++  }
++  for (const auto& i : cwnd_flows_) {
++    sum_priorities += i->Priority();
++  }
++  return sum_priorities;
++}
++
++int FseNgV2::SumRatePriorities() const {
++  int sum_priorities = 0;
++  for (const auto& i : rate_flows_) {
++    sum_priorities += i->Priority();
++  }
++  return sum_priorities;
++}
++
++int FseNgV2::SumCwndPriorities() const {
++  int sum_priorities = 0;
++  for (const auto& i : cwnd_flows_) {
++      sum_priorities += i->Priority();
++    }
++    return sum_priorities;
++}
++
++bool FseNgV2::UseCwndBasedSumCalculatedRates() const {
++  return rate_flows_.empty() && !cwnd_flows_.empty();
++}
++
++
++
++void FseNgV2::LogFseState() const {
++  RTC_LOG(LS_INFO) 
++      << "PLOT_THISFSENG sum_calculated_rates_=" 
++      << sum_calculated_rates_.kbps()
++      << " base_rtt_=" << (base_rtt_.IsFinite() ? base_rtt_.ms() : 0);
++}
++
++FseNgV2& FseNgV2::Instance() {
++  CR_DEFINE_STATIC_LOCAL(FseNgV2, s, ());
++  return s;
++}
++
++}  // namespace webrtc
+diff --git a/modules/congestion_controller/goog_cc/fse_ng_v2.h b/modules/congestion_controller/goog_cc/fse_ng_v2.h
+new file mode 100644
+index 0000000..92ad4c0
+--- /dev/null
++++ b/modules/congestion_controller/goog_cc/fse_ng_v2.h
+@@ -0,0 +1,109 @@
++//
++// Created by tobias on 03.10.2021.
++//
++
++#ifndef MODULES_CONGESTION_CONTROLLER_GOOG_CC_FSE_NG_V2_H
++#define MODULES_CONGESTION_CONTROLLER_GOOG_CC_FSE_NG_V2_H
++
++#include <cstdint>
++#include <list>
++#include <memory>
++#include <mutex>
++#include <unordered_set>
++
++#include "api/units/data_rate.h"
++#include "api/units/time_delta.h"
++#include "api/units/timestamp.h"
++
++#include "rtc_base/experiments/field_trial_parser.h"
++
++namespace cricket {
++class UsrsctpTransport;
++}
++
++namespace webrtc {
++
++class SendSideBandwidthEstimation;
++
++class HybridCwndFlow;
++class RateFlow;
++
++#define CR_DEFINE_STATIC_LOCAL(type, name, arguments) \
++  static type& name = *new type arguments
++//TODO: rename to ExtendedFseNg
++class FseNgV2 {
++ public:
++  static FseNgV2& Instance();
++
++  void RateUpdate(std::shared_ptr<RateFlow> flow,
++                       DataRate new_rate);
++
++  uint32_t CwndFlowUpdate(std::shared_ptr<HybridCwndFlow> flow,
++                       uint32_t new_cwnd,
++                       uint64_t last_rtt);
++
++  std::shared_ptr<HybridCwndFlow> RegisterCwndFlow(
++      uint32_t initial_cwnd,
++      uint32_t initial_max_cwnd, 
++      uint64_t inital_rtt_us,
++      std::function<void(uint32_t)> update_callback);
++  std::shared_ptr<RateFlow> RegisterRateFlow(
++      DataRate initial_rate,
++      std::function<void(DataRate)> update_callback);
++  void DeRegisterWindowBasedFlow(std::shared_ptr<HybridCwndFlow> flow);
++  void DeRegisterRateFlow(std::shared_ptr<RateFlow> flow);
++
++ private:
++  FseNgV2();
++  ~FseNgV2();
++
++  // The minimum rtt observed during the session
++  TimeDelta base_rtt_;
++
++  // An estimate of the bottleneck's capacity
++  // calculated by summing SRTP rates
++  DataRate sum_calculated_rates_;
++  DataRate cwnd_sum_calculated_rates_;
++
++  int rate_flow_id_counter_;
++  int cwnd_flow_id_counter_;
++
++  std::unordered_set<std::shared_ptr<HybridCwndFlow>> cwnd_flows_;
++  std::unordered_set<std::shared_ptr<RateFlow>> rate_flows_;
++
++  std::mutex fse_mutex_;
++
++  void OnRateFlowUpdate(
++         std::shared_ptr<RateFlow> flow,
++         int64_t relative_rate_change_bps,
++         DataRate cc_rate
++         );
++  void UpdateSumCalculatedRates(
++          int64_t relative_rate_change_bps, 
++          DataRate cc_rate, 
++          DataRate prev_fse_rate);
++  void CwndUpdateSumCalculatedRates(DataRate prev_rate, DataRate new_rate);
++  //Allocates rate to all the rtp flows, returns the sum og allocated rate
++  DataRate UpdateRateFlows(int sum_priorities);
++  void UpdateCwndFlows(DataRate sum_cwnd_rates);
++
++  bool AllRateFlowsApplicationLimited() const;
++  int SumPriorities() const;
++  int SumRatePriorities() const;
++  int SumCwndPriorities() const;
++  void UpdateRttValues(TimeDelta last_rtt);
++  bool UseCwndBasedSumCalculatedRates() const;
++  std::shared_ptr<HybridCwndFlow> CreateAndInsertNewCwndFlow(
++          uint32_t initial_max_cwnd, 
++          DataRate cwnd_as_rate, 
++          std::function<void(uint32_t)> update_callback);
++  std::shared_ptr<RateFlow> CreateAndInsertNewRateFlow(
++          DataRate initial_rate,
++          std::function<void(DataRate)> update_callback);
++
++  void LogFseState() const;
++};
++
++}  // namespace webrtc
++
++#endif  // MODULES_CONGESTION_CONTROLLER_GOOG_CC_FSE_NG_V2_H
+diff --git a/modules/congestion_controller/goog_cc/fse_v2.cc b/modules/congestion_controller/goog_cc/fse_v2.cc
+new file mode 100644
+index 0000000..d52cdd5
+--- /dev/null
++++ b/modules/congestion_controller/goog_cc/fse_v2.cc
+@@ -0,0 +1,390 @@
++//
++// Created by tobias on 15.03.2022.
++//
++
++#include "modules/congestion_controller/goog_cc/fse_v2.h"
++#include "modules/congestion_controller/goog_cc/fse_config.h"
++
++#include <stdint.h>
++
++#include <cstdint>
++#include <iostream>
++#include <memory>
++#include <mutex>
++#include <unordered_set>
++#include <numeric>
++
++
++#include "absl/strings/match.h"
++#include "api/units/data_rate.h"
++#include "api/units/timestamp.h"
++#include "modules/congestion_controller/goog_cc/fse_flow.h"
++#include "rtc_base/logging.h"
++
++#include "system_wrappers/include/clock.h"
++
++namespace webrtc {
++
++FseV2::FseV2()
++    : rate_flow_id_counter_(0), 
++      cwnd_flow_id_counter_(0),
++      sum_calculated_rates_(DataRate::Zero()),
++      last_rtt_(TimeDelta::Zero()),
++      clock_(Clock::GetRealTimeClock())
++    {
++  RTC_LOG(LS_INFO) << "FSE_V2 created";
++}
++
++FseV2::~FseV2() = default;
++
++std::shared_ptr<GccRateFlow> FseV2::RegisterRateFlow(
++      DataRate initial_bit_rate,
++      std::function<void(DataRate, Timestamp, bool)> update_callback) {
++  mutex_.lock();
++  
++  int flow_id = rate_flow_id_counter_++;
++  int flow_priority =  FseConfig::Instance().ResolveRateFlowPriority(flow_id);
++  std::shared_ptr<GccRateFlow> newFlow = std::make_shared<GccRateFlow>(
++      flow_id, 
++      flow_priority+((flow_priority/100)*10), 
++      initial_bit_rate, 
++      FseConfig::Instance().ResolveDesiredRate(flow_id), 
++      update_callback);
++
++  RTC_LOG(LS_INFO) 
++      << "FSE Registering new flow with id: " 
++      << flow_id;
++
++  rate_flows_.insert(newFlow);
++
++  DataRate old_s_cr = sum_calculated_rates_;
++  UpdateSumCalculatedRates(DataRate::Zero(), newFlow->FseRate());
++
++  LogFseState("RATE", old_s_cr);
++
++  mutex_.unlock();
++
++  return newFlow;
++}
++
++std::shared_ptr<ActiveCwndFlow> FseV2::RegisterCwndFlow(
++      uint32_t initial_cwnd,
++      uint64_t last_rtt,
++      std::function<void(uint32_t)> update_callback) {
++  mutex_.lock();
++
++  RTC_LOG(LS_INFO) 
++      << "RegisterCwndFlow was called with initial_cwnd=" 
++      << initial_cwnd 
++      << " last_rtt=" 
++      << last_rtt/1000;
++
++  UpdateRttValues(TimeDelta::Micros(last_rtt));
++
++  DataRate cwnd_as_rate = Flow::CwndToRate(initial_cwnd, last_rtt_.us());
++
++  int id = cwnd_flow_id_counter_++;
++  std::shared_ptr<ActiveCwndFlow> new_flow =
++      std::make_shared<ActiveCwndFlow>(id, 
++              FseConfig::Instance().ResolveCwndFlowPriority(id), 
++              cwnd_as_rate, 
++              update_callback);
++
++
++  cwnd_flows_.insert(new_flow);
++
++  DataRate old_s_cr = sum_calculated_rates_;
++  UpdateSumCalculatedRates(DataRate::Zero(), cwnd_as_rate);
++
++  LogFseState("CWND", old_s_cr);
++
++  mutex_.unlock();
++
++  return new_flow;
++}
++
++void FseV2::RateFlowUpdate(std::shared_ptr<GccRateFlow> flow,
++              DataRate new_rate,
++              TimeDelta last_rtt, 
++              Timestamp at_time,
++              bool update_loss_only) {
++  mutex_.lock();
++
++  RTC_LOG(LS_INFO) 
++      << "PLOT_THIS_RTP" << flow->Id()
++      << " ratecc=" << new_rate.kbps()
++      << " last_rtt=" << last_rtt.ms();
++
++  DataRate old_s_cr = sum_calculated_rates_;
++  UpdateSumCalculatedRates(flow->FseRate(), new_rate);
++
++  OnFlowUpdated();
++
++  LogFseState("RATE", old_s_cr);
++
++  DistributeToRateFlows(at_time, update_loss_only);
++
++  if (FseConfig::Instance().CoupleDcSctp()) {
++    DistributeToCwndFlowsDcSctp(nullptr);
++  }
++  else {
++    DistributeToCwndFlows(nullptr);
++  }
++
++  mutex_.unlock();
++}
++
++
++uint32_t FseV2::CwndFlowUpdate(
++        std::shared_ptr<ActiveCwndFlow> flow,
++        uint32_t new_cwnd,
++        uint64_t last_rtt) {
++  mutex_.lock();
++
++  UpdateRttValues(TimeDelta::Micros(last_rtt));
++
++  DataRate new_rate = Flow::CwndToRate(new_cwnd, last_rtt_.us());
++
++  RTC_LOG(LS_INFO) 
++      << "PLOT_THIS_SCTP" << flow->Id()
++      << " ratecc=" << new_rate.kbps()
++      << " estimate=" << new_rate.kbps()
++      << " last_rtt=" << last_rtt/1000;
++
++  DataRate old_s_cr = sum_calculated_rates_;
++  UpdateSumCalculatedRates(flow->FseRate(), new_rate);
++
++  OnFlowUpdated();
++
++  LogFseState("CWND", old_s_cr);
++
++  DistributeToRateFlows(clock_->CurrentTime(), false);
++
++  if (FseConfig::Instance().CoupleDcSctp()) {
++    DistributeToCwndFlowsDcSctp(flow);
++  }
++  else {
++    DistributeToCwndFlows(flow);
++  }
++
++  uint32_t fse_cwnd = Flow::RateToCwnd(last_rtt_, flow->FseRate());
++
++  mutex_.unlock();
++  return fse_cwnd;
++}
++
++
++void FseV2::OnFlowUpdatedSimple() {
++   // calculate the sum of all priorities and initialize FSE_R
++  int sum_total_priorities = 
++      SumPrioritiesAndInitializeRateFlowRates() + SumPrioritiesAndInitializeCwndFlowRates(); 
++
++  for (const auto& i : rate_flows_) {
++    DataRate rate_flow_rate = (i->Priority() * sum_calculated_rates_) / sum_total_priorities;
++    i->SetFseRate(rate_flow_rate);
++  }
++
++  for (const auto& i : cwnd_flows_) {
++    DataRate cwnd_flow_rate = (i->Priority() * sum_calculated_rates_) / sum_total_priorities;
++    i->SetFseRate(cwnd_flow_rate);
++  }
++ 
++  sum_calculated_rates_ = SumAllocatedRates();
++}
++
++void FseV2::OnFlowUpdated() {
++
++  // calculate the sum of all priorities and initialize FSE_R
++  int sum_rate_priorities = SumPrioritiesAndInitializeRateFlowRates();
++  int sum_cwnd_priorities = SumPrioritiesAndInitializeCwndFlowRates();
++  int sum_total_priorities = sum_rate_priorities + sum_cwnd_priorities;
++
++  // Distribute S_CR among all flows, ensuring desired rate is not exceeded
++  DataRate rate_flows_share = CalculateRateFlowRatePortion(sum_rate_priorities, sum_total_priorities);
++
++  AllocateToRateFlows(sum_rate_priorities, rate_flows_share);
++
++  DataRate cwnd_flows_share = sum_calculated_rates_ - rate_flows_share;
++  AllocateToCwndFlows(sum_cwnd_priorities, cwnd_flows_share);
++
++  //Extension to avoid S_CR leftover buildup, make sure S_CR == total allocated rate
++  sum_calculated_rates_ = SumAllocatedRates();
++}
++
++int FseV2::SumPrioritiesAndInitializeRateFlowRates() {
++  int sum_rate_priorities = 0;
++  for (const auto& i : rate_flows_) {
++    sum_rate_priorities += i->Priority();
++    i->SetFseRate(DataRate::Zero());
++  }
++  return sum_rate_priorities;
++}
++
++int FseV2::SumPrioritiesAndInitializeCwndFlowRates() {
++  int sum_cwnd_priorities = 0;
++  for (const auto& i : cwnd_flows_) {
++    sum_cwnd_priorities += i->Priority();
++    i->SetFseRate(DataRate::Zero());
++  }
++  return sum_cwnd_priorities;
++}
++
++//TODO: this may not be 100% when it comes to sharing of leftover rate
++DataRate FseV2::CalculateRateFlowRatePortion(int rate_priorities, int total_priotities) {
++  DataRate sum_desired_rates = SumDesiredRates();
++
++  DataRate rate_flows_share = sum_calculated_rates_ * rate_priorities / total_priotities; 
++ 
++  if (sum_desired_rates < rate_flows_share) {
++    rate_flows_share = sum_desired_rates;
++  }
++  return rate_flows_share;
++}
++
++//TODO: currently does not leave any extra for SCTP flows if all RTP flows are DR limited
++void FseV2::AllocateToRateFlows(int sum_priorities, DataRate leftover_rate) {
++  DataRate aggregate_rate = DataRate::Zero();
++  // while there is more rate to distribute
++  // (we check against 1 because the divison might lead to uneven number)
++  while (leftover_rate - aggregate_rate > DataRate::BitsPerSec(1) 
++          && sum_priorities > 0) {
++    aggregate_rate = DataRate::Zero();
++    for (const auto& i : rate_flows_) {
++
++      // if the current fse rate is less than desired
++      if (i->FseRate() < i->DesiredRate()) {
++        DataRate flow_rate = leftover_rate * i->Priority() / sum_priorities;
++        
++
++        // if the flow can get more than it desires
++        if (flow_rate >= i->DesiredRate()) {
++          leftover_rate -= i->DesiredRate();
++          i->SetFseRate(i->DesiredRate());
++          sum_priorities -= i->Priority();
++        } 
++        else {
++          i->SetFseRate(flow_rate);
++          aggregate_rate += flow_rate;
++        }
++      }
++    }
++  }
++}
++
++void FseV2::AllocateToCwndFlows(int sum_priorities, DataRate sum_cwnd_rates) {
++  for (const auto& i : cwnd_flows_) {
++    DataRate cwnd_flow_rate = (i->Priority() * sum_cwnd_rates) / sum_priorities;
++    i->SetFseRate(cwnd_flow_rate);
++  }
++}
++
++
++DataRate FseV2::SumDesiredRates() {
++  DataRate total_desired_rate = DataRate::Zero();
++  for (const auto& i : rate_flows_) {
++    total_desired_rate += i->DesiredRate();
++  }
++  return total_desired_rate;
++}
++
++DataRate FseV2::SumAllocatedRates() {
++  DataRate total_alllocated_rate = DataRate::Zero();
++  for (const auto& i : rate_flows_) {
++    total_alllocated_rate += i->FseRate();
++  }
++
++  for (const auto& i : cwnd_flows_) {
++    total_alllocated_rate += i->FseRate();
++  }
++  return total_alllocated_rate;
++}
++
++
++void FseV2::DistributeToRateFlows(Timestamp at_time, bool update_loss_only) {
++  for (const auto& i : rate_flows_) {
++    RTC_LOG(LS_INFO) 
++        << "PLOT_THIS_RTP" << i->Id() 
++        << " rate=" << i->FseRate().kbps();
++
++    i->UpdateCc(at_time, update_loss_only);
++  }
++}
++
++void FseV2::DistributeToCwndFlowsDcSctp(std::shared_ptr<ActiveCwndFlow> update_caller) {
++  for (const auto& i : cwnd_flows_) {
++    RTC_LOG(LS_INFO) 
++        << "PLOT_THIS_SCTP" << i->Id()  
++        << " rate=" << i->FseRate().kbps();
++    if (i == update_caller) {
++      continue;
++    }
++
++    uint32_t new_cwnd = Flow::RateToCwnd(last_rtt_, i->FseRate());
++    i->UpdateCc(new_cwnd);
++  }
++}
++
++void FseV2::DistributeToCwndFlows(std::shared_ptr<ActiveCwndFlow> update_caller) {
++  for (const auto& i : cwnd_flows_) {
++    RTC_LOG(LS_INFO) 
++        << "PLOT_THIS_SCTP" << i->Id()  
++        << " rate=" << i->FseRate().kbps();
++    if (i == update_caller) {
++      continue;
++    }
++
++    uint32_t new_cwnd = Flow::RateToCwnd(last_rtt_, i->FseRate());
++
++    mutex_.unlock();
++    i->UpdateCc(new_cwnd);
++    mutex_.lock();
++  }
++}
++
++void FseV2::DeRegisterRateFlow(std::shared_ptr<GccRateFlow> flow) {
++  mutex_.lock();
++  RTC_LOG(LS_INFO) << "deregistering flow with id" << flow->Id();
++
++  rate_flows_.erase(flow);
++
++  mutex_.unlock();
++}
++
++
++void FseV2::DeRegisterCwndFlow(std::shared_ptr<ActiveCwndFlow> flow) {
++  mutex_.lock();
++  RTC_LOG(LS_INFO) << "deregistering flow with id" << flow->Id();
++
++  cwnd_flows_.erase(flow);
++
++  mutex_.unlock();
++}
++
++
++void FseV2::UpdateRttValues(TimeDelta last_rtt) {
++  if (last_rtt.IsFinite() && !last_rtt.IsZero()) {
++    last_rtt_ = last_rtt;
++  }
++}
++
++
++void FseV2::UpdateSumCalculatedRates(DataRate prev_rate, DataRate new_rate) {
++  sum_calculated_rates_ = sum_calculated_rates_ + new_rate - prev_rate;
++}
++
++void FseV2::LogFseState(const char* id_string, DataRate old_s_cr) {
++  RTC_LOG(LS_INFO) 
++      << "PLOT_THISFSE" <<" sum_calculated_rates_=" 
++      << sum_calculated_rates_.kbps()
++      << " last_rtt_="  
++      << last_rtt_.ms();
++  RTC_LOG(LS_INFO) << "PLOT_THIS" << id_string << " s_cr_change="
++      << sum_calculated_rates_.kbps() - old_s_cr.kbps();
++}
++
++FseV2& FseV2::Instance() {
++  CR_DEFINE_STATIC_LOCAL(FseV2, s, ());
++  return s;
++}
++
++}  // namespace webrtc
+diff --git a/modules/congestion_controller/goog_cc/fse_v2.h b/modules/congestion_controller/goog_cc/fse_v2.h
+new file mode 100644
+index 0000000..9d56590
+--- /dev/null
++++ b/modules/congestion_controller/goog_cc/fse_v2.h
+@@ -0,0 +1,97 @@
++//
++// Created by tobias on 15.03.2022.
++//
++
++#ifndef MODULES_CONGESTION_CONTROLLER_GOOG_CC_FSE_V2_H
++#define MODULES_CONGESTION_CONTROLLER_GOOG_CC_FSE_V2_H
++
++#include <cstdint>
++#include <memory>
++#include <mutex>
++#include <unordered_set>
++
++#include "absl/strings/match.h"
++#include "absl/types/optional.h"
++#include "api/units/data_rate.h"
++#include "api/units/timestamp.h"
++
++#include "system_wrappers/include/clock.h"
++
++namespace cricket {
++
++class UsrsctpTransport;
++}
++
++namespace webrtc {
++
++class RateFlow;
++class ActiveCwndFlow;
++class GccRateFlow;
++
++#define CR_DEFINE_STATIC_LOCAL(type, name, arguments) \
++  static type& name = *new type arguments
++
++class FseV2 {
++ public:
++  static FseV2& Instance();
++
++  std::shared_ptr<GccRateFlow> RegisterRateFlow(
++      DataRate initial_bit_rate,
++      std::function<void(DataRate, Timestamp, bool)> update_callback);
++
++  std::shared_ptr<ActiveCwndFlow> RegisterCwndFlow(
++      uint32_t initial_cwnd,
++      uint64_t last_rtt,
++      std::function<void(uint32_t)> update_callback);
++
++  void DeRegisterRateFlow(std::shared_ptr<GccRateFlow> flow);
++  void DeRegisterCwndFlow(std::shared_ptr<ActiveCwndFlow> flow);
++  void RateFlowUpdate(std::shared_ptr<GccRateFlow> flow,
++              DataRate new_rate,
++              TimeDelta last_rtt, 
++              Timestamp at_time,
++              bool update_loss_only);
++
++  uint32_t CwndFlowUpdate(std::shared_ptr<ActiveCwndFlow> flow,
++          uint32_t new_cwnd,
++          uint64_t last_rtt);
++
++ private:
++  FseV2();
++  ~FseV2();
++
++  std::mutex mutex_;
++
++  int rate_flow_id_counter_;
++  int cwnd_flow_id_counter_;
++
++  DataRate sum_calculated_rates_;
++
++  std::unordered_set<std::shared_ptr<GccRateFlow>> rate_flows_;
++  std::unordered_set<std::shared_ptr<ActiveCwndFlow>> cwnd_flows_;
++
++  TimeDelta last_rtt_;
++
++  Clock* clock_;
++
++  void UpdateRttValues(TimeDelta last_rtt);
++  void OnFlowUpdated();
++  void OnFlowUpdatedSimple();
++  int SumPrioritiesAndInitializeRateFlowRates();
++  int SumPrioritiesAndInitializeCwndFlowRates();
++  DataRate CalculateRateFlowRatePortion(int rate_priorities, int total_priotities);
++  void AllocateToRateFlows(int sum_priorities, DataRate leftover_rate);
++  void AllocateToCwndFlows(int sum_priorities, DataRate sum_cwnd_rates);
++  void DistributeToRateFlows(Timestamp at_time, bool update_loss_only);
++  void DistributeToCwndFlows(std::shared_ptr<ActiveCwndFlow> update_caller);
++  void DistributeToCwndFlowsDcSctp(std::shared_ptr<ActiveCwndFlow> update_caller);
++  DataRate SumDesiredRates();
++  DataRate SumAllocatedRates();
++  void UpdateSumCalculatedRates(DataRate prev_rate, DataRate new_rate);
++
++  void LogFseState(const char* id_string, DataRate old_s_cr);
++};
++
++}  // namespace webrtc
++
++#endif  // MODULES_CONGESTION_CONTROLLER_GOOG_CC_FSE_V2_H
+diff --git a/modules/congestion_controller/goog_cc/goog_cc_network_control.cc b/modules/congestion_controller/goog_cc/goog_cc_network_control.cc
+index 2344f45..e5f7a2c 100644
+--- a/modules/congestion_controller/goog_cc/goog_cc_network_control.cc
++++ b/modules/congestion_controller/goog_cc/goog_cc_network_control.cc
+@@ -9,6 +9,7 @@
+  */
+ 
+ #include "modules/congestion_controller/goog_cc/goog_cc_network_control.h"
++#include "modules/congestion_controller/goog_cc/fse_config.h"
+ 
+ #include <inttypes.h>
+ #include <stdio.h>
+@@ -95,9 +96,11 @@ GoogCcNetworkController::GoogCcNetworkController(NetworkControllerConfig config,
+               ? std::make_unique<CongestionWindowPushbackController>(
+                     key_value_config_)
+               : nullptr),
++      fse_v2_flow_(MaybeRegisterInFseV2(*config.constraints.starting_rate)),
+       bandwidth_estimation_(
+           std::make_unique<SendSideBandwidthEstimation>(key_value_config_,
+-                                                        event_log_)),
++                                                        event_log_,
++                                                        fse_v2_flow_)),
+       alr_detector_(
+           std::make_unique<AlrDetector>(key_value_config_, config.event_log)),
+       probe_bitrate_estimator_(new ProbeBitrateEstimator(config.event_log)),
+@@ -106,7 +109,8 @@ GoogCcNetworkController::GoogCcNetworkController(NetworkControllerConfig config,
+           std::move(goog_cc_config.network_state_predictor)),
+       delay_based_bwe_(new DelayBasedBwe(key_value_config_,
+                                          event_log_,
+-                                         network_state_predictor_.get())),
++                                         network_state_predictor_.get(),
++                                         fse_v2_flow_)),
+       acknowledged_bitrate_estimator_(
+           AcknowledgedBitrateEstimatorInterface::Create(key_value_config_)),
+       initial_config_(config),
+@@ -129,7 +133,12 @@ GoogCcNetworkController::GoogCcNetworkController(NetworkControllerConfig config,
+     delay_based_bwe_->SetMinBitrate(congestion_controller::GetMinBitrate());
+ }
+ 
+-GoogCcNetworkController::~GoogCcNetworkController() {}
++GoogCcNetworkController::~GoogCcNetworkController() {
++//TOBIAS
++  if (fse_v2_flow_) 
++    FseV2::Instance().DeRegisterRateFlow(fse_v2_flow_);
++//TOBIAS
++}
+ 
+ NetworkControlUpdate GoogCcNetworkController::OnNetworkAvailability(
+     NetworkAvailability msg) {
+@@ -165,7 +174,8 @@ NetworkControlUpdate GoogCcNetworkController::OnNetworkRouteChange(
+   if (network_estimator_)
+     network_estimator_->OnRouteChange(msg);
+   delay_based_bwe_.reset(new DelayBasedBwe(key_value_config_, event_log_,
+-                                           network_state_predictor_.get()));
++                                           network_state_predictor_.get(),
++                                           fse_v2_flow_));
+   bandwidth_estimation_->OnRouteChange();
+   probe_controller_->Reset(msg.at_time.ms());
+   NetworkControlUpdate update;
+@@ -224,6 +234,16 @@ NetworkControlUpdate GoogCcNetworkController::OnProcessInterval(
+   MaybeTriggerOnNetworkChanged(&update, msg.at_time);
+   return update;
+ }
++//TOBIAS
++NetworkControlUpdate GoogCcNetworkController::OnCouplingUpdateInterval(
++        ProcessInterval msg) {
++  NetworkControlUpdate update;
++  RTC_LOG(LS_INFO) << "PLOT_THIS OnCouplingUpdateInterval=" << 1;
++  //UpdateSendSideDelayBasedEstimate(msg.at_time);
++  MaybeTriggerOnNetworkChanged(&update, msg.at_time);
++  return update;
++}
++//TOBIAS
+ 
+ NetworkControlUpdate GoogCcNetworkController::OnRemoteBitrateReport(
+     RemoteBitrateReport msg) {
+@@ -707,4 +727,23 @@ PacerConfig GoogCcNetworkController::GetPacingRates(Timestamp at_time) const {
+   return msg;
+ }
+ 
++//TOBIAS
++std::shared_ptr<GccRateFlow> GoogCcNetworkController::MaybeRegisterInFseV2(DataRate initial_rate) {
++  FseVersion fse_opt = FseConfig::Instance().CurrentFse();
++  if (fse_opt == fse_v2) {
++    return FseV2::Instance().RegisterRateFlow(
++        initial_rate,
++        [this](DataRate fse_rate, Timestamp at_time, bool update_loss_only) {
++          DataRate delay_estimate = fse_rate;
++          if (delay_based_bwe_ ) {
++            delay_estimate = this->delay_based_bwe_->SetEstimateDirectly(fse_rate, at_time);
++          }
++          this->bandwidth_estimation_->FseV2SetSendBitrate(fse_rate, at_time);
++        });
++  }
++  return nullptr;
++}
++
++//TOBIAS
++
+ }  // namespace webrtc
+diff --git a/modules/congestion_controller/goog_cc/goog_cc_network_control.h b/modules/congestion_controller/goog_cc/goog_cc_network_control.h
+index 6dd70c8..0706555 100644
+--- a/modules/congestion_controller/goog_cc/goog_cc_network_control.h
++++ b/modules/congestion_controller/goog_cc/goog_cc_network_control.h
+@@ -71,10 +71,19 @@ class GoogCcNetworkController : public NetworkControllerInterface {
+   NetworkControlUpdate OnNetworkStateEstimate(
+       NetworkStateEstimate msg) override;
+ 
++  //TOBIAS
++  NetworkControlUpdate OnCouplingUpdateInterval(ProcessInterval msg) override;
++  //TOBIAS
++
+   NetworkControlUpdate GetNetworkState(Timestamp at_time) const;
+ 
+  private:
+   friend class GoogCcStatePrinter;
++  //TOBIAS
++  std::shared_ptr<GccRateFlow> MaybeRegisterInFseV2(DataRate initial_rate);
++  //TOBIAS
++  
++
+   std::vector<ProbeClusterConfig> ResetConstraints(
+       TargetRateConstraints new_constraints);
+   void ClampConstraints();
+@@ -99,6 +108,10 @@ class GoogCcNetworkController : public NetworkControllerInterface {
+   const std::unique_ptr<CongestionWindowPushbackController>
+       congestion_window_pushback_controller_;
+ 
++  //TOBIAS
++  std::shared_ptr<GccRateFlow>  fse_v2_flow_;
++  //TOBIAS
++  
+   std::unique_ptr<SendSideBandwidthEstimation> bandwidth_estimation_;
+   std::unique_ptr<AlrDetector> alr_detector_;
+   std::unique_ptr<ProbeBitrateEstimator> probe_bitrate_estimator_;
+@@ -141,6 +154,8 @@ class GoogCcNetworkController : public NetworkControllerInterface {
+   bool previously_in_alr_ = false;
+ 
+   absl::optional<DataSize> current_data_window_;
++
++
+ };
+ 
+ }  // namespace webrtc
+diff --git a/modules/congestion_controller/goog_cc/send_side_bandwidth_estimation.cc b/modules/congestion_controller/goog_cc/send_side_bandwidth_estimation.cc
+index 5bb145c..5e450c7 100644
+--- a/modules/congestion_controller/goog_cc/send_side_bandwidth_estimation.cc
++++ b/modules/congestion_controller/goog_cc/send_side_bandwidth_estimation.cc
+@@ -9,12 +9,16 @@
+  */
+ 
+ #include "modules/congestion_controller/goog_cc/send_side_bandwidth_estimation.h"
++#include "modules/congestion_controller/goog_cc/fse_config.h"
+ 
+ #include <algorithm>
+ #include <cstdio>
++#include <iostream>
+ #include <limits>
+ #include <memory>
+ #include <string>
++#include <chrono>
++#include <functional>
+ 
+ #include "absl/strings/match.h"
+ #include "api/rtc_event_log/rtc_event.h"
+@@ -197,7 +201,8 @@ RttBasedBackoff::~RttBasedBackoff() = default;
+ 
+ SendSideBandwidthEstimation::SendSideBandwidthEstimation(
+     const WebRtcKeyValueConfig* key_value_config,
+-    RtcEventLog* event_log)
++    RtcEventLog* event_log,
++    std::shared_ptr<GccRateFlow> fse_v2_flow)
+     : rtt_backoff_(key_value_config),
+       lost_packets_since_last_loss_update_(0),
+       expected_packets_since_last_loss_update_(0),
+@@ -229,7 +234,9 @@ SendSideBandwidthEstimation::SendSideBandwidthEstimation(
+       bitrate_threshold_(kDefaultBitrateThreshold),
+       loss_based_bandwidth_estimator_v1_(key_value_config),
+       loss_based_bandwidth_estimator_v2_(key_value_config),
+-      disable_receiver_limit_caps_only_("Disabled") {
++      disable_receiver_limit_caps_only_("Disabled"),
++      fseV2Flow_(fse_v2_flow)
++{
+   RTC_DCHECK(event_log);
+   if (BweLossExperimentIsEnabled()) {
+     uint32_t bitrate_threshold_kbps;
+@@ -244,9 +251,16 @@ SendSideBandwidthEstimation::SendSideBandwidthEstimation(
+   }
+   ParseFieldTrial({&disable_receiver_limit_caps_only_},
+                   key_value_config->Lookup("WebRTC-Bwe-ReceiverLimitCapsOnly"));
++
+ }
+ 
+-SendSideBandwidthEstimation::~SendSideBandwidthEstimation() {}
++SendSideBandwidthEstimation::~SendSideBandwidthEstimation() {
++  //Added By TOBIAS
++  if(fseNgFlow_) {
++    FseNg::Instance().DeRegisterRateFlow(fseNgFlow_);
++  }
++  //Added By TOBIAS
++}
+ 
+ void SendSideBandwidthEstimation::OnRouteChange() {
+   lost_packets_since_last_loss_update_ = 0;
+@@ -296,6 +310,30 @@ void SendSideBandwidthEstimation::SetSendBitrate(DataRate bitrate,
+   min_bitrate_history_.clear();
+ }
+ 
++
++void SendSideBandwidthEstimation::FseV2SetSendBitrate(DataRate new_bitrate, Timestamp at_time) {
++  RTC_DCHECK_GT(new_bitrate, DataRate::Zero());
++
++  if (disable_receiver_limit_caps_only_)
++    new_bitrate = std::min(new_bitrate, receiver_limit_);
++  new_bitrate =  std::min(new_bitrate, max_bitrate_configured_);
++
++  if (new_bitrate < min_bitrate_configured_) {
++    MaybeLogLowBitrateWarning(new_bitrate, at_time);
++    new_bitrate = min_bitrate_configured_;
++  }
++
++  current_target_ = new_bitrate;
++  link_capacity_.OnRateUpdate(acknowledged_rate_, current_target_, at_time);
++
++  //SetSendBitrate stuff:
++  // Clear last sent bitrate history so the new value can be used directly
++  // and not capped.
++  // THIS ONE IS NECESSARY
++  // BUG: but crashes when coupling two rtp flows
++  min_bitrate_history_.clear();
++}
++
+ void SendSideBandwidthEstimation::SetMinMaxBitrate(DataRate min_bitrate,
+                                                    DataRate max_bitrate) {
+   min_bitrate_configured_ =
+@@ -517,6 +555,7 @@ void SendSideBandwidthEstimation::UpdateEstimate(Timestamp at_time) {
+ 
+   TimeDelta time_since_loss_packet_report = at_time - last_loss_packet_report_;
+   if (time_since_loss_packet_report < 1.2 * kMaxRtcpFeedbackInterval) {
++
+     // We only care about loss above a given bitrate threshold.
+     float loss = last_fraction_loss_ / 256.0f;
+     // We only make decisions based on loss when the bitrate is above a
+@@ -540,10 +579,12 @@ void SendSideBandwidthEstimation::UpdateEstimate(Timestamp at_time) {
+       // (gives a little extra increase at low rates, negligible at higher
+       // rates).
+       new_bitrate += DataRate::BitsPerSec(1000);
++      RTC_LOG(LS_INFO) << "PLOT_THIS_GCC_L_INC rate_and_state=" << new_bitrate.kbps();
+       UpdateTargetBitrate(new_bitrate, at_time);
+       return;
+     } else if (current_target_ > bitrate_threshold_) {
+       if (loss <= high_loss_threshold_) {
++        RTC_LOG(LS_INFO) << "PLOT_THIS_GCC_L_HOLD rate_and_state=" << current_target_.kbps();
+         // Loss between 2% - 10%: Do nothing.
+       } else {
+         // Loss > 10%: Limit the rate decreases to once a kBweDecreaseInterval
+@@ -561,6 +602,7 @@ void SendSideBandwidthEstimation::UpdateEstimate(Timestamp at_time) {
+                static_cast<double>(512 - last_fraction_loss_)) /
+               512.0);
+           has_decreased_since_last_fraction_loss_ = true;
++          RTC_LOG(LS_INFO) << "PLOT_THIS_GCC_L_DEC rate_and_state=" << new_bitrate.kbps();
+           UpdateTargetBitrate(new_bitrate, at_time);
+           return;
+         }
+@@ -639,17 +681,121 @@ void SendSideBandwidthEstimation::MaybeLogLossBasedEvent(Timestamp at_time) {
+ 
+ void SendSideBandwidthEstimation::UpdateTargetBitrate(DataRate new_bitrate,
+                                                       Timestamp at_time) {
++  if (last_round_trip_time_.IsFinite()) {
++      RTC_LOG(LS_INFO) << "PLOT_THIS_GCC" << this << " rttgcc=" << last_round_trip_time_.ms();
++  }
++  FseVersion fse_opt = FseConfig::Instance().CurrentFse();
++  if (fse_opt == fse_ng && FseNg::Instance().UpdateValFinalRate()) {
++    FseNgUpdateTargetBitrate(new_bitrate, at_time);
++  }
++  else if (fse_opt == fse_v2 && fseV2Flow_) {
++    FseV2UpdateTargetBitrate(new_bitrate, at_time);
++  }
++  else {
++    NormalUpdateTargetBitrate(new_bitrate, at_time);
++  }
++}
++
++void SendSideBandwidthEstimation::NormalUpdateTargetBitrate(
++        DataRate new_bitrate, 
++        Timestamp at_time) {
++    //TOBIAS
++    DataRate loss_based_estimate = new_bitrate;
++    DataRate old_rate = current_target_;
++    //TOBIAS
++
++    new_bitrate = std::min(new_bitrate, GetUpperLimit());
++    if (new_bitrate < min_bitrate_configured_) {
++      MaybeLogLowBitrateWarning(new_bitrate, at_time);
++      new_bitrate = min_bitrate_configured_;
++    }
++   //TOBIAS 
++  if(current_target_.IsFinite() && old_rate.IsFinite() && new_bitrate.IsFinite()) {
++    RTC_LOG(LS_INFO) << "PLOT_THISSSBE cc_r_change=" << current_target_.kbps() - old_rate.kbps();
++    if (loss_based_estimate.IsFinite() && new_bitrate == loss_based_estimate ) {
++      RTC_LOG(LS_INFO) << "PLOT_THIS_GCC_LOSS estimate=" << loss_based_estimate.kbps();
++    }
++    else if (delay_based_limit_.IsFinite() && new_bitrate == delay_based_limit_ ) {
++      RTC_LOG(LS_INFO) << "PLOT_THIS_GCC_DELAY estimate=" << delay_based_limit_.kbps();
++    }
++    else  {
++      RTC_LOG(LS_INFO) << "PLOT_THIS_GCC_MAX estimate=" << new_bitrate.kbps();
++    }
++  }
++    //TOBIAS 
++
++    current_target_ = new_bitrate;
++    MaybeLogLossBasedEvent(at_time);
++    link_capacity_.OnRateUpdate(acknowledged_rate_, current_target_, at_time);
++}
++
++void SendSideBandwidthEstimation::FseV2UpdateTargetBitrate(
++        DataRate new_bitrate, 
++        Timestamp at_time) {
++  //TOBIAS for debugging
++  DataRate old_rate = current_target_;
++  DataRate loss_based_estimate = new_bitrate;
++  //TOBIAS for debugging
++
++  new_bitrate = std::min(new_bitrate, delay_based_limit_);
++
++  if(current_target_.IsFinite() && old_rate.kbps() && new_bitrate.IsFinite()) {
++    RTC_LOG(LS_INFO) << "PLOT_THISSSBE cc_r_change=" << current_target_.kbps() - old_rate.kbps();
++    if (loss_based_estimate.IsFinite() && new_bitrate == loss_based_estimate ) {
++      RTC_LOG(LS_INFO) << "PLOT_THIS_GCC_LOSS estimate=" << loss_based_estimate.kbps();
++    }
++    else if (delay_based_limit_.IsFinite() && new_bitrate == delay_based_limit_ ) {
++      RTC_LOG(LS_INFO) << "PLOT_THIS_GCC_DELAY estimate=" << delay_based_limit_.kbps();
++    }
++    else  {
++      RTC_LOG(LS_INFO) << "PLOT_THIS_GCC_MAX estimate=" << new_bitrate.kbps();
++    }
++  }
++
++  if (fseV2Flow_) {
++      FseV2::Instance().RateFlowUpdate(
++          fseV2Flow_, 
++          new_bitrate, 
++          last_round_trip_time_,
++          at_time,
++          true);
++  }
++}
++
++
++void SendSideBandwidthEstimation::FseNgUpdateTargetBitrate(
++        DataRate new_bitrate, 
++        Timestamp at_time) {
+   new_bitrate = std::min(new_bitrate, GetUpperLimit());
+   if (new_bitrate < min_bitrate_configured_) {
+-    MaybeLogLowBitrateWarning(new_bitrate, at_time);
+-    new_bitrate = min_bitrate_configured_;
++      MaybeLogLowBitrateWarning(new_bitrate, at_time);
++      new_bitrate = min_bitrate_configured_;
+   }
+-  current_target_ = new_bitrate;
++  current_target_ = new_bitrate; 
+   MaybeLogLossBasedEvent(at_time);
++
++  if(!fseNgFlow_) {
++    fseNgFlow_ = FseNg::Instance().RegisterRateFlow(
++            current_target_, 
++            [this](DataRate fse_rate) { this->current_target_ = fse_rate; } );
++  }
++
++  FseNg::Instance().RateUpdate(
++          fseNgFlow_, 
++          new_bitrate, 
++          last_round_trip_time_);
++
+   link_capacity_.OnRateUpdate(acknowledged_rate_, current_target_, at_time);
+ }
+ 
++
++void SendSideBandwidthEstimation::SetCurrentTargetDirectly(DataRate fse_rate) {
++  current_target_ = fse_rate;
++  RTC_LOG(LS_INFO) << "PLOT_THISGCC_L_FSE rate_and_state=" << current_target_.kbps();
++}
++
+ void SendSideBandwidthEstimation::ApplyTargetLimits(Timestamp at_time) {
++
+   UpdateTargetBitrate(current_target_, at_time);
+ }
+ 
+diff --git a/modules/congestion_controller/goog_cc/send_side_bandwidth_estimation.h b/modules/congestion_controller/goog_cc/send_side_bandwidth_estimation.h
+index f31f30f..c374850 100644
+--- a/modules/congestion_controller/goog_cc/send_side_bandwidth_estimation.h
++++ b/modules/congestion_controller/goog_cc/send_side_bandwidth_estimation.h
+@@ -29,6 +29,10 @@
+ #include "modules/congestion_controller/goog_cc/loss_based_bwe_v2.h"
+ #include "rtc_base/experiments/field_trial_parser.h"
+ 
++#include "modules/congestion_controller/goog_cc/fse_flow.h"
++#include "modules/congestion_controller/goog_cc/fse_ng.h"
++#include "modules/congestion_controller/goog_cc/fse_v2.h"
++
+ namespace webrtc {
+ 
+ class RtcEventLog;
+@@ -78,7 +82,8 @@ class SendSideBandwidthEstimation {
+  public:
+   SendSideBandwidthEstimation() = delete;
+   SendSideBandwidthEstimation(const WebRtcKeyValueConfig* key_value_config,
+-                              RtcEventLog* event_log);
++                              RtcEventLog* event_log,
++                              std::shared_ptr<GccRateFlow> fse_v2_flow);
+   ~SendSideBandwidthEstimation();
+ 
+   void OnRouteChange();
+@@ -112,6 +117,11 @@ class SendSideBandwidthEstimation {
+                    DataRate max_bitrate,
+                    Timestamp at_time);
+   void SetSendBitrate(DataRate bitrate, Timestamp at_time);
++  //TOBIAS
++  void SetCurrentTargetDirectly(DataRate fse_rate);
++  void FseV2SetSendBitrate(DataRate new_bitrate, Timestamp at_time);
++  //TOBIAS
++
+   void SetMinMaxBitrate(DataRate min_bitrate, DataRate max_bitrate);
+   int GetMinBitrate() const;
+   void SetAcknowledgedRate(absl::optional<DataRate> acknowledged_rate,
+@@ -199,6 +209,15 @@ class SendSideBandwidthEstimation {
+   LossBasedBandwidthEstimation loss_based_bandwidth_estimator_v1_;
+   LossBasedBweV2 loss_based_bandwidth_estimator_v2_;
+   FieldTrialFlag disable_receiver_limit_caps_only_;
++
++
++  // Added by TOBIAS
++  std::shared_ptr<RateFlow> fseNgFlow_;
++  void FseNgUpdateTargetBitrate(DataRate new_bitrate, Timestamp at_time);
++  std::shared_ptr<GccRateFlow> fseV2Flow_;
++  void NormalUpdateTargetBitrate(DataRate new_bitrate, Timestamp at_time);
++  void FseV2UpdateTargetBitrate(DataRate new_bitrate, Timestamp at_time);
++  // Added by TOBIAS
+ };
+ }  // namespace webrtc
+ #endif  // MODULES_CONGESTION_CONTROLLER_GOOG_CC_SEND_SIDE_BANDWIDTH_ESTIMATION_H_
+diff --git a/modules/remote_bitrate_estimator/aimd_rate_control.cc b/modules/remote_bitrate_estimator/aimd_rate_control.cc
+index 408f208..77680a8 100644
+--- a/modules/remote_bitrate_estimator/aimd_rate_control.cc
++++ b/modules/remote_bitrate_estimator/aimd_rate_control.cc
+@@ -8,7 +8,9 @@
+  *  be found in the AUTHORS file in the root of the source tree.
+  */
+ 
++
+ #include "modules/remote_bitrate_estimator/aimd_rate_control.h"
++#include "modules/congestion_controller/goog_cc/fse_config.h"
+ 
+ #include <inttypes.h>
+ 
+@@ -68,10 +70,11 @@ double ReadBackoffFactor(const WebRtcKeyValueConfig& key_value_config) {
+ }  // namespace
+ 
+ AimdRateControl::AimdRateControl(const WebRtcKeyValueConfig* key_value_config)
+-    : AimdRateControl(key_value_config, /* send_side =*/false) {}
++    : AimdRateControl(key_value_config, /* send_side =*/false, nullptr) {}
+ 
+ AimdRateControl::AimdRateControl(const WebRtcKeyValueConfig* key_value_config,
+-                                 bool send_side)
++                                 bool send_side,
++                                 std::shared_ptr<GccRateFlow> fse_v2_flow)
+     : min_configured_bitrate_(congestion_controller::GetMinBitrate()),
+       max_configured_bitrate_(DataRate::KilobitsPerSec(30000)),
+       current_bitrate_(max_configured_bitrate_),
+@@ -99,7 +102,8 @@ AimdRateControl::AimdRateControl(const WebRtcKeyValueConfig* key_value_config,
+           IsNotDisabled(*key_value_config,
+                         "WebRTC-Bwe-EstimateBoundedIncrease")),
+       initial_backoff_interval_("initial_backoff_interval"),
+-      link_capacity_fix_("link_capacity_fix") {
++      link_capacity_fix_("link_capacity_fix"),
++      fse_v2_flow_(fse_v2_flow) {
+   // E.g
+   // WebRTC-BweAimdRateControlConfig/initial_backoff_interval:100ms/
+   ParseFieldTrial({&initial_backoff_interval_, &link_capacity_fix_},
+@@ -112,7 +116,28 @@ AimdRateControl::AimdRateControl(const WebRtcKeyValueConfig* key_value_config,
+   RTC_LOG(LS_INFO) << "Using aimd rate control with back off factor " << beta_;
+ }
+ 
+-AimdRateControl::~AimdRateControl() {}
++AimdRateControl::~AimdRateControl() {
++  // ADDED BY TOBIAS
++  if (fseFlow_) {
++    switch (FseConfig::Instance().CurrentFse()) {
++      case fse: {
++        FlowStateExchange::Instance().DeRegister(fseFlow_);
++        break;
++      }
++      case fse_ng: {
++        FseNg::Instance().DeRegisterRateFlow(fseFlow_);
++        break;
++      }
++      case fse_ng_v2: {
++        FseNgV2::Instance().DeRegisterRateFlow(fseFlow_);
++        break;
++      }
++      default:
++        break;
++    }
++  }
++  // ADDED BY TOBIAS
++}
+ 
+ void AimdRateControl::SetStartBitrate(DataRate start_bitrate) {
+   current_bitrate_ = start_bitrate;
+@@ -182,7 +207,7 @@ void AimdRateControl::SetRtt(TimeDelta rtt) {
+ DataRate AimdRateControl::Update(const RateControlInput* input,
+                                  Timestamp at_time) {
+   RTC_CHECK(input);
+-
++  RTC_LOG(LS_INFO) <<"Updaing";;
+   // Set the initial bit rate value to what we're receiving the first half
+   // second.
+   // TODO(bugs.webrtc.org/9379): The comment above doesn't match to the code.
+@@ -218,6 +243,13 @@ void AimdRateControl::SetEstimate(DataRate bitrate, Timestamp at_time) {
+   }
+ }
+ 
++//TOBIAS
++void AimdRateControl::SetEstimateDirectly(DataRate bitrate, Timestamp at_time) {
++  current_bitrate_ = ClampBitrate(bitrate);
++  RTC_LOG(LS_INFO) << "PLOT_THISGCC_D_FSE rate_and_state=" << current_bitrate_.kbps();
++}
++//TOBIAS
++
+ void AimdRateControl::SetNetworkStateEstimate(
+     const absl::optional<NetworkStateEstimate>& estimate) {
+   network_estimate_ = estimate;
+@@ -280,6 +312,8 @@ void AimdRateControl::ChangeBitrate(const RateControlInput& input,
+ 
+   switch (rate_control_state_) {
+     case RateControlState::kRcHold:
++      if (current_bitrate_.IsFinite())
++            RTC_LOG(LS_INFO) << "PLOT_THISGCC_D_HOLD rate_and_state=" << current_bitrate_.kbps();
+       break;
+ 
+     case RateControlState::kRcIncrease:
+@@ -310,6 +344,8 @@ void AimdRateControl::ChangeBitrate(const RateControlInput& input,
+           increased_bitrate = current_bitrate_ + multiplicative_increase;
+         }
+         new_bitrate = std::min(increased_bitrate, troughput_based_limit);
++        if (new_bitrate.has_value())
++            RTC_LOG(LS_INFO) << "PLOT_THISGCC_D_INC rate_and_state=" << new_bitrate.value().kbps();
+       }
+ 
+       time_last_bitrate_change_ = at_time;
+@@ -333,7 +369,7 @@ void AimdRateControl::ChangeBitrate(const RateControlInput& input,
+         decreased_bitrate = std::max(
+             decreased_bitrate, network_estimate_->link_capacity_lower * beta_);
+       }
+-
++      
+       // Avoid increasing the rate when over-using.
+       if (decreased_bitrate < current_bitrate_) {
+         new_bitrate = decreased_bitrate;
+@@ -358,13 +394,93 @@ void AimdRateControl::ChangeBitrate(const RateControlInput& input,
+       rate_control_state_ = RateControlState::kRcHold;
+       time_last_bitrate_change_ = at_time;
+       time_last_bitrate_decrease_ = at_time;
++      if (new_bitrate.has_value())
++        RTC_LOG(LS_INFO) << "PLOT_THISGCC_D_DEC rate_and_state=" << new_bitrate.value().kbps();
+       break;
+     }
+     default:
+       RTC_DCHECK_NOTREACHED();
+   }
+ 
+-  current_bitrate_ = ClampBitrate(new_bitrate.value_or(current_bitrate_));
++  switch (FseConfig::Instance().CurrentFse()) {
++    case fse: {
++      FseChangeBitrate(new_bitrate.value_or(current_bitrate_));
++      break;
++    }
++    case fse_ng: {
++      FseNgChangeBitrate(new_bitrate.value_or(current_bitrate_));
++      break;
++    }
++    case fse_ng_v2: {
++      FseNgV2ChangeBitrate(new_bitrate.value_or(current_bitrate_));
++      break;
++    }
++    default: {
++      current_bitrate_ = ClampBitrate(new_bitrate.value_or(current_bitrate_));
++     }
++  }
++}
++
++
++void AimdRateControl::FseChangeBitrate(DataRate new_bitrate) {
++  if (estimate_bounded_increase_ && network_estimate_) {
++    DataRate upper_bound = network_estimate_->link_capacity_upper;
++    new_bitrate = std::min(new_bitrate, upper_bound);
++  }
++  new_bitrate = std::max(new_bitrate, min_configured_bitrate_);
++  
++  if (!fseFlow_) {
++    fseFlow_ = FlowStateExchange::Instance().Register(
++            current_bitrate_, 
++            [this](DataRate fse_rate) { this->current_bitrate_ = fse_rate; } );
++  }
++  
++  FlowStateExchange::Instance().Update(
++          fseFlow_,
++          new_bitrate);
++}
++
++void AimdRateControl::FseNgChangeBitrate(DataRate new_bitrate) {
++  if (!FseNg::Instance().UpdateValFinalRate()) {
++    if (estimate_bounded_increase_ && network_estimate_) {
++      DataRate upper_bound = network_estimate_->link_capacity_upper;
++      new_bitrate = std::min(new_bitrate, upper_bound);
++    }
++    new_bitrate = std::max(new_bitrate, min_configured_bitrate_);
++
++    if (!fseFlow_) {
++      fseFlow_ = FseNg::Instance().RegisterRateFlow(
++              current_bitrate_, 
++              [this](DataRate fse_rate) { this->current_bitrate_ = fse_rate; } );
++    }
++
++    FseNg::Instance().RateUpdate(
++            fseFlow_,
++            new_bitrate,
++            rtt_);
++  }
++  else {
++    current_bitrate_ = ClampBitrate(new_bitrate);
++  }
++}
++
++void AimdRateControl::FseNgV2ChangeBitrate(DataRate new_bitrate) {
++  if (estimate_bounded_increase_ && network_estimate_) {
++    DataRate upper_bound = network_estimate_->link_capacity_upper;
++    new_bitrate = std::min(new_bitrate, upper_bound);
++  }
++  new_bitrate = std::max(new_bitrate, min_configured_bitrate_);
++
++  if (!fseFlow_) {
++    fseFlow_ = FseNgV2::Instance().RegisterRateFlow(
++            current_bitrate_, 
++            [this](DataRate fse_rate) { this->current_bitrate_ = fse_rate; } );
++  }
++
++  FseNgV2::Instance().RateUpdate(
++          fseFlow_,
++          new_bitrate);
++
+ }
+ 
+ DataRate AimdRateControl::ClampBitrate(DataRate new_bitrate) const {
+diff --git a/modules/remote_bitrate_estimator/aimd_rate_control.h b/modules/remote_bitrate_estimator/aimd_rate_control.h
+index 3e0d541..431c819 100644
+--- a/modules/remote_bitrate_estimator/aimd_rate_control.h
++++ b/modules/remote_bitrate_estimator/aimd_rate_control.h
+@@ -22,6 +22,11 @@
+ #include "modules/remote_bitrate_estimator/include/bwe_defines.h"
+ #include "rtc_base/experiments/field_trial_parser.h"
+ 
++#include "modules/congestion_controller/goog_cc/fse_ng.h"
++#include "modules/congestion_controller/goog_cc/flow_state_exchange.h"
++#include "modules/congestion_controller/goog_cc/fse_v2.h"
++#include "modules/congestion_controller/goog_cc/fse_ng_v2.h"
++
+ namespace webrtc {
+ // A rate control implementation based on additive increases of
+ // bitrate when no over-use is detected and multiplicative decreases when
+@@ -31,7 +36,7 @@ namespace webrtc {
+ class AimdRateControl {
+  public:
+   explicit AimdRateControl(const WebRtcKeyValueConfig* key_value_config);
+-  AimdRateControl(const WebRtcKeyValueConfig* key_value_config, bool send_side);
++  AimdRateControl(const WebRtcKeyValueConfig* key_value_config, bool send_side, std::shared_ptr<GccRateFlow> fse_v2_flow);
+   ~AimdRateControl();
+ 
+   // Returns true if the target bitrate has been initialized. This happens
+@@ -56,6 +61,10 @@ class AimdRateControl {
+   DataRate Update(const RateControlInput* input, Timestamp at_time);
+   void SetInApplicationLimitedRegion(bool in_alr);
+   void SetEstimate(DataRate bitrate, Timestamp at_time);
++  //TOBIAS
++  void SetEstimateDirectly(DataRate bitrate, Timestamp at_time);
++  //TOBIAS
++
+   void SetNetworkStateEstimate(
+       const absl::optional<NetworkStateEstimate>& estimate);
+ 
+@@ -113,6 +122,15 @@ class AimdRateControl {
+   absl::optional<DataRate> last_decrease_;
+   FieldTrialOptional<TimeDelta> initial_backoff_interval_;
+   FieldTrialFlag link_capacity_fix_;
++
++  //ADDED BY TOBIAS
++  std::shared_ptr<RateFlow> fseFlow_;
++  std::shared_ptr<GccRateFlow> fse_v2_flow_;
++  void FseChangeBitrate(DataRate new_bitrate);
++  void FseNgChangeBitrate(DataRate new_bitrate);
++  void FseNgV2ChangeBitrate(DataRate new_bitrate);
++  //ADDED BY TOBIAS
++
+ };
+ }  // namespace webrtc
+ 
+diff --git a/modules/remote_bitrate_estimator/overuse_detector.cc b/modules/remote_bitrate_estimator/overuse_detector.cc
+index 710b3b2..ae3d21d 100644
+--- a/modules/remote_bitrate_estimator/overuse_detector.cc
++++ b/modules/remote_bitrate_estimator/overuse_detector.cc
+@@ -15,11 +15,14 @@
+ 
+ #include <algorithm>
+ #include <string>
+-
+ #include "modules/remote_bitrate_estimator/test/bwe_test_logging.h"
+ #include "rtc_base/checks.h"
+ #include "rtc_base/numerics/safe_minmax.h"
+ 
++//TOBIAS
++#include "rtc_base/logging.h"
++//TOBIAS
++
+ namespace webrtc {
+ 
+ const char kAdaptiveThresholdExperiment[] = "WebRTC-AdaptiveBweThreshold";
+@@ -70,6 +73,7 @@ OveruseDetector::OveruseDetector(const WebRtcKeyValueConfig* key_value_config)
+       time_over_using_(-1),
+       overuse_counter_(0),
+       hypothesis_(BandwidthUsage::kBwNormal) {
++  RTC_LOG(LS_INFO) << "Creating OverUseDetector";
+   if (!AdaptiveThresholdExperimentIsDisabled(*key_value_config))
+     InitializeExperiment(*key_value_config);
+ }
+@@ -125,6 +129,7 @@ BandwidthUsage OveruseDetector::Detect(double offset,
+ }
+ 
+ void OveruseDetector::UpdateThreshold(double modified_offset, int64_t now_ms) {
++  RTC_LOG(LS_INFO) << "in_experiment_:" << in_experiment_;
+   if (!in_experiment_)
+     return;
+ 
+@@ -132,6 +137,7 @@ void OveruseDetector::UpdateThreshold(double modified_offset, int64_t now_ms) {
+     last_update_ms_ = now_ms;
+ 
+   if (fabs(modified_offset) > threshold_ + kMaxAdaptOffsetMs) {
++    RTC_LOG(LS_INFO) << "avoiding del_var_threshold update";
+     // Avoid adapting the threshold to big latency spikes, caused e.g.,
+     // by a sudden capacity drop.
+     last_update_ms_ = now_ms;
+@@ -144,6 +150,9 @@ void OveruseDetector::UpdateThreshold(double modified_offset, int64_t now_ms) {
+   threshold_ += k * (fabs(modified_offset) - threshold_) * time_delta_ms;
+   threshold_ = rtc::SafeClamp(threshold_, 6.f, 600.f);
+   last_update_ms_ = now_ms;
++  //TOBIAS
++  RTC_LOG(LS_INFO) << "updaing del_var_threshold to" << threshold_;
++  //TOBIAS
+ }
+ 
+ void OveruseDetector::InitializeExperiment(
+diff --git a/net/dcsctp/tx/retransmission_queue.cc b/net/dcsctp/tx/retransmission_queue.cc
+index d980710..11e0691 100644
+--- a/net/dcsctp/tx/retransmission_queue.cc
++++ b/net/dcsctp/tx/retransmission_queue.cc
+@@ -42,6 +42,11 @@
+ #include "rtc_base/logging.h"
+ #include "rtc_base/strings/string_builder.h"
+ 
++// Added by TOBIAS
++#include "modules/congestion_controller/goog_cc/fse_v2.h"
++#include "modules/congestion_controller/goog_cc/fse_config.h"
++// Added by TOBIAS
++
+ namespace dcsctp {
+ namespace {
+ 
+@@ -61,7 +66,8 @@ RetransmissionQueue::RetransmissionQueue(
+     bool supports_partial_reliability,
+     bool use_message_interleaving,
+     const DcSctpSocketHandoverState* handover_state)
+-    : options_(options),
++    : last_rtt_(DurationMs(0)),
++      options_(options),
+       min_bytes_required_to_send_(options.mtu * kMinBytesRequiredToSendFactor),
+       partial_reliability_(supports_partial_reliability),
+       log_prefix_(std::string(log_prefix) + "tx: "),
+@@ -93,7 +99,73 @@ RetransmissionQueue::RetransmissionQueue(
+                                     : TSN(*my_initial_tsn - 1)),
+           [this](IsUnordered unordered, StreamID stream_id, MID message_id) {
+             return send_queue_.Discard(unordered, stream_id, message_id);
+-          }) {}
++          }){
++    /*if (webrtc::FseConfig::Instance().CurrentFse() == webrtc::fse_v2 
++            && webrtc::FseConfig::Instance().CoupleDcSctp()
++            && !fse_v2_flow_) {
++      uint64_t last_rtt = last_rtt_.value() * 1000;
++      RTC_LOG(LS_INFO) << "Registering cwnd flow";
++      fse_v2_flow_ = webrtc::FseV2::Instance().RegisterCwndFlow(
++            cwnd_,
++            last_rtt, 
++            [this](uint32_t fse_cwnd) {
++              FseSetCwnd(fse_cwnd);
++            });
++    }*/
++}
++
++//TOBIAS
++RetransmissionQueue::~RetransmissionQueue() {
++  if (fse_v2_flow_ 
++          && webrtc::FseConfig::Instance().CurrentFse() == webrtc::fse_v2
++          && webrtc::FseConfig::Instance().CoupleDcSctp()) {
++    webrtc::FseV2::Instance().DeRegisterCwndFlow(fse_v2_flow_);
++  }
++}
++
++void RetransmissionQueue::OnCwndChanged() {
++  // FSE expects rtt to be in us
++  uint64_t last_rtt = last_rtt_.value() * 1000;
++
++  if (webrtc::FseConfig::Instance().CurrentFse() == webrtc::fse_v2
++          && webrtc::FseConfig::Instance().CoupleDcSctp()
++          && last_rtt != 0) {
++    if (!fse_v2_flow_) {
++      RTC_LOG(LS_INFO) << "Registering cwnd flow";
++      fse_v2_flow_ = webrtc::FseV2::Instance().RegisterCwndFlow(
++            cwnd_,
++            last_rtt, 
++            [this](uint32_t fse_cwnd) {
++              FseSetCwnd(fse_cwnd);
++            });
++    }
++
++
++    uint32_t fse_cwnd = 
++        webrtc::FseV2::Instance().CwndFlowUpdate(fse_v2_flow_, cwnd_, last_rtt);
++    FseSetCwnd(fse_cwnd);
++  }
++}
++
++void RetransmissionQueue::FseSetCwnd(uint32_t fse_cwnd) {
++    //fse_cwnd -= fse_cwnd % options_.mtu;
++
++    if (fse_cwnd < options_.cwnd_mtus_min * options_.mtu) {
++      fse_cwnd = options_.cwnd_mtus_min * options_.mtu;
++    }
++
++    if (phase() == CongestionAlgorithmPhase::kCongestionAvoidance
++            && fse_cwnd <= ssthresh_) {
++      //ssthresh_ = fse_cwnd - options_.mtu;
++      //ssthresh_ = std::max(fse_cwnd - options_.mtu, options_.cwnd_mtus_min * options_.mtu);
++      ssthresh_ = fse_cwnd - 1;
++      RTC_LOG(LS_INFO) << "PLOT_THIS"
++               << " ssthresh_fse=" << ssthresh_;
++    }
++    cwnd_ = fse_cwnd;
++}
++
++//TOBIAS
+ 
+ bool RetransmissionQueue::IsConsistent() const {
+   return true;
+@@ -137,6 +209,8 @@ void RetransmissionQueue::HandleIncreasedCumulativeTsnAck(
+       cwnd_ += std::min(total_bytes_acked, options_.mtu);
+       RTC_DLOG(LS_VERBOSE) << log_prefix_ << "SS increase cwnd=" << cwnd_
+                            << " (" << old_cwnd << ")";
++      RTC_LOG(LS_INFO) << "PLOT_THISSCTP_SS rate_and_state=" 
++          << webrtc::Flow::CwndToRate(cwnd_, last_rtt_.value()*1000).kbps();
+     }
+   } else if (phase() == CongestionAlgorithmPhase::kCongestionAvoidance) {
+     // https://tools.ietf.org/html/rfc4960#section-7.2.2
+@@ -163,6 +237,9 @@ void RetransmissionQueue::HandleIncreasedCumulativeTsnAck(
+                            << " (" << old_cwnd << ") ssthresh=" << ssthresh_
+                            << ", pba=" << partial_bytes_acked_ << " ("
+                            << old_pba << ")";
++
++      RTC_LOG(LS_INFO) << "PLOT_THISSCTP_CA rate_and_state=" 
++          << webrtc::Flow::CwndToRate(cwnd_, last_rtt_.value()*1000).kbps();
+     } else {
+       RTC_DLOG(LS_VERBOSE) << log_prefix_ << "CA unchanged cwnd=" << cwnd_
+                            << " (" << old_cwnd << ") ssthresh=" << ssthresh_
+@@ -198,6 +275,8 @@ void RetransmissionQueue::HandlePacketLoss(UnwrappedTSN highest_tsn_acked) {
+     RTC_DLOG(LS_VERBOSE) << log_prefix_
+                          << "fast recovery initiated with exit_point="
+                          << *fast_recovery_exit_tsn_->Wrap();
++    RTC_LOG(LS_INFO) << "PLOT_THISSCTP_FR rate_and_state=" 
++        << webrtc::Flow::CwndToRate(cwnd_, last_rtt_.value()*1000).kbps();
+   } else {
+     // https://tools.ietf.org/html/rfc4960#section-7.2.4
+     // "While in Fast Recovery, the ssthresh and cwnd SHOULD NOT change for
+@@ -267,6 +346,7 @@ bool RetransmissionQueue::HandleSack(TimeMs now, const SackChunk& sack) {
+     return false;
+   }
+ 
++
+   UnwrappedTSN old_last_cumulative_tsn_ack =
+       outstanding_data_.last_cumulative_tsn_ack();
+   size_t old_outstanding_bytes = outstanding_data_.outstanding_bytes();
+@@ -305,6 +385,7 @@ bool RetransmissionQueue::HandleSack(TimeMs now, const SackChunk& sack) {
+ 
+     HandleIncreasedCumulativeTsnAck(old_outstanding_bytes,
+                                     ack_info.bytes_acked);
++
+   }
+ 
+   if (ack_info.has_packet_loss) {
+@@ -319,6 +400,10 @@ bool RetransmissionQueue::HandleSack(TimeMs now, const SackChunk& sack) {
+     on_clear_retransmission_counter_();
+   }
+ 
++  //TOBIAS
++  OnCwndChanged();
++  //TOBIAS
++
+   StartT3RtxTimerIfOutstandingData();
+   RTC_DCHECK(IsConsistent());
+   return true;
+@@ -339,6 +424,11 @@ void RetransmissionQueue::UpdateRTT(TimeMs now,
+ 
+   if (rtt.has_value()) {
+     on_new_rtt_(*rtt);
++    //TOBIAS Inspired by ObserveRTT in retransmission_timeout.cc
++    if (rtt > DurationMs(0) && rtt < options_.rtt_max) {
++      last_rtt_ = *rtt;
++    }
++    //TOBIAS
+   }
+ }
+ 
+@@ -383,6 +473,11 @@ void RetransmissionQueue::HandleT3RtxTimerExpiry() {
+                     << " (" << old_cwnd << "), ssthresh=" << ssthresh_
+                     << ", outstanding_bytes " << outstanding_bytes() << " ("
+                     << old_outstanding_bytes << ")";
++  RTC_LOG(LS_INFO) << "PLOT_THISSCTP_RTO rate_and_state=" 
++      << webrtc::Flow::CwndToRate(cwnd_, last_rtt_.value()*1000).kbps();
++  //TOBIAS
++  OnCwndChanged();
++  //TOBIAS
+   RTC_DCHECK(IsConsistent());
+ }
+ 
+diff --git a/net/dcsctp/tx/retransmission_queue.h b/net/dcsctp/tx/retransmission_queue.h
+index 08f11db..4a91bc8 100644
+--- a/net/dcsctp/tx/retransmission_queue.h
++++ b/net/dcsctp/tx/retransmission_queue.h
+@@ -33,6 +33,11 @@
+ #include "net/dcsctp/tx/retransmission_timeout.h"
+ #include "net/dcsctp/tx/send_queue.h"
+ 
++// added by TOBIAS
++#include "modules/congestion_controller/goog_cc/fse_ng.h"
++#include "modules/congestion_controller/goog_cc/fse_flow.h"
++// added by TOBIAS
++
+ namespace dcsctp {
+ 
+ // The RetransmissionQueue manages all DATA/I-DATA chunks that are in-flight and
+@@ -67,6 +72,10 @@ class RetransmissionQueue {
+       bool use_message_interleaving = false,
+       const DcSctpSocketHandoverState* handover_state = nullptr);
+ 
++  //TOBIAS
++  ~RetransmissionQueue();
++  //TOBIAS
++
+   // Handles a received SACK. Returns true if the `sack` was processed and
+   // false if it was discarded due to received out-of-order and not relevant.
+   bool HandleSack(TimeMs now, const SackChunk& sack);
+@@ -200,6 +209,12 @@ class RetransmissionQueue {
+   // to the congestion control algorithm.
+   size_t max_bytes_to_send() const;
+ 
++  //TOBIAS
++  void OnCwndChanged();
++  void FseSetCwnd(uint32_t fse_cwnd);
++  DurationMs last_rtt_;
++  //TOBIAS
++
+   const DcSctpOptions options_;
+   // The minimum bytes required to be available in the congestion window to
+   // allow packets to be sent - to avoid sending too small packets.
+@@ -238,6 +253,10 @@ class RetransmissionQueue {
+   // cumulative acked. Note that it also contains chunks that have been acked in
+   // gap ack blocks.
+   OutstandingData outstanding_data_;
++
++  // Added by TOBIAS
++  std::shared_ptr<webrtc::ActiveCwndFlow> fse_v2_flow_;
++  //Added by TOBIAS
+ };
+ }  // namespace dcsctp
+ 
+-- 
+2.25.1
+
