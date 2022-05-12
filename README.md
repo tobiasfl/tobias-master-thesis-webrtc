@@ -27,8 +27,8 @@ The following papers are important for implementing <a href="http://heim.ifi.uio
 ### Coupled Congestion Control
 <ol>
         <li> <a href="https://tools.ietf.org/html/rfc8699"> RFC8699 </a> </li>
-        <li> <a href="http://dl.acm.org/authorize.cfm?key=N71345"> Paper-1 </a> </li>
-        <li> <a href="https://ieeexplore.ieee.org/document/7502803"> Paper-1 </a> </li>
+        <li> <a href="http://dl.acm.org/authorize.cfm?key=N71345"> Paper </a> </li>
+        <li> <a href="https://ieeexplore.ieee.org/document/7502803"> Paper 2 </a> </li>
 </ol>
 
 ## Chromium
