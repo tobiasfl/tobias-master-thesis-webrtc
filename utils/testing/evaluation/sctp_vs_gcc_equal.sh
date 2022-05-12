@@ -1,6 +1,6 @@
-CAPACITY_MBPS=4
+CAPACITY_MBPS=2
 RTT=100
-QUEUE_PKTS=120
+QUEUE_PKTS=60
 TEST_LEN=125
 
 OUT_DIR=sctp_vs_gcc_equal_${CAPACITY_MBPS}mbps_$(date --rfc-3339=date)
@@ -15,10 +15,10 @@ run_experiment () {
 
 for RUN in "1" 
 do
-    run_experiment "FseNg" $OUT_DIR/run$RUN
-    run_experiment "FseNgV2" $OUT_DIR/run$RUN
+    #run_experiment "FseNg" $OUT_DIR/run$RUN
+    #run_experiment "FseNgV2" $OUT_DIR/run$RUN
     run_experiment "FseV2" $OUT_DIR/run$RUN
-    run_experiment "none" $OUT_DIR/run$RUN
+    #run_experiment "none" $OUT_DIR/run$RUN
     zip -r $OUT_DIR/run$RUN.zip $OUT_DIR/run$RUN
     rm $OUT_DIR/run$RUN -rf
 done

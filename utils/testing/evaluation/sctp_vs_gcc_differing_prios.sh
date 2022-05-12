@@ -19,7 +19,7 @@ run_experiment () {
     sleep 1
 }
 
-for RUN in "6"
+for RUN in "1"
 do
     #run_experiment "FseNg" $OUT_DIR/run$RUN
     #run_experiment "FseNgV2" $OUT_DIR/run$RUN
