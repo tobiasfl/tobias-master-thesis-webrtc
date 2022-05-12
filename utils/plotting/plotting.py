@@ -1,7 +1,7 @@
 import matplotlib.pyplot as plt
+import matplotlib as mpl
 import pandas as pd
 import numpy as np
-#import seaborn as sns
 from math import sqrt, ceil
 
 
@@ -99,8 +99,14 @@ def plot_box_plot(df):
 
     fig, ax = plt.subplots(figsize=fig_size)
     ax.boxplot(data)
-    mechanisms = ['Uncoupled', 'FSE-NG', 'Extended FSE-NG', 'FSEv2']
-    ax.set_xticks([1,2,3,4], [tex_boldify(x) for x in mechanisms])
+
+    print(len(df.columns))
+    print(df)
+    if (len(df.columns)) == 4:
+
+        ax.set_xticks([1,2,3], [tex_boldify(x) for x in ['FSE-NG', 'Extended FSE-NG', 'FSEv2']])
+    else:
+        ax.set_xticks([1,2,3,4], [tex_boldify(x) for x in ['Uncoupled', 'FSE-NG', 'Extended FSE-NG', 'FSEv2']])
    
     yticks = [x for x in np.arange(100, 350, 50)]
     ax.set_yticks(yticks, [tex_boldify(str(y)) for y in yticks])
@@ -113,10 +119,36 @@ def plot_box_plot(df):
     plt.savefig("boxplot.png")
     plt.show()
 
+def plot_bw_differing_prios_10x10(gcc_avg_tputs, sctp_avg_tputs):
+    plt.rcParams.update(get_rc_params(19,12,16,16,fig_size))
+
+    plt.figure(figsize=fig_size) 
+
+    plt.xlabel(tex_boldify('Priority of SCTP flow'))
+    plt.ylabel(tex_boldify('Throughput(Mbps)'))
+
+    plt.grid(which="both")
+
+    x_data = range(0, 10)
+    xticks = ['1', '0.9', '0.8', '0.7', '0.6', '0.5', '0.4', '0.3', '0.2', '0.1']
+    plt.xticks(x_data, [tex_boldify(t) for t in xticks])
+    plt.xlim(0, 9)
+
+    plt.ylim(0, 2)
+    yticks = [float(x) for x in np.arange(0, 2.5, 0.5)]
+    plt.yticks(yticks, [tex_boldify(str(t)) for t in yticks])
+
+    for (lst, label, style, mark) in zip([gcc_avg_tputs, sctp_avg_tputs], ['RTP', 'SCTP'], ['solid', 'dashed'], ['x', 'd']):
+        plt.plot(x_data, lst, linestyle=style, linewidth=1, markevery=1, marker=mark, label=tex_boldify(label))
+
+    finalize_plot("differing_prios_10x10", "upper left")
+
 #Assumes time(s), vals1, vals2...
 #For pretty thesis plots
 def plot_line_plot(df, xlabel, ylabel):
     plt.rcParams.update(get_rc_params(19,12,18,18,fig_size))
+    #plt.rcParams.update(get_rc_params(14,10,12,12,fig_size))
+
 
     plt.figure(figsize=fig_size) 
 
@@ -124,17 +156,17 @@ def plot_line_plot(df, xlabel, ylabel):
 
     minx = df[time_col_name].min()
     maxx = df[time_col_name].max()
-    maxx = 120
+    maxx = 115
     plt.xlim(minx, maxx)
 
     miny = min([df[col].min() for col in df.columns[1:]])
     maxy = max([df[col].max() for col in df.columns[1:]])
     plt.ylim(miny, maxy)
     
-    xticks = np.arange(minx, maxx+1, 30)
+    xticks = np.arange(minx, maxx+30, 30)
     #yticks = [int(x) for x in np.arange(miny, maxy+1, 1)]
-    #yticks = [int(x) for x in np.arange(miny, 5.5+1, 1)]
-    yticks = [float(x) for x in np.arange(miny, 3, 0.5)]
+    yticks = [int(x) for x in np.arange(miny, 6+1, 1)]
+    #yticks = [float(x) for x in np.arange(miny, 3, 0.5)]
 
     #Hacky way to make sure ticks are also bold and correct font
     plt.xticks(xticks, [tex_boldify(str(tick)) for tick in xticks])
@@ -193,10 +225,10 @@ def plot_tput_and_rtt_comparison(tput_df, rtt_df):
     for (col, style) in zip(sorted(tput_df.columns[1:]), styles):
         ax_t.plot(tput_df[time_col_name], tput_df[col], linestyle=style, linewidth=1.5, label=tex_boldify(col))
 
-    ax_t.set(ylabel=tex_boldify("mbps"))
+    ax_t.set(ylabel=tex_boldify("Mbps"))
     ax_t.grid(which="both")
 
-    ax_t.legend(loc="center right", ncol=2)
+    ax_t.legend(loc="lower right", ncol=2)
 
 
     #RTT plot
@@ -225,112 +257,138 @@ def plot_tput_and_rtt_comparison(tput_df, rtt_df):
 def plot_bar_plot():
     print("test")
 
-#df should be format: 
-def plot_heat_map(df, x_title, y_title):
-    fig_size = [fig_width,fig_height] 
-    
-    print("test")
 
-#Probably not gonna be used
-def plot_comparison_throughput(df_left, left_title, df_right, right_title):
-    plt.rcParams.update(get_rc_params(14, 8, 10, 10, [fig_width,fig_height*0.75]))
+def heatmap(data, row_labels, col_labels, ax=None,
+            cbar_kw={}, cbarlabel="", **kwargs):
+    """
+    Create a heatmap from a numpy array and two lists of labels.
 
-    fig, (ax_l, ax_r) = plt.subplots(1, 2, sharey=True, figsize=fig_size)
-    fig.add_subplot(111, frameon=False) 
-    plt.tick_params(labelcolor='none', which='both', top=False, bottom=False, left=False, right=False)
+    Parameters
+    ----------
+    data
+        A 2D numpy array of shape (M, N).
+    row_labels
+        A list or array of length M with the labels for the rows.
+    col_labels
+        A list or array of length N with the labels for the columns.
+    ax
+        A `matplotlib.axes.Axes` instance to which the heatmap is plotted.  If
+        not provided, use current axes or create a new one.  Optional.
+    cbar_kw
+        A dictionary with arguments to `matplotlib.Figure.colorbar`.  Optional.
+    cbarlabel
+        The label for the colorbar.  Optional.
+    **kwargs
+        All other arguments are forwarded to `imshow`.
+    """
 
-    fig.add_gridspec(1, 2, wspace=0) 
+    if not ax:
+        ax = plt.gca()
 
-    plt.xlabel("Time (s)")
-    plt.ylabel("Throughput (Mbps)")
+    # Plot the heatmap
+    im = ax.imshow(data, **kwargs)
 
-    ax_l.set_title(left_title)
-    ax_r.set_title(right_title)
+    # Create colorbar
+    cbar = ax.figure.colorbar(im, ax=ax, **cbar_kw)
+    cbar.ax.set_ylabel(cbarlabel, rotation=-90, va="bottom")
 
-    handles = []
-    labels = []
-    for (df, ax) in zip([df_left, df_right], [ax_l, ax_r]):
-        ax.grid(which="both")
+    # Show all ticks and label them with the respective list entries.
+    ax.set_xticks(np.arange(data.shape[1]), labels=col_labels)
+    ax.set_yticks(np.arange(data.shape[0]), labels=row_labels)
 
-        xlim = [0, 75]
-        ylim = [0, 2.5]
+    # Let the horizontal axes labeling appear on top.
+    ax.tick_params(top=False, bottom=True,
+                   labeltop=False, labelbottom=True)
 
-        ax.set_xlim(xlim)
-        ax.set_ylim(ylim)
-        
-        ax.set_yticks(range(ylim[0], ceil(ylim[1])))
+    # Rotate the tick labels and set their alignment.
+#    plt.setp(ax.get_xticklabels(), ha="right",
+#             rotation_mode="anchor")
 
-        styles = ['solid', 'dashed', 'dashdot', 'dotted']
-            
-        time_col_name = df.columns[0]
-        #go through sorted by name so that both plots are consistent in terms of line style and labels
-        for (col, style) in zip(sorted(df.columns[1:]), styles):
-            ax.plot(df[time_col_name], df[col], linestyle=style, linewidth=1.5, label=col)
+    # Turn spines off and create white grid.
+    ax.spines[:].set_visible(False)
 
-        handles, labels = ax.get_legend_handles_labels()
+    ax.set_xticks(np.arange(data.shape[1]+1)-.5, minor=True)
+    ax.set_yticks(np.arange(data.shape[0]+1)-.5, minor=True)
+    ax.grid(which="minor", color="w", linestyle='-', linewidth=3)
+    ax.tick_params(which="minor", bottom=False, left=False)
 
-    
+    return im, cbar
 
-    if len(labels) <= 2:
-        fig.legend(handles, labels, loc='upper center', ncol=len(labels), bbox_to_anchor=(0.3,0.27)) 
+
+def annotate_heatmap(im, data=None, valfmt="{x:.2f}",
+                     textcolors=("black", "white"),
+                     threshold=None, **textkw):
+    """
+    A function to annotate a heatmap.
+
+    Parameters
+    ----------
+    im
+        The AxesImage to be labeled.
+    data
+        Data used to annotate.  If None, the image's data is used.  Optional.
+    valfmt
+        The format of the annotations inside the heatmap.  This should either
+        use the string format method, e.g. "$ {x:.2f}", or be a
+        `matplotlib.ticker.Formatter`.  Optional.
+    textcolors
+        A pair of colors.  The first is used for values below a threshold,
+        the second for those above.  Optional.
+    threshold
+        Value in data units according to which the colors from textcolors are
+        applied.  If None (the default) uses the middle of the colormap as
+        separation.  Optional.
+    **kwargs
+        All other arguments are forwarded to each call to `text` used to create
+        the text labels.
+    """
+
+    if not isinstance(data, (list, np.ndarray)):
+        data = im.get_array()
+
+    # Normalize the threshold to the images color range.
+    if threshold is not None:
+        threshold = im.norm(threshold)
     else:
-        fig.legend(handles, labels, loc='upper center', ncol=2, bbox_to_anchor=(0.3,0.27)) 
+        threshold = im.norm(data.max())/2.
+
+    # Set default alignment to center, but allow it to be
+    # overwritten by textkw.
+    kw = dict(horizontalalignment="center",
+              verticalalignment="center")
+    kw.update(textkw)
+
+    # Get the formatter in case a string is supplied
+    if isinstance(valfmt, str):
+        valfmt = mpl.ticker.StrMethodFormatter(valfmt)
+
+    # Loop over the data and create a `Text` for each "pixel".
+    # Change the text's color depending on the data.
+    texts = []
+    for i in range(data.shape[0]):
+        for j in range(data.shape[1]):
+            kw.update(color=textcolors[int(im.norm(data[i, j]) > threshold)])
+            text = im.axes.text(j, i, valfmt(data[i, j], None), **kw)
+            texts.append(text)
+
+    return texts
 
 
+
+def plot_heat_map_2(tputs, x_ticks, y_ticks):
+    plt.rcParams.update(get_rc_params(18, 10, 12, 12, [fig_width*1.50,fig_height*1.50]))
+    fig, ax = plt.subplots()
+
+    im, cbar = heatmap(tputs, y_ticks, x_ticks, ax=ax,
+                       cmap="YlGn", cbarlabel="RTP avg. throughput(Mbps)")
+    texts = annotate_heatmap(im, valfmt="{x:.2f}")
+
+    plt.xlabel("Bottleneck capacity (Mbps)")
+    plt.ylabel("Bottleneck queue length")
+
+
+    plt.savefig("heatmap.png")
     fig.tight_layout()
-    
-    plt.savefig("throughput_comparison.png")
-    plt.show()
-
-#Probably not gonna be used
-def plot_fourway_comparison_throughput(df_top_left, top_left_title, df_top_right, top_right_title, df_bot_left, bot_left_title, df_bot_right, bot_right_title):
-    plt.rcParams.update(get_rc_params(14,8,10,10,[fig_width,fig_height*1.25]))
-
-    fig, (((ax_t_l, ax_t_r), (ax_b_l, ax_b_r))) = plt.subplots(2, 2, sharey=True, sharex=True, figsize=fig_size)
-    fig.add_subplot(111, frameon=False) 
-    plt.tick_params(labelcolor='none', which='both', top=False, bottom=False, left=False, right=False)
-
-    fig.add_gridspec(1, 2, wspace=0) 
-
-    plt.xlabel("Time (s)")
-    plt.ylabel("Throughput (Mbps)")
-
-    ax_t_l.set_title(top_left_title)
-    ax_t_r.set_title(top_right_title)
-    ax_b_l.set_title(bot_left_title)
-    ax_b_r.set_title(bot_right_title)
-
-    handles = []
-    labels = []
-    for (df, ax) in zip([df_top_left, df_top_right, df_bot_left, df_bot_right], [ax_t_l, ax_t_r, ax_b_l, ax_b_r]):
-        ax.grid(which="both")
-
-        xlim = [0, 75]
-        ylim = [0, 2.5]
-
-        ax.set_xlim(xlim)
-        ax.set_ylim(ylim)
-        
-        ax.set_yticks(range(ylim[0], ceil(ylim[1])))
-
-        styles = ['solid', 'dashed', 'dashdot', 'dotted']
-            
-        time_col_name = df.columns[0]
-        #go through sorted by name so that both plots are consistent in terms of line style and labels
-        for (col, style) in zip(sorted(df.columns[1:]), styles):
-            ax.plot(df[time_col_name], df[col], linestyle=style, linewidth=1.5, label=col)
-
-        handles, labels = ax.get_legend_handles_labels()
-
-    if len(labels) <= 2:
-        fig.legend(handles, labels, loc='upper center', ncol=len(labels), bbox_to_anchor=(0.3,0.16)) 
-    else:
-        fig.legend(handles, labels, loc='upper center', ncol=2, bbox_to_anchor=(0.3,0.16)) 
-
-
-    fig.tight_layout()
-    
-    plt.savefig("throughput_comparison_fourway.png")
     plt.show()
 
 

@@ -65,9 +65,9 @@ sctp_enforce_cwnd_limit(struct sctp_association *assoc, struct sctp_nets *net, s
       if (assoc->cwnd_changed) {
         uint32_t fse_cwnd = assoc->cwnd_changed(net->cwnd, assoc->max_cwnd, net->rtt, stcb->sctp_ep->ulp_info);
         fse_cwnd -= fse_cwnd % net->mtu;
+        
+
         /* in CA and our fse_r is lowering cwnd below ssthresh */ 
-        //TODO: double check if this is > or >=, if > is correct, then make
-        //sure that ssthresh is still below cwnd
         if (net->cwnd > net->ssthresh && fse_cwnd <= net->ssthresh) {
           net->ssthresh = fse_cwnd - net->mtu;
           SCTP_PRINTF("PLOT_THIS_fsesetssthresh cwndcc=%u", net->ssthresh);

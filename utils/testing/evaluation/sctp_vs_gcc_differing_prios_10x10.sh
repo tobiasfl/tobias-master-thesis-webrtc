@@ -18,7 +18,7 @@ run_experiment () {
 }
 
 #going downwards from 10
-for PRIO in  "7"
+for PRIO in  "1"
 do
     OUT_DIR=$OUT_DIR/prio_case$PRIO
     mkdir $OUT_DIR

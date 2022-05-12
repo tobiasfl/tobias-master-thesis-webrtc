@@ -42,7 +42,7 @@ def plot_wireshark_tput_and_log_rtt():
         print(rttgcc_df)
         print(rtt_df)
 
-        ws_df = get_df('recv_if_dump.csv')
+        ws_df = get_df('if_dump.csv')
         
         plot_tput_and_rtt_comparison(ws_df, rtt_df)
  

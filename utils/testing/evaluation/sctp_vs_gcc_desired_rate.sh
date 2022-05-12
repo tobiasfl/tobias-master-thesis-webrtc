@@ -15,7 +15,7 @@ run_experiment () {
     sleep 1
 }
 
-for RUN in "1"
+for RUN in "2" "3" "4" "5" "6" "7" "8" "9" "10"
 do
     run_experiment "FseNg" $OUT_DIR/run$RUN
     run_experiment "FseNgV2" $OUT_DIR/run$RUN

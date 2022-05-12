@@ -682,7 +682,7 @@ void SendSideBandwidthEstimation::MaybeLogLossBasedEvent(Timestamp at_time) {
 void SendSideBandwidthEstimation::UpdateTargetBitrate(DataRate new_bitrate,
                                                       Timestamp at_time) {
   if (last_round_trip_time_.IsFinite()) {
-      RTC_LOG(LS_INFO) << "PLOT_THIS_GCC rttgcc=" << last_round_trip_time_.ms();
+      RTC_LOG(LS_INFO) << "PLOT_THIS_GCC" << this << " rttgcc=" << last_round_trip_time_.ms();
   }
   FseVersion fse_opt = FseConfig::Instance().CurrentFse();
   if (fse_opt == fse_ng && FseNg::Instance().UpdateValFinalRate()) {

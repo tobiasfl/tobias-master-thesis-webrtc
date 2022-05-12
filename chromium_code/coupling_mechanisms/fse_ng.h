@@ -2,8 +2,8 @@
 // Created by tobias on 03.10.2021.
 //
 
-#ifndef MODULES_CONGESTION_CONTROLLER_GOOG_CC_FSE_NG_V2_H
-#define MODULES_CONGESTION_CONTROLLER_GOOG_CC_FSE_NG_V2_H
+#ifndef MODULES_CONGESTION_CONTROLLER_GOOG_CC_FSE_NG_H
+#define MODULES_CONGESTION_CONTROLLER_GOOG_CC_FSE_NG_H
 
 #include <cstdint>
 #include <list>
@@ -25,37 +25,34 @@ namespace webrtc {
 
 class SendSideBandwidthEstimation;
 
-class HybridCwndFlow;
+class PassiveCwndFlow;
 class RateFlow;
 
 #define CR_DEFINE_STATIC_LOCAL(type, name, arguments) \
   static type& name = *new type arguments
-//TODO: rename to ExtendedFseNg
-class FseNgV2 {
+
+class FseNg {
  public:
-  static FseNgV2& Instance();
+  static FseNg& Instance();
 
   void RateUpdate(std::shared_ptr<RateFlow> flow,
-                       DataRate new_rate);
+                       DataRate new_rate,
+                       TimeDelta last_rtt);
 
-  uint32_t CwndFlowUpdate(std::shared_ptr<HybridCwndFlow> flow,
-                       uint32_t new_cwnd,
-                       uint64_t last_rtt);
-
-  std::shared_ptr<HybridCwndFlow> RegisterCwndFlow(
-      uint32_t initial_cwnd,
+  std::shared_ptr<PassiveCwndFlow> RegisterCwndFlow(
       uint32_t initial_max_cwnd, 
-      uint64_t inital_rtt_us,
       std::function<void(uint32_t)> update_callback);
   std::shared_ptr<RateFlow> RegisterRateFlow(
       DataRate initial_rate,
       std::function<void(DataRate)> update_callback);
-  void DeRegisterWindowBasedFlow(std::shared_ptr<HybridCwndFlow> flow);
+  void DeRegisterWindowBasedFlow(std::shared_ptr<PassiveCwndFlow> flow);
   void DeRegisterRateFlow(std::shared_ptr<RateFlow> flow);
 
+  bool UpdateValFinalRate() const;
+
  private:
-  FseNgV2();
-  ~FseNgV2();
+  FseNg();
+  ~FseNg();
 
   // The minimum rtt observed during the session
   TimeDelta base_rtt_;
@@ -63,26 +60,27 @@ class FseNgV2 {
   // An estimate of the bottleneck's capacity
   // calculated by summing SRTP rates
   DataRate sum_calculated_rates_;
-  DataRate cwnd_sum_calculated_rates_;
 
+  uint64_t update_call_num;
   int rate_flow_id_counter_;
   int cwnd_flow_id_counter_;
 
-  std::unordered_set<std::shared_ptr<HybridCwndFlow>> cwnd_flows_;
+  std::unordered_set<std::shared_ptr<PassiveCwndFlow>> cwnd_flows_;
   std::unordered_set<std::shared_ptr<RateFlow>> rate_flows_;
 
   std::mutex fse_mutex_;
 
+  bool update_val_final_rate_;
+
   void OnRateFlowUpdate(
          std::shared_ptr<RateFlow> flow,
          int64_t relative_rate_change_bps,
-         DataRate cc_rate
-         );
+         DataRate cc_rate,
+         TimeDelta last_rtt);
   void UpdateSumCalculatedRates(
           int64_t relative_rate_change_bps, 
           DataRate cc_rate, 
           DataRate prev_fse_rate);
-  void CwndUpdateSumCalculatedRates(DataRate prev_rate, DataRate new_rate);
   //Allocates rate to all the rtp flows, returns the sum og allocated rate
   DataRate UpdateRateFlows(int sum_priorities);
   void UpdateCwndFlows(DataRate sum_cwnd_rates);
@@ -91,19 +89,8 @@ class FseNgV2 {
   int SumPriorities() const;
   int SumRatePriorities() const;
   int SumCwndPriorities() const;
-  void UpdateRttValues(TimeDelta last_rtt);
-  bool UseCwndBasedSumCalculatedRates() const;
-  std::shared_ptr<HybridCwndFlow> CreateAndInsertNewCwndFlow(
-          uint32_t initial_max_cwnd, 
-          DataRate cwnd_as_rate, 
-          std::function<void(uint32_t)> update_callback);
-  std::shared_ptr<RateFlow> CreateAndInsertNewRateFlow(
-          DataRate initial_rate,
-          std::function<void(DataRate)> update_callback);
-
-  void LogFseState() const;
 };
 
 }  // namespace webrtc
 
-#endif  // MODULES_CONGESTION_CONTROLLER_GOOG_CC_FSE_NG_V2_H
+#endif  // MODULES_CONGESTION_CONTROLLER_GOOG_CC_FSE_NG_H
