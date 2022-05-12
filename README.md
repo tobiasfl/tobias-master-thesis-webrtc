@@ -38,20 +38,10 @@ https://cs.chromium.org/chromium/src/third_party/usrsctp/usrsctplib/usrsctplib/n
 You just need to provide some callbacks to implement another CC algorithm. This CC
 algorithm can then be selected by a socket option.
 
-Video Channel: (see bitrate controller for sender-side estimation:)
+Video Channel: 
 
 https://cs.chromium.org/chromium/src/third_party/webrtc/modules/
 
-
-If you want to test in a local testbed and use a stored video file for camera input, you need to start chrome with:
-
-	./out/Debug/chrome --use-fake-device-for-media-stream --use-file-for-fake-video-capture=path/to/file.y4m
-
-You can easily convert yuv, webm, etc. to y4m using:
-
-	avconv -i inputfile.webm outputfile.y4m
-  
- Suggestion: Don't forget to run Chromium in Incognito Mode
  
  some useful URLs:
  
