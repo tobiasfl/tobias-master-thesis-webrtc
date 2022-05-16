@@ -213,7 +213,7 @@ DataRate FseConfig::ResolveDesiredRate(int flow_id) {
     case fse_case_2:
       switch (flow_id) {
         case 0:
-          return DataRate::KilobitsPerSec(2500);
+          return DataRate::KilobitsPerSec(750);
         case 1:
           return DataRate::Infinity();
         default:

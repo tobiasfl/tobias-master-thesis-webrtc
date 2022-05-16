@@ -75,12 +75,11 @@ class FseV2 {
   Clock* clock_;
 
   void UpdateRttValues(TimeDelta last_rtt);
-  void OnFlowUpdated();
   void OnFlowUpdatedSimple();
   int SumPrioritiesAndInitializeRateFlowRates();
   int SumPrioritiesAndInitializeCwndFlowRates();
-  DataRate CalculateRateFlowRatePortion(int rate_priorities, int total_priotities);
   void AllocateToRateFlows(int sum_priorities, DataRate leftover_rate);
+  void AllocateToBothFlows(int sum_priorities, DataRate leftover_rate);
   void AllocateToCwndFlows(int sum_priorities, DataRate sum_cwnd_rates);
   void DistributeToRateFlows(Timestamp at_time, bool update_loss_only);
   void DistributeToCwndFlows(std::shared_ptr<ActiveCwndFlow> update_caller);

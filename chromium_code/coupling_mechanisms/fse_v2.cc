@@ -118,7 +118,7 @@ void FseV2::RateFlowUpdate(std::shared_ptr<GccRateFlow> flow,
   DataRate old_s_cr = sum_calculated_rates_;
   UpdateSumCalculatedRates(flow->FseRate(), new_rate);
 
-  OnFlowUpdated();
+  OnFlowUpdatedSimple();
 
   LogFseState("RATE", old_s_cr);
 
@@ -154,7 +154,7 @@ uint32_t FseV2::CwndFlowUpdate(
   DataRate old_s_cr = sum_calculated_rates_;
   UpdateSumCalculatedRates(flow->FseRate(), new_rate);
 
-  OnFlowUpdated();
+  OnFlowUpdatedSimple();
 
   LogFseState("CWND", old_s_cr);
 
@@ -179,37 +179,11 @@ void FseV2::OnFlowUpdatedSimple() {
   int sum_total_priorities = 
       SumPrioritiesAndInitializeRateFlowRates() + SumPrioritiesAndInitializeCwndFlowRates(); 
 
-  for (const auto& i : rate_flows_) {
-    DataRate rate_flow_rate = (i->Priority() * sum_calculated_rates_) / sum_total_priorities;
-    i->SetFseRate(rate_flow_rate);
-  }
+  AllocateToBothFlows(sum_total_priorities, sum_calculated_rates_);
 
-  for (const auto& i : cwnd_flows_) {
-    DataRate cwnd_flow_rate = (i->Priority() * sum_calculated_rates_) / sum_total_priorities;
-    i->SetFseRate(cwnd_flow_rate);
-  }
- 
   sum_calculated_rates_ = SumAllocatedRates();
 }
 
-void FseV2::OnFlowUpdated() {
-
-  // calculate the sum of all priorities and initialize FSE_R
-  int sum_rate_priorities = SumPrioritiesAndInitializeRateFlowRates();
-  int sum_cwnd_priorities = SumPrioritiesAndInitializeCwndFlowRates();
-  int sum_total_priorities = sum_rate_priorities + sum_cwnd_priorities;
-
-  // Distribute S_CR among all flows, ensuring desired rate is not exceeded
-  DataRate rate_flows_share = CalculateRateFlowRatePortion(sum_rate_priorities, sum_total_priorities);
-
-  AllocateToRateFlows(sum_rate_priorities, rate_flows_share);
-
-  DataRate cwnd_flows_share = sum_calculated_rates_ - rate_flows_share;
-  AllocateToCwndFlows(sum_cwnd_priorities, cwnd_flows_share);
-
-  //Extension to avoid S_CR leftover buildup, make sure S_CR == total allocated rate
-  sum_calculated_rates_ = SumAllocatedRates();
-}
 
 int FseV2::SumPrioritiesAndInitializeRateFlowRates() {
   int sum_rate_priorities = 0;
@@ -229,25 +203,14 @@ int FseV2::SumPrioritiesAndInitializeCwndFlowRates() {
   return sum_cwnd_priorities;
 }
 
-//TODO: this may not be 100% when it comes to sharing of leftover rate
-DataRate FseV2::CalculateRateFlowRatePortion(int rate_priorities, int total_priotities) {
-  DataRate sum_desired_rates = SumDesiredRates();
 
-  DataRate rate_flows_share = sum_calculated_rates_ * rate_priorities / total_priotities; 
- 
-  if (sum_desired_rates < rate_flows_share) {
-    rate_flows_share = sum_desired_rates;
-  }
-  return rate_flows_share;
-}
-
-//TODO: currently does not leave any extra for SCTP flows if all RTP flows are DR limited
-void FseV2::AllocateToRateFlows(int sum_priorities, DataRate leftover_rate) {
+void FseV2::AllocateToBothFlows(int sum_priorities, DataRate leftover_rate) {
   DataRate aggregate_rate = DataRate::Zero();
   // while there is more rate to distribute
   // (we check against 1 because the divison might lead to uneven number)
-  while (leftover_rate - aggregate_rate > DataRate::BitsPerSec(1) 
+  while (leftover_rate - aggregate_rate > DataRate::BitsPerSec(10) 
           && sum_priorities > 0) {
+    RTC_LOG(LS_INFO) << "In loop leftover_rate - aggregate_rate" << (leftover_rate - aggregate_rate).bps();
     aggregate_rate = DataRate::Zero();
     for (const auto& i : rate_flows_) {
 
@@ -268,24 +231,17 @@ void FseV2::AllocateToRateFlows(int sum_priorities, DataRate leftover_rate) {
         }
       }
     }
+
+    for (const auto& i : cwnd_flows_) {
+      // if the current fse rate is less than desired
+      DataRate flow_rate = leftover_rate * i->Priority() / sum_priorities;
+      
+      i->SetFseRate(flow_rate);
+      aggregate_rate += flow_rate;
+    }
   }
 }
 
-void FseV2::AllocateToCwndFlows(int sum_priorities, DataRate sum_cwnd_rates) {
-  for (const auto& i : cwnd_flows_) {
-    DataRate cwnd_flow_rate = (i->Priority() * sum_cwnd_rates) / sum_priorities;
-    i->SetFseRate(cwnd_flow_rate);
-  }
-}
-
-
-DataRate FseV2::SumDesiredRates() {
-  DataRate total_desired_rate = DataRate::Zero();
-  for (const auto& i : rate_flows_) {
-    total_desired_rate += i->DesiredRate();
-  }
-  return total_desired_rate;
-}
 
 DataRate FseV2::SumAllocatedRates() {
   DataRate total_alllocated_rate = DataRate::Zero();
